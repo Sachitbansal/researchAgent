@@ -54,6 +54,8 @@ confirm the failure returns an error dict rather than raising.
 - figure/table image extraction, filtered by minimum dimensions
 - caption extraction (regex on `Figure N:` / `Table N:` near the image)
 - vision-LLM description, cached by `image_hash`
+- within-paper chunk dedup on `content_hash`, then `position` assigned — in that
+  order, so `position` is dense. Never dedup across papers (`docs/DATA_SCHEMA.md` §2)
 - chunk records assembled per `docs/DATA_SCHEMA.md` §2
 
 **Gate:** run over the 3 papers from M1. Print 5 random chunks and eyeball that the
@@ -65,7 +67,8 @@ contiguous. Re-run and confirm zero vision calls (cache hit).
 
 ## M3 — Index
 
-- bi-encoder embedding of all chunks
+- bi-encoder embedding of all chunks, reusing `data/cache/embeddings.json` on a
+  `content_hash` hit so shared text across papers costs one embed, not two
 - FAISS flat index
 - `faiss_id_map` and `embeddings.npy` written in lockstep with the index
 - incremental append path — new chunks only, never rebuild

@@ -125,6 +125,7 @@ class Paths:
 
         # caches, all keyed by content hash rather than by path
         self.figures = self.cache / "figures"
+        self.embedding_cache = self.cache / "embeddings.json"
         self.descriptions = self.cache / "descriptions.json"
         self.arxiv_queries = self.cache / "arxiv_queries.json"
         self.clusters = self.cache / "clusters.json"

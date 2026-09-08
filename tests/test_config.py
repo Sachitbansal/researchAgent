@@ -66,10 +66,18 @@ def test_paths_are_absolute_and_match_the_data_schema():
     assert paths.chunks == REPO_ROOT / "data/index/chunks.jsonl"
     assert paths.embeddings == REPO_ROOT / "data/index/embeddings.npy"
     assert paths.faiss_index == REPO_ROOT / "data/index/faiss.index"
+    assert paths.embedding_cache == REPO_ROOT / "data/cache/embeddings.json"
     assert paths.descriptions == REPO_ROOT / "data/cache/descriptions.json"
     assert paths.arxiv_queries == REPO_ROOT / "data/cache/arxiv_queries.json"
     assert paths.clusters == REPO_ROOT / "data/cache/clusters.json"
     assert all(path.is_absolute() for path in paths.directories())
+
+
+def test_embedding_cache_is_separate_from_the_index_vectors():
+    """data/cache/embeddings.json is a content-hash cache; embeddings.npy is the index."""
+    assert CFG.paths.embedding_cache != CFG.paths.embeddings
+    assert CFG.paths.embedding_cache.parent == CFG.paths.cache
+    assert CFG.paths.embeddings.parent == CFG.paths.index
 
 
 def test_derived_paths():
