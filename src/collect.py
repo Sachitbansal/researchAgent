@@ -1,0 +1,193 @@
+"""
+Fetches papers from arXiv and records them: the fetch half of `search_literature`.
+
+In:  a natural-language topic, a topic_tag, and caps (max_results, categories).
+Out: {"papers_added", "papers_skipped", "papers_tagged", "topic_tag", "arxiv_query", ...}
+     or an error dict. Never raises, and never indexes — chunking is M2's job.
+"""
+
+from __future__ import annotations
+
+import re
+from typing import Any, Dict, List, Optional, Sequence
+
+import arxiv
+
+from arxiv_query import apply_categories, plan_query
+from chunk_store import ChunkStore
+from config import CFG, Config
+from llm_client import LLMClient
+from manifest import Manifest, ManifestError
+from records import RecordError, normalise_paper_id, paper_record
+
+_SORT_CRITERIA = {
+    "relevance": arxiv.SortCriterion.Relevance,
+    "submitted": arxiv.SortCriterion.SubmittedDate,
+    "updated": arxiv.SortCriterion.LastUpdatedDate,
+}
+
+
+def slugify_topic(topic: str) -> str:
+    """'Graph Neural Networks!' -> 'graph_neural_networks'. Used as the default tag."""
+    slug = re.sub(r"[^a-z0-9]+", "_", (topic or "").strip().lower()).strip("_")
+    return slug[:60] or "untagged"
+
+
+def _error(code: str, detail: str, partial: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    return {"error": code, "detail": detail, "partial": partial}
+
+
+def _build_client(config: Config) -> arxiv.Client:
+    """arXiv client with the delay and retry policy from config, not library defaults."""
+    return arxiv.Client(
+        page_size=100,
+        delay_seconds=float(config.collection.request_delay_s),
+        num_retries=int(config.collection.max_retries),
+    )
+
+
+def _to_paper_record(result: Any, pdf_path: str, topic_tag: str) -> Dict[str, Any]:
+    """One arxiv.Result -> a paper record. Kept separate so it is testable with a stub."""
+    published = getattr(result, "published", None)
+    return paper_record(
+        arxiv_id=result.get_short_id(),
+        title=result.title or "",
+        authors=[getattr(a, "name", str(a)) for a in (result.authors or [])],
+        abstract=result.summary or "",
+        published=published.isoformat() if published is not None else "",
+        year=published.year if published is not None else 0,
+        categories=list(result.categories or []),
+        pdf_url=result.pdf_url or "",
+        pdf_path=pdf_path,
+        topic_tags=[topic_tag],
+        parse_status="ok",
+    )
+
+
+def search_and_fetch(
+    topic: str,
+    topic_tag: Optional[str] = None,
+    max_results: Optional[int] = None,
+    categories: Optional[Sequence[str]] = None,
+    config: Config = CFG,
+    llm: Optional[LLMClient] = None,
+    download: bool = True,
+) -> Dict[str, Any]:
+    """Plan a query, search arXiv, dedup against the manifest, and download new PDFs.
+
+    Papers already in the manifest are not re-downloaded; they gain `topic_tag` on
+    both their paper record and every chunk record they already produced.
+    """
+    topic = (topic or "").strip()
+    if not topic:
+        return _error("empty_topic", "a non-empty topic is required")
+
+    tag = (topic_tag or slugify_topic(topic)).strip()
+    config.paths.ensure()
+
+    try:
+        manifest = Manifest.load(config)
+    except ManifestError as exc:
+        return _error("manifest_model_mismatch", str(exc))
+
+    cap = int(config.collection.max_papers_per_topic)
+    requested = int(max_results if max_results is not None else config.collection.max_results_default)
+    limit = max(1, min(requested, cap))
+    already = len(manifest.papers_for_topic(tag))
+    if already >= cap:
+        return _error(
+            "topic_cap_reached",
+            f"topic '{tag}' already holds {already} papers, at the cap of {cap}",
+            partial={"topic_tag": tag, "papers_skipped": already},
+        )
+
+    plan = plan_query(topic, client=llm, config=config)
+    # Only the caller's explicit categories are applied here. The planner's own
+    # suggestions are already folded into plan["query"] before it is cached, so applying
+    # them again would build "((q) AND cat) AND cat" on a cache miss and "(q) AND cat" on
+    # a hit. Those are logically equivalent but arXiv scores the two strings differently
+    # and returns a different ordering, which silently defeats dedup on the second run.
+    query = apply_categories(plan["query"], categories)
+    if not query:
+        return _error("query_planning_failed", plan.get("error") or "no query could be built")
+
+    sort_by = _SORT_CRITERIA.get(str(config.collection.sort_by).lower(), arxiv.SortCriterion.Relevance)
+    search = arxiv.Search(query=query, max_results=limit, sort_by=sort_by)
+
+    try:
+        results = list(_build_client(config).results(search))
+    except (arxiv.ArxivError, arxiv.HTTPError, arxiv.UnexpectedEmptyPageError) as exc:
+        return _error("arxiv_unavailable", f"arXiv search failed: {exc}", partial={"arxiv_query": query})
+    except Exception as exc:  # network stack, DNS, TLS — anything urllib raises underneath
+        return _error("arxiv_unavailable", f"arXiv search failed: {exc}", partial={"arxiv_query": query})
+
+    if not results:
+        return _error(
+            "no_results",
+            f"arXiv returned nothing for {query!r}",
+            partial={"arxiv_query": query, "topic_tag": tag},
+        )
+
+    store = ChunkStore(config=config)
+    added: List[Dict[str, Any]] = []
+    tagged: List[str] = []
+    skipped: List[str] = []
+    failures: List[Dict[str, str]] = []
+    touched: List[str] = []
+
+    for result in results:
+        paper_id = normalise_paper_id(result.get_short_id())
+
+        if manifest.has_paper(paper_id):
+            touched.append(paper_id)
+            skipped.append(paper_id)
+            # Dedup hit: the paper stays, but the new tag must reach the paper record
+            # AND its chunk records, or topic_filter silently misses it.
+            if manifest.tag_paper(paper_id, tag):
+                store.add_topic_tag_to_paper(paper_id, tag)
+                tagged.append(paper_id)
+            continue
+
+        pdf_path = config.paths.paper_pdf(paper_id)
+        if download and not pdf_path.is_file():
+            try:
+                result.download_pdf(dirpath=str(config.paths.papers), filename=pdf_path.name)
+            except Exception as exc:
+                failures.append({"paper_id": paper_id, "detail": f"pdf download failed: {exc}"})
+                continue
+
+        try:
+            record = _to_paper_record(result, str(pdf_path), tag)
+        except RecordError as exc:
+            failures.append({"paper_id": paper_id, "detail": f"bad record: {exc}"})
+            continue
+
+        manifest.add_paper(record)
+        # Only now is the paper really part of the topic. Recording it before the
+        # download and record build could succeed left phantom ids in topics.paper_ids,
+        # which then counted against max_papers_per_topic.
+        touched.append(paper_id)
+        added.append(
+            {
+                "arxiv_id": record["arxiv_id"],
+                "paper_id": record["paper_id"],
+                "title": record["title"],
+                "year": record["year"],
+                "abstract_snippet": record["abstract"][:200],
+            }
+        )
+
+    manifest.record_topic(tag, topic, query, touched)
+    manifest.save()
+
+    return {
+        "papers_added": added,
+        "papers_skipped": len(skipped),
+        "papers_tagged": len(tagged),
+        "topic_tag": tag,
+        "arxiv_query": query,
+        "query_was_cached": plan.get("cached", False),
+        "query_was_fallback": plan.get("fallback", False),
+        "total_indexed": len(manifest.papers),
+        "failures": failures,
+    }

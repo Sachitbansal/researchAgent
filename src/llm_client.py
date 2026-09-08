@@ -30,6 +30,26 @@ ImageSource = Union[str, Path, bytes]
 RETRYABLE_STATUS = frozenset({408, 409, 429, 500, 502, 503, 504})
 DEFAULT_IMAGE_MIME = "image/png"
 
+# Capacity and rate-limit failures arrive inside an HTTP 200 body as often as they do
+# as a status code — free endpoints in particular answer 200 with
+# "ResourceExhausted: Worker local total request limit reached". These are transient and
+# must be retried; a permanent error (bad model id, malformed request) must not be.
+TRANSIENT_BODY_MARKERS = (
+    "resourceexhausted",
+    "resource exhausted",
+    "rate limit",
+    "rate-limit",
+    "ratelimit",
+    "too many requests",
+    "overloaded",
+    "temporarily unavailable",
+    "capacity",
+    "try again",
+    "timeout",
+    "timed out",
+    "request limit reached",
+)
+
 
 class LLMError(RuntimeError):
     """A provider call failed. `code` is machine-ish, `detail` is safe to show the model.
@@ -38,11 +58,14 @@ class LLMError(RuntimeError):
     {"error": code, "detail": detail} so the agent loop degrades instead of crashing.
     """
 
-    def __init__(self, code: str, detail: str, status: Optional[int] = None) -> None:
+    def __init__(
+        self, code: str, detail: str, status: Optional[int] = None, retryable: bool = False
+    ) -> None:
         super().__init__(f"{code}: {detail}")
         self.code = code
         self.detail = detail
         self.status = status
+        self.retryable = retryable
 
 
 @dataclass(frozen=True)
@@ -157,8 +180,15 @@ class LLMClient:
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
         response_format: Optional[Dict[str, Any]] = None,
+        timeout: Optional[float] = None,
+        max_retries: Optional[int] = None,
     ) -> LLMResponse:
-        """One chat completion, optionally offering `tools` for the model to call."""
+        """One chat completion, optionally offering `tools` for the model to call.
+
+        `timeout` and `max_retries` override the config for this call. Short, retryable
+        tasks should shorten both: transport retries multiply with any retry loop the
+        caller runs on top, and the product is the real worst-case latency.
+        """
         payload: Dict[str, Any] = {
             "model": model or self.model_for(role),
             "messages": [copy.deepcopy(message) for message in messages],
@@ -173,7 +203,7 @@ class LLMClient:
         if response_format is not None:
             payload["response_format"] = response_format
 
-        return _parse_response(self._post(payload))
+        return _parse_response(self._post(payload, timeout=timeout, max_retries=max_retries))
 
     def complete_vision(
         self,
@@ -192,19 +222,25 @@ class LLMClient:
             "X-Title": self._config.app_name,
         }
 
-    def _post(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    def _post(
+        self,
+        payload: Dict[str, Any],
+        timeout: Optional[float] = None,
+        max_retries: Optional[int] = None,
+    ) -> Dict[str, Any]:
         """POST to /chat/completions, retrying transient failures with backoff."""
         url = f"{str(self._config.llm.base_url).rstrip('/')}/chat/completions"
         headers = self._headers()
-        attempts = max(1, int(self._config.llm.max_retries))
+        attempts = max(1, int(self._config.llm.max_retries if max_retries is None else max_retries))
         base_delay = float(self._config.llm.retry_base_delay_s)
+        request_timeout = float(self._config.llm.timeout_s if timeout is None else timeout)
         last_error: Optional[LLMError] = None
 
         for attempt in range(attempts):
             retry_after: Optional[str] = None
             try:
                 response = self._session.post(
-                    url, headers=headers, json=payload, timeout=float(self._config.llm.timeout_s)
+                    url, headers=headers, json=payload, timeout=request_timeout
                 )
             except requests.Timeout as exc:
                 last_error = LLMError("llm_timeout", f"request timed out: {exc}")
@@ -222,7 +258,12 @@ class LLMClient:
                         "llm_request_rejected", _body_snippet(response), response.status_code
                     )
                 else:
-                    return _decode_body(response)
+                    try:
+                        return _decode_body(response)
+                    except LLMError as exc:
+                        if not exc.retryable:
+                            raise
+                        last_error = exc
 
             if attempt < attempts - 1:
                 time.sleep(_backoff_delay(base_delay, attempt, retry_after))
@@ -257,8 +298,10 @@ def _decode_body(response: Any) -> Dict[str, Any]:
 
     error = body.get("error")
     if error:
-        detail = error.get("message") if isinstance(error, dict) else str(error)
-        raise LLMError("llm_provider_error", str(detail))
+        detail = str(error.get("message") if isinstance(error, dict) else error)
+        lowered = detail.lower()
+        transient = any(marker in lowered for marker in TRANSIENT_BODY_MARKERS)
+        raise LLMError("llm_provider_error", detail, retryable=transient)
 
     return body
 

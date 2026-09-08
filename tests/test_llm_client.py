@@ -177,6 +177,28 @@ def test_error_inside_http_200_is_surfaced():
     assert excinfo.value.code == "llm_provider_error"
 
 
+def test_transient_error_inside_http_200_is_retried(monkeypatch):
+    """Free endpoints answer 200 with a capacity error. That is transient, not fatal."""
+    monkeypatch.setattr("llm_client.time.sleep", lambda _seconds: None)
+    exhausted = {"error": {"message": "Upstream error from Nvidia: ResourceExhausted: "
+                                      "Worker local total request limit reached (16/16)"}}
+    client, session = _client(
+        FakeResponse(200, exhausted),
+        FakeResponse(200, _text_payload("recovered")),
+    )
+    assert client.complete([{"role": "user", "content": "x"}]).text == "recovered"
+    assert len(session.calls) == 2
+
+
+def test_permanent_error_inside_http_200_is_not_retried():
+    client, session = _client(FakeResponse(200, {"error": {"message": "model not found"}}))
+    with pytest.raises(LLMError) as excinfo:
+        client.complete([{"role": "user", "content": "x"}])
+    assert excinfo.value.code == "llm_provider_error"
+    assert excinfo.value.retryable is False
+    assert len(session.calls) == 1, "a permanent error must not burn the retry budget"
+
+
 def test_empty_choices_is_an_error():
     client, _ = _client(FakeResponse(200, {"choices": []}))
     with pytest.raises(LLMError) as excinfo:

@@ -16,9 +16,21 @@ llm:
   # to the agent's own conversation on a follow-up user turn (ARCHITECTURE section 9),
   # so a text-only model breaks that path. It is pinned to one model, not the router,
   # because tool-selection behaviour is what the eval measures.
-  agent_model: dots-studio/dots-3-note-preview:free # tools + vision verified, 512k ctx
-  vision_model: openrouter/free                     # figure/table description at index time
-  utility_model: openrouter/free                    # arxiv query planning, claim extraction
+  # Roles are pinned to specific models, never to openrouter/free. That router picks a
+  # free model at random per request and its pool includes
+  # nvidia/nemotron-3.5-content-safety, a moderation classifier that answers
+  # "User Safety: safe" to every prompt. Planning catches that (the reply will not parse
+  # and it retries), but figure description has no parse step, so a bad description would
+  # be silently embedded and indexed as if it were real.
+  #
+  # Measured over 3 reps each, on the two tasks these roles actually run:
+  #   dots-studio/dots-3-note-preview   vision 3/3  8.9s | json 3/3 78.4s
+  #   nvidia/nemotron-3-nano-omni       vision 2/3  7.1s | json 3/3  9.4s
+  #   google/gemma-4-31b-it             vision 0/3  0.4s | json 0/3  0.4s  (rate limited)
+  #   google/gemma-4-26b-a4b-it         vision 0/3  0.4s | json 0/3  0.4s  (rate limited)
+  agent_model: dots-studio/dots-3-note-preview:free   # tools + vision verified, 512k ctx
+  vision_model: dots-studio/dots-3-note-preview:free  # most reliable reader of a chart
+  utility_model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free  # 8x faster on JSON
   #
   # Rejected for the agent role, recorded so they are not retried:
   #   thinkingmachines/inkling-small:free, thinkingmachines/inkling:free
@@ -35,6 +47,17 @@ llm:
   timeout_s: 60
   max_retries: 3
   retry_base_delay_s: 1.0   # exponential backoff base; Retry-After wins when the server sends one
+  planning_timeout_s: 25    # Per-attempt timeout for short JSON-returning calls. Kept well
+                            # below timeout_s: planning_retries multiplies with the transport
+                            # retries inside the client, and the product is the real worst case.
+  planning_budget_s: 75     # Hard wall-clock ceiling across all planning attempts for one
+                            # topic. Without it, 3 planning retries x 3 transport retries x a
+                            # 60s timeout is a nine-minute stall on a queued free model.
+  planning_retries: 3       # Retries for calls that must return parseable JSON. Needed because
+                            # openrouter/free routes at random and its pool includes
+                            # nvidia/nemotron-3.5-content-safety, a moderation classifier that
+                            # answers "User Safety: safe" to every prompt. A retry re-rolls the
+                            # model. Pin a single model to make this unnecessary.
   temperature: 0.0          # eval runs need to be reproducible; raise only to study variance
 
 collection:
