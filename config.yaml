@@ -8,9 +8,30 @@ llm:
   provider: openrouter
   base_url: https://openrouter.ai/api/v1
   # Model per role. Cheap/fast where volume is high, stronger where reasoning matters.
-  agent_model: anthropic/claude-sonnet-5        # the tool-calling loop — needs reliable function calling
-  vision_model: google/gemini-2.5-flash-lite    # figure/table description at index time — high volume
-  utility_model: openai/gpt-5-nano              # arxiv query planning, claim extraction — small tasks
+  #
+  # TESTING TIER — zero-cost, in use now. All three verified on OpenRouter as
+  # tools=true and image-capable. Swap to the production tier below once behaviour
+  # is settled; nothing else in the codebase changes.
+  # agent_model must accept IMAGES as well as tools: inspect_figure attaches the figure
+  # to the agent's own conversation on a follow-up user turn (ARCHITECTURE section 9),
+  # so a text-only model breaks that path. It is pinned to one model, not the router,
+  # because tool-selection behaviour is what the eval measures.
+  agent_model: dots-studio/dots-3-note-preview:free # tools + vision verified, 512k ctx
+  vision_model: openrouter/free                     # figure/table description at index time
+  utility_model: openrouter/free                    # arxiv query planning, claim extraction
+  #
+  # Rejected for the agent role, recorded so they are not retried:
+  #   thinkingmachines/inkling-small:free, thinkingmachines/inkling:free
+  #     -> HTTP 403, "only available on agentic harnesses"; unusable from our own loop
+  #   nvidia/nemotron-3-super-120b-a12b:free, nvidia/nemotron-3.5-lightning:free
+  #     -> tool calls fine but text-only, so inspect_figure cannot work
+  #
+  # PRODUCTION TIER — uncomment to switch. Do this before M8: openrouter/free is a
+  # router that picks a free model *at random per request*, so it cannot give the
+  # reproducible runs the eval harness needs (see temperature below).
+  # agent_model: google/gemini-3.8-flash
+  # vision_model: google/gemini-3.8-flash
+  # utility_model: google/gemini-3.8-flash
   timeout_s: 60
   max_retries: 3
   retry_base_delay_s: 1.0   # exponential backoff base; Retry-After wins when the server sends one
