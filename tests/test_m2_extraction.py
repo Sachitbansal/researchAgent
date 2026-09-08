@@ -9,17 +9,17 @@ Out: assertions on token budgets, hyphen repair, heading rules, caption matching
 import fitz
 import pytest
 
-import describe as describe_module
-import figures as figures_module
-from chunker import Chunker, _join_lines, hyphenated_vocabulary
-from chunk_store import ChunkStore
+from extraction import describe as describe_module
+from extraction import figures as figures_module
+from extraction.chunker import Chunker, _join_lines, hyphenated_vocabulary
+from corpus.chunk_store import ChunkStore
 from config import load_config
-from describe import DescriptionCache, describe_figure, figure_chunk_text
-from ingest import _dedupe_within_paper, _ordered, ingest_paper
-from manifest import Manifest
-from pdf_text import body_font_size, detect_heading, extract_pages
-from records import paper_record
-from tokenization import TokenCounter, split_sentences
+from extraction.describe import DescriptionCache, describe_figure, figure_chunk_text
+from extraction.ingest import _dedupe_within_paper, _ordered, ingest_paper
+from corpus.manifest import Manifest
+from extraction.pdf_text import body_font_size, detect_heading, extract_pages
+from common.records import paper_record
+from common.tokenization import TokenCounter, split_sentences
 
 
 @pytest.fixture()

@@ -13,8 +13,8 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 
 from config import CFG, Config
-from records import content_hash
-from storage import read_json, write_json_atomic
+from common.records import content_hash
+from common.storage import read_json, write_json_atomic
 
 
 class EmbeddingError(RuntimeError):

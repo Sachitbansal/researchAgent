@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from config import CFG, Config
 from llm_client import LLMClient, LLMError
-from storage import read_json, write_json_atomic
+from common.storage import read_json, write_json_atomic
 
 # The model is told to emit this when the image is not a readable figure.
 UNREADABLE = "UNREADABLE"

@@ -13,12 +13,12 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import arxiv
 
-from arxiv_query import apply_categories, plan_query
-from chunk_store import ChunkStore
+from corpus.arxiv_query import apply_categories, plan_query
+from corpus.chunk_store import ChunkStore
 from config import CFG, Config
 from llm_client import LLMClient
-from manifest import Manifest, ManifestError
-from records import RecordError, normalise_paper_id, paper_record
+from corpus.manifest import Manifest, ManifestError
+from common.records import RecordError, normalise_paper_id, paper_record
 
 _SORT_CRITERIA = {
     "relevance": arxiv.SortCriterion.Relevance,

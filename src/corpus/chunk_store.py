@@ -12,8 +12,8 @@ from pathlib import Path
 from typing import Any, Callable, Dict, Iterator, List, Optional, Sequence
 
 from config import CFG, Config
-from records import add_topic_tag
-from storage import append_jsonl, read_jsonl, write_jsonl_atomic
+from common.records import add_topic_tag
+from common.storage import append_jsonl, read_jsonl, write_jsonl_atomic
 
 
 class ChunkStore:

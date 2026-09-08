@@ -12,7 +12,7 @@ import re
 from typing import Any, Dict, Iterable, List, Optional
 
 from config import CFG, Config
-from tokenization import TokenCounter, split_sentences
+from common.tokenization import TokenCounter, split_sentences
 
 # A line ending mid-word, hyphenated across a line break: "represen-" + "tation".
 _HYPHEN_BREAK = re.compile(r"(\w)-$")

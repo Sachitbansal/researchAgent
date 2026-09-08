@@ -20,13 +20,13 @@ sys.path.insert(0, str(ROOT / "src"))
 
 import numpy as np  # noqa: E402
 
-import collect  # noqa: E402
-from chunk_store import ChunkStore  # noqa: E402
+from corpus import collect  # noqa: E402
+from corpus.chunk_store import ChunkStore  # noqa: E402
 from config import CFG  # noqa: E402
-from indexer import index_chunks  # noqa: E402
-from ingest import ingest_paper  # noqa: E402
-from manifest import Manifest  # noqa: E402
-from vector_index import VectorIndex  # noqa: E402
+from retrieval.indexer import index_chunks  # noqa: E402
+from extraction.ingest import ingest_paper  # noqa: E402
+from corpus.manifest import Manifest  # noqa: E402
+from retrieval.vector_index import VectorIndex  # noqa: E402
 
 QUERY = "how are experts selected for each token by the routing network"
 NEW_TOPIC = "vision transformer patch embedding design"
@@ -54,7 +54,7 @@ RESTART_PROBE = """
 import json, sys
 sys.path.insert(0, {src!r})
 from config import CFG
-from indexer import search
+from retrieval.indexer import search
 hits = search({query!r}, k=5)
 print("__RESULT__" + json.dumps([
     {{"chunk_id": h["chunk_id"], "paper_id": h["paper_id"], "score": round(h["score"], 4),
@@ -170,7 +170,7 @@ def main() -> int:
     live.data["embedding_model"] = "some/other-model"
     live.save()
     try:
-        from indexer import model_changed
+        from retrieval.indexer import model_changed
         check("a changed embedding model is detected", model_changed(live, CFG),
               "appending vectors from a different model would corrupt retrieval silently")
     finally:

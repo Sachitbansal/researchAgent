@@ -12,11 +12,11 @@ from typing import Any, Dict, List, Optional
 
 import numpy as np
 
-from chunk_store import ChunkStore
+from corpus.chunk_store import ChunkStore
 from config import CFG, Config
-from embedder import Embedder, EmbeddingCache, EmbeddingError
-from manifest import Manifest, ManifestError
-from vector_index import IndexError_, VectorIndex
+from retrieval.embedder import Embedder, EmbeddingCache, EmbeddingError
+from corpus.manifest import Manifest, ManifestError
+from retrieval.vector_index import IndexError_, VectorIndex
 
 
 def model_changed(manifest: Manifest, config: Config = CFG) -> bool:

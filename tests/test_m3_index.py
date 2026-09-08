@@ -10,11 +10,11 @@ import numpy as np
 import pytest
 
 from config import load_config
-from embedder import Embedder, EmbeddingCache
-from indexer import index_chunks, model_changed
-from manifest import Manifest
-from records import chunk_record, content_hash, paper_record
-from vector_index import IndexError_, VectorIndex
+from retrieval.embedder import Embedder, EmbeddingCache
+from retrieval.indexer import index_chunks, model_changed
+from corpus.manifest import Manifest
+from common.records import chunk_record, content_hash, paper_record
+from retrieval.vector_index import IndexError_, VectorIndex
 
 
 @pytest.fixture()
@@ -47,7 +47,7 @@ class StubEmbedder(Embedder):
 
 
 def seed_chunks(cfg, paper_id="p1", n=4, tag="alpha"):
-    from chunk_store import ChunkStore
+    from corpus.chunk_store import ChunkStore
 
     manifest = Manifest.load(cfg)
     if not manifest.has_paper(paper_id):
@@ -210,7 +210,7 @@ def test_changed_embedding_model_forces_a_rebuild(cfg):
 
     # A strict load is what refuses a mismatched manifest outright; index_chunks loads
     # non-strict precisely so it can rebuild instead of dying.
-    from manifest import ManifestError
+    from corpus.manifest import ManifestError
 
     with pytest.raises(ManifestError, match="must be rebuilt"):
         Manifest.load(cfg)

@@ -9,13 +9,13 @@ from datetime import datetime, timezone
 
 import pytest
 
-import arxiv_query
-import collect
-import records
-from chunk_store import ChunkStore
+from corpus import arxiv_query
+from corpus import collect
+from common import records
+from corpus.chunk_store import ChunkStore
 from config import load_config
-from manifest import Manifest, ManifestError
-from records import RecordError, chunk_record, paper_record
+from corpus.manifest import Manifest, ManifestError
+from common.records import RecordError, chunk_record, paper_record
 
 
 # --------------------------------------------------------------------------- fixtures

@@ -15,8 +15,8 @@ from typing import Any, Dict, List, Optional, Sequence
 
 from config import CFG, Config
 from llm_client import LLMClient, LLMError
-from records import topic_hash
-from storage import read_json, write_json_atomic
+from common.records import topic_hash
+from common.storage import read_json, write_json_atomic
 
 _JSON_BLOCK = re.compile(r"\{.*\}", re.DOTALL)
 # Words that add nothing to a search and cost an AND term if kept.

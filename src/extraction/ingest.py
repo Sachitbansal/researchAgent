@@ -10,16 +10,16 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional, Tuple
 
-from chunk_store import ChunkStore
-from chunker import Chunker
+from corpus.chunk_store import ChunkStore
+from extraction.chunker import Chunker
 from config import CFG, Config
-from describe import describe_all, figure_chunk_text
-from figures import extract_figures
+from extraction.describe import describe_all, figure_chunk_text
+from extraction.figures import extract_figures
 from llm_client import LLMClient
-from manifest import Manifest
-from pdf_text import extract_pages
-from records import RecordError, chunk_record, content_hash, utc_now
-from tokenization import TokenCounter
+from corpus.manifest import Manifest
+from extraction.pdf_text import extract_pages
+from common.records import RecordError, chunk_record, content_hash, utc_now
+from common.tokenization import TokenCounter
 
 
 def _ordered(

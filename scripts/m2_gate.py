@@ -17,11 +17,11 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from chunk_store import ChunkStore  # noqa: E402
+from corpus.chunk_store import ChunkStore  # noqa: E402
 from config import CFG  # noqa: E402
-from describe import DescriptionCache  # noqa: E402
-from ingest import ingest_all  # noqa: E402
-from manifest import Manifest  # noqa: E402
+from extraction.describe import DescriptionCache  # noqa: E402
+from extraction.ingest import ingest_all  # noqa: E402
+from corpus.manifest import Manifest  # noqa: E402
 
 failures: List[str] = []
 _started = time.monotonic()

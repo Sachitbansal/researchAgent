@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import fitz  # PyMuPDF
 
 from config import CFG, Config
-from records import figure_id as make_figure_id
+from common.records import figure_id as make_figure_id
 
 # "Figure 3:", "Fig. 3.", "Table 2 —" — the label that opens a caption.
 #

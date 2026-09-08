@@ -15,7 +15,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import numpy as np
 
 from config import CFG, Config
-from manifest import Manifest
+from corpus.manifest import Manifest
 
 
 class IndexError_(RuntimeError):

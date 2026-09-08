@@ -16,11 +16,11 @@ from typing import Any, Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-import collect  # noqa: E402
-from chunk_store import ChunkStore  # noqa: E402
+from corpus import collect  # noqa: E402
+from corpus.chunk_store import ChunkStore  # noqa: E402
 from config import CFG  # noqa: E402
-from manifest import Manifest  # noqa: E402
-from records import chunk_record  # noqa: E402
+from corpus.manifest import Manifest  # noqa: E402
+from common.records import chunk_record  # noqa: E402
 
 TOPIC_A = "sparse mixture-of-experts routing in transformers"
 # The backfill check re-runs TOPIC_A under a second tag rather than picking a different
