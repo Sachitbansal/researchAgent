@@ -1,0 +1,339 @@
+# Architecture & Design Choices
+
+## 1. What this system is
+
+A topic-agnostic agentic research assistant over scientific papers. Given a natural
+language question, it decides for itself whether it needs to fetch new literature,
+retrieve evidence from what it already has, look at a figure, check evidence for
+contradictions, or compute statistics over the corpus — and then answers with
+inline, traceable citations.
+
+**Core design commitment:** the agent is not a fixed pipeline. Tools are exposed
+with clear boundaries and the model chooses the sequence. A question that needs no
+new papers should never trigger a fetch; a question with weak evidence should
+trigger either a re-query or an explicit abstention.
+
+## 2. On the choice of topic
+
+The task statement allows any scientific topic. We deliberately do **not** hardcode
+one into the system.
+
+A fixed-topic system collapses into a plain RAG pipeline: the paper set is frozen,
+`search_literature` is never called, and the "agent decides which tools to use"
+requirement becomes vacuous. So:
+
+- **The agent is topic-agnostic.** Any topic can be given at runtime; it fetches,
+  indexes, and answers.
+- **Two contrasting topics are used for evaluation only**, to give the eval harness a
+  stable, known corpus against which gold evidence can be labelled.
+
+The two eval topics are chosen to be *adjacent but distinct* — they share surface
+vocabulary but have separate claims and methods. Trivially disjoint topics (e.g.
+astrophysics vs. cooking chemistry) would make retrieval look good for the wrong
+reason.
+
+Both topics live in **one index**, tagged with `topic_tag`, rather than in two
+separate stores. A mixed pool is a more honest test of retrieval: cross-topic
+distractors are present by construction, which is what a real index looks like.
+
+A **cold-start demo** is included: a topic never seen before is given, and the agent
+runs fetch → index → answer end to end. This is the evidence that the topic choice
+is an evaluation artefact, not an architectural one.
+
+## 3. Pipeline
+
+```
+user question
+      |
+      v
+  agent loop  <---------------------------------+
+      |  (model picks tools, max N iterations)   |
+      +--> search_literature      arXiv -> PDF -> index
+      +--> retrieve_evidence      bi-encoder -> rerank -> gate -> expand
+      +--> inspect_figure         raw image to a vision model
+      +--> check_evidence_consistency   NLI: contradiction / groundedness
+      +--> analyze_corpus         pandas + KMeans over metadata
+      |                                          |
+      +------------------------------------------+
+      |
+      v
+  answer with inline per-claim citations
+```
+
+## 4. Collection
+
+**Source: arXiv only.** Open access, no auth, PDFs directly downloadable, clean
+metadata, strong CS/ML/physics coverage. IEEE / Elsevier / Springer are paywalled —
+their APIs need institutional subscriptions and do not allow programmatic full-text
+download, so they were ruled out rather than half-implemented.
+
+**LLM-planned queries.** The user's natural language topic is not passed to arXiv
+verbatim. A small LLM call translates intent into arXiv query syntax (field prefixes,
+boolean operators, category filters). This is what makes collection "automated as
+much as possible" rather than "the user must know arXiv query syntax".
+
+Parameters: `query`, `max_results` (default 8), `categories` (optional),
+`sort_by` (relevance default).
+
+**Deduplication and caching, kept separate:**
+
+| Level | Key | Effect | Kind |
+|---|---|---|---|
+| Paper | `arxiv_id` in manifest | skips download and processing | dedup — the record is never created twice |
+| Chunk, within one paper | `sha256(text)` | drops that paper's repeated chunk | dedup |
+| Chunk, across papers | `sha256(text)` | reuses the cached vector | **cache only** — both chunk records survive |
+| Figure | `sha256(image bytes)` | reuses the generated description | cache only |
+
+The chunk row is split deliberately. Two papers sharing a paragraph is a fact about
+the corpus, not a duplicate to be cleaned up: dropping the second copy deletes content
+from that paper's reading order and breaks the `position ± 1` chain that neighbour
+expansion walks — silently, and unrecoverably at query time. So across papers the hash
+buys a cheaper embedding and nothing else, and `position` is assigned after dedup so it
+stays dense by construction.
+
+Caches are **content-hash keyed, not path keyed**, so the same paper arriving via a
+second topic costs nothing.
+
+## 5. Processing & indexing
+
+**Text.** PyMuPDF for extraction (good layout handling, and it also exposes embedded
+images from the same parse). Chunking is section-aware where section headers are
+detectable, falling back to fixed-size with overlap.
+
+Chunk size is bounded by **the tighter of two model limits, checked separately**:
+
+| Stage | Limit | What truncation costs |
+|---|---|---|
+| Bi-encoder (embed) | model `max_seq_length` | The tail is never embedded, so it is unfindable at any `k`. Silent and unrecoverable. |
+| Cross-encoder (rerank) | 512 shared by `[CLS] query [SEP] chunk [SEP]` | The tail is missing only while reordering an already-retrieved shortlist. Recoverable, and far cheaper. |
+
+The embed-stage limit is the one that actually matters, and it was originally the one
+being ignored: `all-MiniLM-L6-v2` caps at **256** tokens, not 512, so the configured
+350-token chunks would have lost roughly a quarter of every chunk before it ever
+reached the index. The bi-encoder is therefore `BAAI/bge-small-en-v1.5` — 512 tokens
+at the same 384 dimensions, so the index shape is unchanged.
+
+With that fixed, the *cross-encoder* becomes the binding constraint, because its 512
+tokens are shared with the query rather than given to the chunk alone. The ceiling is
+`512 - retrieval.max_query_tokens - 3` specials, hence `chunking.max_tokens: 440`. The
+chunker counts tokens with the bi-encoder's own tokenizer, not a word-count
+approximation.
+
+**Figures and tables.** Both are treated as images. Tables are not parsed
+structurally — PyMuPDF does not extract them reliably, and a second table-specific
+library (pdfplumber/camelot) is not worth the time budget for the marginal gain.
+Instead:
+
+1. extract image region + nearby caption (regex on `Figure N:` / `Table N:`)
+2. filter out decorative images below a minimum dimension threshold
+3. one vision-LLM call produces a description
+4. **embed `caption + description` concatenated**, not the description alone —
+   the caption carries the authors' precise terminology, which a generated
+   description often paraphrases away
+5. store `paper_id`, `page`, `figure_id`, and the image path in metadata so the
+   raw image can be served back later by `inspect_figure`
+
+Figure count per paper is capped to keep indexing cost bounded.
+
+**Embeddings & store.** `sentence-transformers` bi-encoder + FAISS flat index.
+
+BGE is trained **asymmetrically**, so encoding is not symmetric either: the query
+instruction (`embedding.query_prefix`) is prepended when encoding a *query* and never
+when encoding a *passage*. Applying it to both sides, or to neither, measurably
+degrades retrieval, so the prefix belongs to the query-encode path only — it is a
+property of the retrieval call, not of the stored chunk. Vectors are L2-normalised,
+which is what makes inner-product search equal cosine similarity.
+
+Flat is correct at this scale — 16 papers is roughly 1k chunks, under 2 MB of
+float32 vectors. FAISS internal ids are sequential, so an explicit
+`faiss_idx -> chunk_id` mapping is persisted alongside the index; without it the
+mapping breaks on restart.
+
+**Incremental, never rebuild.** New chunks are appended via `index.add()`. A full
+rebuild is only triggered if the embedding model changes.
+
+## 6. Index growth management
+
+The real risk of an ever-growing corpus is **not** memory — it is retrieval quality
+degradation, as unrelated content becomes distractors.
+
+- **`topic_tag` metadata filtering** keeps the effective search space scoped even as
+  the index grows. One index, scoped retrieval.
+- **`max_papers_per_topic` cap** (default 10) bounds growth predictably.
+- **LRU eviction hook** — `evict_topic(topic_tag)` removes chunks and embeddings
+  while leaving cached PDFs on disk, so re-indexing that topic later is cheap.
+- Scale path, not implemented at this size: `float32 -> float16` halves memory at
+  negligible quality cost, and FAISS `IndexIVFPQ` gives 10–50x compression. Flat is
+  sufficient here and the upgrade path is a drop-in.
+
+## 7. Retrieval design
+
+**Retrieve wide, pass narrow.**
+
+```
+bi-encoder  k=30-50   (cheap, high recall)
+     -> cross-encoder rerank   (expensive, high precision, only on candidates)
+     -> relevance gate
+     -> neighbor expansion
+     -> top 5-6 to the agent
+```
+
+Recall lives in the candidate pool; only precision reaches the context window.
+
+**Cross-encoder reranking.** A bi-encoder embeds query and chunk separately and
+compares two vectors — the model never sees them together. A cross-encoder scores
+`[CLS] query [SEP] chunk [SEP]` in one pass with full cross-attention, which is far
+more accurate but cannot be precomputed. Two-stage retrieval gets both.
+
+Reranking is presented here as **standard retrieval hygiene, not as the ML
+component** — it is a pretrained checkpoint used off the shelf. Its contribution is
+measured honestly via ablation (see Evaluation). At this corpus size the gain may be
+small; that result is reported as-is rather than hidden.
+
+Cross-encoder scores are **not calibrated** and are used for ranking only. Where a
+threshold is needed (the relevance gate) it is tuned empirically on the eval set, not
+assumed.
+
+**Relevance gate.** Naive top-k always returns *something*, even when nothing is
+relevant. The gate compares top scores against a tuned threshold and returns
+`sufficient_evidence: false` with a reason instead of handing back weak chunks. This
+turns "I don't have evidence for that" from a prompt-level instruction into an
+actual mechanism, and is what the *not in corpus* eval category tests.
+
+**Neighbor expansion.** Adjacent chunks (`±1` within the same paper) are attached to
+selected chunks, recovering information severed at chunk boundaries without
+increasing `k`.
+
+**Context discipline.** Tool results are truncated (~500 tokens/chunk), returned as
+structured records rather than raw text blobs, and deduplicated across iterations so
+repeated queries do not stack duplicate chunks into context. The loop has an
+iteration cap (6–8) plus loop detection on repeated `(tool, args)` pairs.
+
+## 8. ML / data-analysis components
+
+**1. NLI-based evidence checking** (`check_evidence_consistency`), in two modes:
+
+- *contradiction* — do retrieved chunks disagree with each other?
+- *groundedness* — is each claim in the drafted answer entailed by retrieved
+  evidence? `neutral` labels surface claims the model produced from parametric
+  knowledge rather than from the corpus.
+
+This is the mechanism behind the "robustness to conflicting evidence" requirement —
+a computed signal rather than a prompt instruction.
+
+**Claim extraction happens inside the tool, not in the agent.** If the agent
+submitted its own claim list it could self-select the claims it knows are supported.
+The tool takes `answer_text` and decomposes it itself.
+
+**Known limitations, stated rather than papered over:** NLI models are trained on
+sentence pairs and degrade on paragraph-length inputs, so chunks are split and the
+best-matching sentence is used as premise. General MNLI-trained models are weak on
+scientific text — a `neutral` label can mean "unsupported" or "the model didn't
+understand". Directionality matters (premise = evidence, hypothesis = claim).
+Consequently this is an **advisory signal, not a hard gate**: low groundedness
+prompts the agent to revise or flag uncertainty, it does not auto-reject.
+
+**2. Corpus clustering with validation** (`analyze_corpus`, `cluster` operation).
+KMeans over chunk/paper embeddings, with `k` selected by silhouette score, and
+cluster labels derived from top TF-IDF terms. Crucially it is **validated**: cluster
+assignments are compared against known `topic_tag` labels via adjusted Rand index and
+purity. This doubles as a diagnostic — if clusters do not recover the known topic
+split, the embeddings are not carrying semantic signal, which is a real finding about
+the retrieval stack rather than a decorative plot.
+
+Cluster results are cached against a manifest hash and recomputed only when the index
+changes.
+
+## 9. Multimodal handling
+
+Two paths, both real:
+
+1. **Indexed path** — figures/tables described at index time, embedded, and
+   retrievable as `chunk_type: figure|table` alongside text.
+2. **Inspection path** — when a retrieved figure needs detail the description lost
+   (exact values, trend shape, axis labels), the agent calls `inspect_figure` and the
+   raw image is passed to a vision model. Additionally, a **user-supplied image** can
+   be inspected and used to drive a follow-up evidence search.
+
+Only text, figures, and tables are in scope. No audio or video.
+
+## 10. Answer synthesis
+
+Answers carry **inline per-claim citations** (`[paper_id:chunk_id]`), not a
+bibliography appended at the end. This makes groundedness checking mechanical, makes
+manual eval verification trivial, and means every claim is individually traceable to
+its source.
+
+When evidence is insufficient or conflicting, the answer says so explicitly rather
+than resolving the conflict silently in favour of one source.
+
+## 11. Model & provider choices
+
+LLM access goes through **OpenRouter** behind a thin `llm_client` interface
+(`complete(messages, tools)`), so the provider is a config value, not a code change.
+
+Rationale: tool-calling reliability varies meaningfully between models. Keeping the
+client swappable means a tool-selection failure can be diagnosed as a model
+limitation versus a prompt problem by switching one setting. Cheap fast models are
+used for indexing-time figure description (high call volume, low difficulty); the
+agent loop can be pointed at a stronger model if tool selection degrades.
+
+Local models via Ollama were considered and rejected for this time budget —
+small local models have notably weaker tool-calling.
+
+## 12. Robustness
+
+Every tool returns structured errors (`{"error": ...}`) rather than raising, so a
+failed arXiv call, a corrupt PDF, a timed-out LLM call, or a missing model checkpoint
+degrades the loop instead of crashing it.
+
+Failure modes explicitly handled: arXiv API unavailable, PDF parse failure, empty
+retrieval, model download failure (TF-IDF/BM25 fallback path), agent looping,
+context overflow.
+
+## 13. Evaluation
+
+Detailed in `docs/EVALUATION.md`. Summary of the design:
+
+**Gold labels.** Each eval question is annotated by hand with the paper(s) and
+chunk(s) that should be retrieved, plus expected facts. These labels are *never*
+shown to the agent — they exist only for the scoring script. The agent runs its
+normal loop; the evaluator compares what it retrieved against what it should have.
+
+**Questions are paraphrased**, never copied from paper wording, so retrieval cannot
+pass by string matching.
+
+**Four question categories:**
+
+| Category | Tests |
+|---|---|
+| Single-paper factual | basic retrieval + faithful answering |
+| Multi-paper synthesis | combining and citing multiple sources |
+| Not in corpus | abstention — does the relevance gate fire, or does it hallucinate |
+| Conflicting evidence | does it surface the disagreement instead of silently picking one |
+
+**Metrics:** retrieval recall@k and MRR against gold chunks; answer correctness
+against expected facts; groundedness ratio; abstention correctness; and
+**tool-call traces** — which tools were called in what order, which is what
+distinguishes "right answer" from "right process".
+
+**Ablation:** no-rerank vs. cross-encoder rerank, reported with both quality and
+latency.
+
+**Eval hygiene:** questions are written from abstracts *before* seeing system
+output, to avoid writing tests the system already passes. A held-out subset is
+reserved and run only after tuning stops.
+
+## 14. Deliberate non-goals
+
+- **No multi-agent orchestration.** A single agent with a well-specified tool
+  loop is the right shape at this scope; multi-agent adds coordination failure
+  modes without adding capability here.
+- **No agent framework.** The tool loop is written directly against the provider
+  SDK. The structure of the agentic system is itself under evaluation, and a
+  hand-written loop shows the design rather than hiding it inside a framework.
+- **No human-in-the-loop gates.** This is autonomous QA, not a research workflow
+  with approval steps.
+- **No UI.** Explicitly out of scope per the task statement.
+- **No structural table parsing.** Tables are handled as images; the trade-off is
+  documented above.	

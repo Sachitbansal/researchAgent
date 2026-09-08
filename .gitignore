@@ -1,0 +1,21 @@
+# secrets
+.env
+
+# data — regenerable, and PDFs should not live in git
+data/papers/
+data/index/
+data/cache/
+logs/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# model caches
+.cache/
+# test / eval artefacts
+.pytest_cache/
+eval/results/
