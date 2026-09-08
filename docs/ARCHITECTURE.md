@@ -32,7 +32,7 @@ vocabulary but have separate claims and methods. Trivially disjoint topics (e.g.
 astrophysics vs. cooking chemistry) would make retrieval look good for the wrong
 reason.
 
-Both topics live in **one index**, tagged with `topic_tag`, rather than in two
+Both topics live in **one index**, tagged via each record's `topic_tags`, rather than in two
 separate stores. A mixed pool is a more honest test of retrieval: cross-topic
 distractors are present by construction, which is what a real index looks like.
 
@@ -100,24 +100,36 @@ second topic costs nothing.
 images from the same parse). Chunking is section-aware where section headers are
 detectable, falling back to fixed-size with overlap.
 
-Chunk size is bounded by **the tighter of two model limits, checked separately**:
+**Chunk size is bounded by two model limits, and the doc records both rather than the
+single number that happens to be binding today.** The binding constraint moves whenever
+either model changes — and it already has: the sentence "the ceiling is the
+cross-encoder's 512" was true of the original stack and went false the moment
+`all-MiniLM-L6-v2` was swapped out. A single number gives a later reader no way to
+notice it has gone stale. A table does.
 
-| Stage | Limit | What truncation costs |
-|---|---|---|
-| Bi-encoder (embed) | model `max_seq_length` | The tail is never embedded, so it is unfindable at any `k`. Silent and unrecoverable. |
-| Cross-encoder (rerank) | 512 shared by `[CLS] query [SEP] chunk [SEP]` | The tail is missing only while reordering an already-retrieved shortlist. Recoverable, and far cheaper. |
+| Stage | Model | Window | Chunk budget | If exceeded |
+|---|---|---|---|---|
+| Bi-encoder (embed) | `bge-small-en-v1.5` | 512, chunk alone | `512 - 2` specials = **510** | Tail is never embedded, so it is unfindable at any `k`. Silent and unrecoverable. |
+| Cross-encoder (rerank) | `ms-marco-MiniLM-L-6-v2` | 512, **shared** `[CLS] query [SEP] chunk [SEP]` | `512 - 3 - max_query_tokens(64)` = **445** | Tail is missing only while reordering an already-retrieved shortlist. Recoverable, and far cheaper. |
 
-The embed-stage limit is the one that actually matters, and it was originally the one
-being ignored: `all-MiniLM-L6-v2` caps at **256** tokens, not 512, so the configured
-350-token chunks would have lost roughly a quarter of every chunk before it ever
-reached the index. The bi-encoder is therefore `BAAI/bge-small-en-v1.5` — 512 tokens
-at the same 384 dimensions, so the index shape is unchanged.
+**Binding today: the cross-encoder, at 445**, because its window is shared with the
+query rather than given to the chunk alone. `chunking.max_tokens` is set to exactly
+that. No safety margin is subtracted: `retrieval.max_query_tokens` is a truncation
+point, not an estimate, so the query cannot overrun its half of the budget.
 
-With that fixed, the *cross-encoder* becomes the binding constraint, because its 512
-tokens are shared with the query rather than given to the chunk alone. The ceiling is
-`512 - retrieval.max_query_tokens - 3` specials, hence `chunking.max_tokens: 440`. The
-chunker counts tokens with the bi-encoder's own tokenizer, not a word-count
-approximation.
+Why the bi-encoder row matters even though it is not binding: it is the row that was
+being ignored. `all-MiniLM-L6-v2` caps at **256** tokens, not 512, so 350-token chunks
+would have lost roughly a quarter of their text before ever reaching the index —
+truncation at the stage that decides whether a chunk is *findable at all*, not merely
+how it ranks. The bi-encoder is therefore `bge-small-en-v1.5`: 512 tokens at the same
+384 dimensions, so the index shape is unchanged.
+
+The chunker counts tokens with the bi-encoder's tokenizer, not a word-count
+approximation. That is safe for the cross-encoder's budget too because the two models
+share a vocabulary (both `bert-base-uncased`, 30522 entries) and were measured to
+produce identical token counts on the same text. If either model is ever swapped for
+one with a different vocabulary, that equivalence has to be re-checked — it is an
+observation about this pair, not a general fact.
 
 **Figures and tables.** Both are treated as images. Tables are not parsed
 structurally — PyMuPDF does not extract them reliably, and a second table-specific
@@ -157,14 +169,40 @@ rebuild is only triggered if the embedding model changes.
 The real risk of an ever-growing corpus is **not** memory — it is retrieval quality
 degradation, as unrelated content becomes distractors.
 
-- **`topic_tag` metadata filtering** keeps the effective search space scoped even as
+- **`topic_tags` metadata filtering** keeps the effective search space scoped even as
   the index grows. One index, scoped retrieval.
 - **`max_papers_per_topic` cap** (default 10) bounds growth predictably.
-- **LRU eviction hook** — `evict_topic(topic_tag)` removes chunks and embeddings
-  while leaving cached PDFs on disk, so re-indexing that topic later is cheap.
-- Scale path, not implemented at this size: `float32 -> float16` halves memory at
-  negligible quality cost, and FAISS `IndexIVFPQ` gives 10–50x compression. Flat is
-  sufficient here and the upgrade path is a drop-in.
+
+Those two solve the stated problem between them. Filtering bounds the *distractor
+set* a query actually competes against, and the cap bounds *how fast the pool grows*.
+Neither needs anything removed from the index.
+
+**No eviction. Explicit non-goal.** An earlier draft of this section carried an
+`evict_topic(topic_tag)` LRU hook. It is removed, for two reasons:
+
+1. **It solves a problem this system does not have.** Eviction reclaims *disk and
+   memory*. Disk is not a constraint at 16 papers, and this section's opening sentence says
+   memory is not the risk — retrieval quality is, and quality is handled by filtering,
+   which eviction does not improve.
+2. **It contradicts the incremental design.** `IndexFlat.remove_ids` compacts by
+   swapping the last vector into the freed slot. That silently invalidates every
+   downstream entry of the positional `faiss_id_map` and every downstream row of
+   `embeddings.npy`, so a correct eviction means rebuilding the index — against the
+   "incremental, never rebuild" commitment in §5. Keeping the hook would
+   have meant either a rebuild path nothing else needs, or a mapping that goes wrong
+   quietly at query time.
+
+**Scale path, not implemented at this size.** Three drop-in upgrades, in the order
+they would become worth doing:
+
+| Change | Buys |
+|---|---|
+| `IndexIDMap` / `IndexIDMap2` around the flat index | Stable caller-assigned int64 ids, so `faiss_id_map` stops being positional and `remove_ids` becomes safe. This is the prerequisite for eviction ever being reconsidered, and the reason eviction is deferred rather than declared impossible. |
+| `float32 -> float16` | Halves vector memory at negligible quality cost. |
+| `IndexIVFPQ` | 10–50x compression, at the cost of approximate search and a training step. |
+
+Flat plus a positional map is correct at this scale, and each upgrade is a local
+change to the index layer.
 
 ## 7. Retrieval design
 
@@ -236,7 +274,7 @@ prompts the agent to revise or flag uncertainty, it does not auto-reject.
 **2. Corpus clustering with validation** (`analyze_corpus`, `cluster` operation).
 KMeans over chunk/paper embeddings, with `k` selected by silhouette score, and
 cluster labels derived from top TF-IDF terms. Crucially it is **validated**: cluster
-assignments are compared against known `topic_tag` labels via adjusted Rand index and
+assignments are compared against known `topic_tags` labels via adjusted Rand index and
 purity. This doubles as a diagnostic — if clusters do not recover the known topic
 split, the embeddings are not carrying semantic signal, which is a real finding about
 the retrieval stack rather than a decorative plot.
@@ -252,8 +290,33 @@ Two paths, both real:
    retrievable as `chunk_type: figure|table` alongside text.
 2. **Inspection path** — when a retrieved figure needs detail the description lost
    (exact values, trend shape, axis labels), the agent calls `inspect_figure` and the
-   raw image is passed to a vision model. Additionally, a **user-supplied image** can
-   be inspected and used to drive a follow-up evidence search.
+   raw image reaches a vision model. Additionally, a **user-supplied image** can be
+   inspected and used to drive a follow-up evidence search.
+
+**How the image reaches the model, and why it looks indirect.** `inspect_figure`
+returns a structured dict containing an `image_path` — never image bytes. The *agent
+loop* then attaches the image to the conversation on a **follow-up user turn**, via
+`llm_client.attach_images`, and the model reads it there.
+
+This is a provider-schema constraint, not a stylistic preference, and it is written
+down here so a later milestone does not "simplify" it back into the tool result. LLM
+access goes through OpenRouter's OpenAI-compatible `/chat/completions` (§11), where a
+`tool` message's `content` is a string and `image_url` parts are only valid on a `user`
+message. Anthropic's *native* API does accept image blocks inside `tool_result`, but
+depending on that would make the provider a code dependency rather than the config
+value §11 requires it to be. Returning base64 from the tool would also have made
+`inspect_figure` the one tool that hands back a raw blob instead of a structured dict.
+
+The resulting turn order is fixed:
+
+```
+assistant(tool_call: inspect_figure)
+  -> tool(the dict: image_path, caption, stored_description, ...)
+  -> user(image_url part, attached by the loop)
+  -> assistant(reads the image)
+```
+
+The tool still calls no other tool, and control flow still lives in the agent loop.
 
 Only text, figures, and tables are in scope. No audio or video.
 
@@ -336,4 +399,7 @@ reserved and run only after tuning stops.
   with approval steps.
 - **No UI.** Explicitly out of scope per the task statement.
 - **No structural table parsing.** Tables are handled as images; the trade-off is
-  documented above.	
+  documented above.
+- **No index eviction.** Growth is bounded by `max_papers_per_topic` and made
+  harmless by `topic_tags` filtering. Removal from a flat index with a positional
+  id map implies a rebuild, which the incremental design rules out — see §6.	

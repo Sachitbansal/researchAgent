@@ -36,11 +36,21 @@ returns text. One tool-calling round-trip returns a well-formed tool call.
   call, cached by `sha256(topic)`
 - arXiv API call, result parsing into paper records
 - dedup against manifest on `paper_id`
+- **tag backfill on a dedup hit** — appending the new `topic_tag` to the existing
+  paper record *and* to every chunk record that paper already produced, in one
+  operation, via temp-file-and-rename on `chunks.jsonl`. Chunks denormalise
+  `topic_tags`, so patching the manifest alone silently breaks `topic_filter` for
+  that paper (`docs/DATA_SCHEMA.md`, **Topic naming**)
+- `topic_tags` asserted to be `list[str]` at record construction — a bare string
+  passes `in` character-by-character and quietly turns `topic_filter` into a
+  substring match
 - PDF download to `data/papers/`
 
 **Gate:** fetch 3 papers on any topic. Manifest has 3 well-formed paper records. Run
-it a second time with the same topic — 0 downloads, 3 skips. Kill the network and
-confirm the failure returns an error dict rather than raising.
+it a second time with the same topic — 0 downloads, 3 skips. Then run a **second,
+overlapping topic** and confirm a re-encountered paper carries both tags in the
+manifest *and* in every one of its chunk records — not just the manifest. Kill the
+network and confirm the failure returns an error dict rather than raising.
 
 ---
 
@@ -49,8 +59,9 @@ confirm the failure returns an error dict rather than raising.
 - PyMuPDF text extraction with page numbers
 - section detection where headings are findable, `null` otherwise
 - chunking with overlap, respecting `chunking.max_tokens` — counted with the
-  bi-encoder's tokenizer, and derived from the cross-encoder's 512-token window
-  minus the query budget (see `docs/ARCHITECTURE.md` §5)
+  bi-encoder's tokenizer, and derived as the min of the bi-encoder and cross-encoder
+  chunk budgets. Which of the two binds depends on the models in use; re-derive rather
+  than assume (see `docs/ARCHITECTURE.md` §5)
 - figure/table image extraction, filtered by minimum dimensions
 - caption extraction (regex on `Figure N:` / `Table N:` near the image)
 - vision-LLM description, cached by `image_hash`

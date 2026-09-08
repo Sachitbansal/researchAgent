@@ -68,12 +68,24 @@ Python 3.11+.
 - Losing the `faiss_idx -> chunk_id` mapping across restarts. It must be persisted
   with the index.
 - Embedding a figure's generated description without its caption. Both, concatenated.
+- Forgetting that `faiss_id_map` is **positional**. Index `i` means FAISS slot `i`, and
+  `IndexFlat.remove_ids` swap-compacts, moving the last vector into the freed slot — so
+  any removal invalidates every downstream entry of the map and every downstream row of
+  `embeddings.npy`. That is why eviction implies a full rebuild, and why eviction is a
+  non-goal (`docs/ARCHITECTURE.md` §6). `IndexIDMap` is the fix, if it ever matters.
 - Sizing chunks against the *cross-encoder's* limit while ignoring the *bi-encoder's*.
   The embed stage is the one that decides whether a chunk is findable at all; the
   rerank stage only reorders a shortlist. Check both, and count tokens with the
   bi-encoder's own tokenizer.
 - Prefixing BGE passages with the query instruction. The instruction goes on the query
   only — both sides, or neither, degrades retrieval.
+- Appending a new `topic_tag` to the paper record only. Chunk records denormalise
+  `topic_tags`, so they must be backfilled in the same operation — otherwise
+  `analyze_corpus` counts the paper under the new topic while `topic_filter` returns
+  nothing for it, and the bug surfaces far from its cause.
+- Letting a bare string into `topic_tags`. It must be `list[str]`; a scalar passes
+  every `in` test character-by-character and silently turns `topic_filter` into a
+  substring match. Assert list-ness where records are constructed.
 - Treating a chunk's `content_hash` as a cross-paper dedup key. It is an embedding
   cache key. Two papers may legitimately share text; both keep their own chunk record.
   Dropping one leaves a hole in `position`, and neighbour expansion walks straight

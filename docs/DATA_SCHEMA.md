@@ -6,6 +6,30 @@ not invent local variants.
 
 All ids are strings. All timestamps are ISO 8601 UTC.
 
+**Topic naming.** Three similar names appear across records and tool surfaces. They are
+not interchangeable, and the plural/singular distinction is load-bearing:
+
+| Name | Type | Where it appears | Meaning |
+|---|---|---|---|
+| `topic_tags` | `list[str]` | paper record (§1), chunk record (§2) | Every topic this record has been reached through. **Always a list**, even when it holds one element. |
+| `topic_tag` | `str` | `search_literature` return, keys of `manifest.topics` (§4) | A single tag — the one a call just applied, or the one naming a topic entry. |
+| `topic_filter` | `str` | `retrieve_evidence` input | A **membership test**, not an equality test: keep a chunk when `topic_filter in chunk["topic_tags"]`. |
+
+Records are constructed with `topic_tags` asserted to be a list. A bare string passes
+every `in` test character-by-character (`"cs" in "cs.LG"` is true), so a scalar that
+slips in does not raise — it silently widens `topic_filter` to substring matching.
+
+**Re-encountering a paper under a second topic.** Paper dedup is on `paper_id`, so the
+second search neither re-downloads nor re-chunks. It must still append the new tag, and
+to **both** the paper record *and* every chunk record that paper already produced.
+Chunk records denormalise `topic_tags` (§2) precisely so retrieval needs no join — which
+means patching the manifest alone leaves the paper counted under the new topic by
+`analyze_corpus` while `topic_filter` returns nothing for it. That failure is silent and
+presents as a retrieval bug, a long way from its cause.
+
+Because `chunks.jsonl` is line-oriented, that backfill rewrites the file. Write a temp
+file and rename it, so an interrupted backfill cannot leave a half-written corpus.
+
 ---
 
 ## 1. Paper record
@@ -35,7 +59,8 @@ Stored in `manifest.json` under `papers`, keyed by `paper_id`.
 
 `paper_id` is the primary dedup key. `topic_tags` is a **list**: the same paper can
 arrive via more than one topic search and must not be duplicated — the new tag is
-appended to the existing record instead.
+appended to the existing record instead, and to that paper's chunk records in the same
+operation. See **Topic naming** above.
 
 `parse_status: 'partial'` is a valid, kept state. A paper whose text extracted but
 whose figures failed is still useful.
@@ -68,6 +93,10 @@ Stored one-per-line in `chunks.jsonl`. The index-order of lines is meaningless; 
   "caption":     "string | null — present only for figure/table chunks"
 }
 ```
+
+**`topic_tags` is denormalised onto every chunk** so retrieval can filter without
+joining back to the manifest. The cost of that is a write obligation: when a paper
+gains a tag, every one of its chunk records gains it too, in the same operation.
 
 **`text` for figure and table chunks is `caption + '\n' + description`, concatenated.**
 Not the description alone. The caption carries the authors' exact terminology; the

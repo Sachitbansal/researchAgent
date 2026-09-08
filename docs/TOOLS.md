@@ -50,7 +50,9 @@ Fetches new papers from arXiv and adds them to the index.
 3. dedup against manifest on `arxiv_id`
 4. download new PDFs only
 5. extract text + figures/tables, chunk, describe figures, embed, append to index
-6. update manifest with `topic_tag`
+6. update the manifest with `topic_tag` — and on a dedup hit, append that tag to the
+   existing paper record *and* to every chunk record it already produced
+   (`docs/DATA_SCHEMA.md`, **Topic naming**)
 
 **Returns**
 
@@ -92,7 +94,7 @@ Core RAG. The tool the agent should reach for by default.
 {
   "query":        "string, required",
   "k":            "int, optional, default 5",
-  "topic_filter": "string, optional — restrict to a topic_tag",
+  "topic_filter": "string, optional — one tag; matches chunks whose topic_tags contain it",
   "chunk_types":  "string[], optional — subset of ['text','figure','table']"
 }
 ```
@@ -100,7 +102,7 @@ Core RAG. The tool the agent should reach for by default.
 **Behaviour**
 
 1. bi-encoder retrieval, `k_retrieve = 30–50`
-2. metadata filter (`topic_tag`, `chunk_types`) — applied via FAISS ID selector where
+2. metadata filter (`topic_tags` membership, `chunk_types`) — applied via FAISS ID selector where
    possible, else post-filter
 3. cross-encoder rerank over candidates
 4. **relevance gate** — top scores vs. empirically tuned threshold
@@ -294,7 +296,7 @@ Computation over corpus **metadata**, not content. No retrieval, no LLM call.
 |---|---|
 | `stats` | papers per topic, chunk counts, figure/table counts, date range |
 | `timeline` | per-topic year histogram, median year, recency |
-| `cluster` | KMeans over embeddings, `k` by silhouette, TF-IDF cluster labels, **validated against `topic_tag` via adjusted Rand index + purity** |
+| `cluster` | KMeans over embeddings, `k` by silhouette, TF-IDF cluster labels, **validated against `topic_tags` via adjusted Rand index + purity** |
 | `compare_topics` | vocabulary overlap and centroid distance between topic groups |
 
 **Returns**

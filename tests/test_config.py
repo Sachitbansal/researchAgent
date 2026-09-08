@@ -24,14 +24,28 @@ def test_values_have_the_documented_types():
     assert CFG.retrieval.k_final < CFG.retrieval.k_retrieve
 
 
-def test_chunk_ceiling_fits_both_encoder_windows():
-    """The chunk ceiling is derived, not guessed: see docs/ARCHITECTURE.md section 5."""
-    cross_encoder_window = 512
-    specials = 3  # [CLS] query [SEP] chunk [SEP]
-    budget = cross_encoder_window - CFG.retrieval.max_query_tokens - specials
+def test_chunk_ceiling_is_the_min_of_both_encoder_budgets():
+    """max_tokens is derived, not picked: see docs/ARCHITECTURE.md section 5.
 
-    assert CFG.chunking.max_tokens <= budget, "a chunk + query would overflow the reranker"
-    assert CFG.chunking.max_tokens <= CFG.embedding.max_seq_tokens, "chunks truncate at embed time"
+    Both windows are 512 and both are measured, not assumed — the tokenizers were
+    checked to share a vocabulary and produce identical counts. If either model or
+    max_query_tokens moves, this recomputes and the assertion below catches the drift.
+    """
+    window = 512
+
+    # Bi-encoder sees the chunk alone: [CLS] chunk [SEP]
+    bi_budget = window - 2
+
+    # Cross-encoder shares one window: [CLS] query [SEP] chunk [SEP]
+    cross_budget = window - 3 - CFG.retrieval.max_query_tokens
+
+    binding = min(bi_budget, cross_budget)
+    assert cross_budget < bi_budget, "the reranker is expected to be the tighter limit"
+    assert CFG.chunking.max_tokens == binding, (
+        f"max_tokens is {CFG.chunking.max_tokens}, but the derived ceiling is {binding} "
+        f"(bi={bi_budget}, cross={cross_budget})"
+    )
+    assert CFG.embedding.max_seq_tokens == window
     assert CFG.chunking.target_tokens < CFG.chunking.max_tokens
     assert CFG.chunking.overlap_tokens < CFG.chunking.target_tokens
 

@@ -23,6 +23,9 @@ collection:
   sort_by: relevance        # -> arxiv.SortCriterion.Relevance
   request_delay_s: 3        # -> arxiv.Client(delay_seconds=...). arXiv asks for a delay
                             # between calls; the client enforces it, we do not sleep by hand.
+  max_retries: 3            # -> arxiv.Client(num_retries=...). Separate from llm.max_retries:
+                            # a flaky arXiv feed and a flaky LLM provider are different faults
+                            # and get tuned independently.
 
 extraction:
   min_figure_width: 150     # px — below this is almost always a logo or rule
@@ -33,12 +36,16 @@ extraction:
 chunking:
   target_tokens: 350
   overlap_tokens: 60
-  max_tokens: 440           # Hard ceiling, and the binding constraint is the cross-encoder,
-                            # not the bi-encoder. The reranker scores
-                            # [CLS] query [SEP] chunk [SEP] inside one 512-token window, so a
-                            # chunk must leave room for retrieval.max_query_tokens + 3 specials:
-                            # 512 - 64 - 3 = 445, rounded down. The bi-encoder
-                            # (bge-small-en-v1.5) also accepts 512, so it is not the limit.
+  max_tokens: 445           # Hard ceiling = min of the two encoder budgets. Derived, not
+                            # picked. Re-derive it if either model or max_query_tokens moves:
+                            #   bi-encoder    bge-small-en-v1.5, chunk alone:
+                            #                 512 - 2 specials                  = 510
+                            #   cross-encoder ms-marco-MiniLM, shared window:
+                            #                 512 - 3 specials - max_query_tokens = 445  <- binding
+                            # No margin is subtracted below 445: max_query_tokens is a
+                            # truncation point, not an estimate, so the query cannot overrun
+                            # its half. See docs/ARCHITECTURE.md section 5 for why both
+                            # limits are recorded rather than only the binding one.
                             # Token counts are taken with the bi-encoder's tokenizer.
   section_aware: true
 
