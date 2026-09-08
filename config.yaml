@@ -75,7 +75,25 @@ extraction:
   min_figure_width: 150     # px — below this is almost always a logo or rule
   min_figure_height: 150
   max_figures_per_paper: 5  # bounds vision-call cost at index time
-  caption_search_chars: 400 # window around an image to search for its caption
+  caption_search_chars: 400 # captions are truncated to this many characters
+  render_zoom: 2.0          # figure regions are rendered at this scale. Extraction is
+                            # caption-driven and renders the region, rather than pulling
+                            # embedded rasters: most arXiv figures are vector art with no
+                            # raster to pull, and a multi-panel raster figure arrives as
+                            # several images sharing one caption.
+  drop_sections:            # everything under these headings is skipped, not chunked.
+    - references            # A bibliography retrieves badly (every entry looks relevant to
+    - bibliography          # any query about the field) and inflates the index with text
+    - acknowledgements      # that answers no question. Appendices are kept: they hold real
+    - acknowledgments       # results. An 'Appendix' heading ends the skip.
+    - acknowledgment
+  heading_size_delta: 1.5   # pt above the body font size before a line counts as a section
+                            # heading. Measured, not guessed: on a sample arXiv paper the
+                            # real headings sit at body+2.0 to body+3.0, bolded contribution
+                            # lists at body+1.0, and table cells at or below body. 1.5
+                            # separates the first group from the other two. Font *name* is not
+                            # a usable signal — many arXiv PDFs embed Type1 fonts whose names
+                            # never contain "bold".
 
 chunking:
   target_tokens: 350
