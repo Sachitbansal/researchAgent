@@ -19,6 +19,7 @@ from common.tokenization import split_sentences
 from config import CFG, Config
 from corpus.chunk_store import ChunkStore
 from llm_client import LLMClient, LLMError
+from retrieval.embedder import Embedder, EmbeddingError
 
 MODES = ("contradiction", "groundedness")
 _JSON_ARRAY = re.compile(r"\[.*\]", re.DOTALL)
@@ -48,10 +49,32 @@ class ConsistencyChecker:
         config: Config = CFG,
         client: Optional[LLMClient] = None,
         nli: Optional[NLIModel] = None,
+        embedder: Optional[Embedder] = None,
     ) -> None:
         self.config = config
         self.client = client
         self.nli = nli if nli is not None else NLIModel(config)
+        self._embedder = embedder
+
+    @property
+    def embedder(self) -> Embedder:
+        """Used to find which sentences are even about the same thing before NLI runs."""
+        if self._embedder is None:
+            self._embedder = Embedder(self.config)
+        return self._embedder
+
+    def _similarity(self, left: Sequence[str], right: Sequence[str]):
+        """Cosine similarity matrix between two sentence lists, or None if unavailable."""
+        if not left or not right:
+            return None
+        try:
+            import numpy as np
+
+            a = self.embedder.encode_passages(list(left))
+            b = self.embedder.encode_passages(list(right))
+        except EmbeddingError:
+            return None
+        return np.asarray(a) @ np.asarray(b).T
 
     # ---- shared ----------------------------------------------------------------
 
@@ -79,14 +102,21 @@ class ConsistencyChecker:
         max_pairs = int(self.config.nli.max_pairs)
 
         by_id = {cid: _sentences(chunk["text"], cap) for cid, chunk in chunks.items()}
+        min_similarity = float(self.config.nli.min_pair_similarity)
         pairs: List[Tuple[str, str]] = []
         provenance: List[Tuple[str, str, str, str]] = []
 
         for left, right in combinations(sorted(chunks), 2):
             if len(provenance) >= max_pairs * cap:
                 break
-            for premise in by_id[left]:
-                for hypothesis in by_id[right]:
+            # Only compare sentences that are about the same thing. Two unrelated
+            # sentences cannot meaningfully disagree, and this model scores such pairs as
+            # confident contradictions, which floods the result with false conflicts.
+            similarity = self._similarity(by_id[left], by_id[right])
+            for i, premise in enumerate(by_id[left]):
+                for j, hypothesis in enumerate(by_id[right]):
+                    if similarity is not None and similarity[i][j] < min_similarity:
+                        continue
                     pairs.append((premise, hypothesis))
                     provenance.append((left, right, premise, hypothesis))
 
@@ -193,7 +223,22 @@ class ConsistencyChecker:
             return _error("no_premises",
                           "the given chunks contain no sentences long enough to check against")
 
-        pairs = [(sentence, claim) for claim in claims for _, sentence in premises]
+        # Choose the premises by semantic similarity to the claim, then run NLI only on
+        # those. Running NLI over every sentence and taking the strongest verdict does not
+        # work: this model returns high-confidence CONTRADICTION for topically unrelated
+        # pairs, so across thirty premises the winner is a spurious one.
+        top_n = int(self.config.nli.premises_per_claim)
+        similarity = self._similarity([sentence for _, sentence in premises], claims)
+
+        selected: List[List[int]] = []
+        for index in range(len(claims)):
+            if similarity is None:
+                selected.append(list(range(min(top_n, len(premises)))))
+            else:
+                order = similarity[:, index].argsort()[::-1][:top_n]
+                selected.append([int(i) for i in order])
+
+        pairs = [(premises[i][1], claims[c]) for c, rows in enumerate(selected) for i in rows]
         try:
             scored = self.nli.predict(pairs)
         except NLIError as exc:
@@ -203,25 +248,29 @@ class ConsistencyChecker:
         contradiction_threshold = float(self.config.nli.contradiction_threshold)
 
         results: List[Dict[str, Any]] = []
-        stride = len(premises)
+        cursor = 0
         for index, claim in enumerate(claims):
-            window = scored[index * stride:(index + 1) * stride]
-            best_entail = max(
-                range(len(window)), key=lambda i: window[i]["scores"].get("entailment", 0.0)
-            )
-            best_contra = max(
-                range(len(window)), key=lambda i: window[i]["scores"].get("contradiction", 0.0)
-            )
-            entail_score = window[best_entail]["scores"].get("entailment", 0.0)
-            contra_score = window[best_contra]["scores"].get("contradiction", 0.0)
+            rows = selected[index]
+            window = scored[cursor:cursor + len(rows)]
+            cursor += len(rows)
+            if not window:
+                results.append({"claim": claim, "label": "neutral",
+                                "best_supporting_chunk": None, "confidence": 0.0})
+                continue
 
-            if entail_score >= entail_threshold:
-                label, confidence, chunk_id = "entailed", entail_score, premises[best_entail][0]
-            elif contra_score >= contradiction_threshold:
-                label, confidence, chunk_id = ("contradicted", contra_score,
-                                               premises[best_contra][0])
+            best = max(range(len(window)),
+                       key=lambda i: window[i]["scores"].get("entailment", 0.0))
+            scores = window[best]["scores"]
+            entail_score = scores.get("entailment", 0.0)
+            contra_score = scores.get("contradiction", 0.0)
+            chunk_id = premises[rows[best]][0]
+
+            if entail_score >= entail_threshold and entail_score >= contra_score:
+                label, confidence = "entailed", entail_score
+            elif contra_score >= contradiction_threshold and contra_score > entail_score:
+                label, confidence = "contradicted", contra_score
             else:
-                label, confidence, chunk_id = "neutral", entail_score, premises[best_entail][0]
+                label, confidence = "neutral", max(entail_score, contra_score)
 
             results.append({
                 "claim": claim,

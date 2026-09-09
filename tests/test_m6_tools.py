@@ -313,6 +313,44 @@ def test_unknown_chunk_ids_are_reported(cfg):
     assert result["error"] == "no_chunks"
 
 
+def test_unrelated_sentences_are_not_compared_at_all(cfg):
+    """MNLI models score topically unrelated pairs as confident contradictions, so pairs
+    below the similarity floor never reach the NLI model. Measured: a real conflict sits
+    at ~0.85 cosine, an unrelated same-paper pair at ~0.58."""
+    manifest = Manifest.load(cfg, strict_model_check=False)
+    store = ChunkStore(config=cfg)
+    for paper_id, text in (
+        ("pA", "Existing work has largely focused on training stability and scaling."),
+        ("pB", "Story prompts emphasize open-ended generation of narrative text."),
+    ):
+        manifest.add_paper(paper_record(
+            arxiv_id=paper_id, title="T", authors=[], abstract="", published="2024-01-01",
+            year=2024, categories=[], pdf_url="", pdf_path="", topic_tags=["x"]))
+        store.append([chunk_record(
+            paper_id=paper_id, paper_title="T", topic_tags=["x"], chunk_type="text",
+            text=text, page=1, position=0, n_tokens=15)])
+    manifest.save()
+
+    nli = StubNLI("contradiction", 0.99)
+    result = ConsistencyChecker(cfg, nli=nli).check("contradiction", ["pA__c0000", "pB__c0000"])
+
+    assert result["n_pairs_scored"] == 0, "unrelated sentences must not reach the NLI model"
+    assert result["found"] is False
+    assert nli.pairs == [], "the NLI model was never called"
+
+
+def test_groundedness_scores_only_the_most_similar_premises(cfg):
+    """One claim is checked against premises_per_claim sentences, not every sentence.
+    Scoring all of them and taking the strongest verdict lets a spurious contradiction
+    from an unrelated sentence win."""
+    seed(cfg, papers=1, chunks_per=6)
+    nli = StubNLI("entailment", 0.9)
+    ConsistencyChecker(cfg, client=StubLLM('["A claim about routing experts."]'),
+                       nli=nli).check("groundedness", [f"p0__c000{i}" for i in range(6)],
+                                      answer_text="draft")
+    assert len(nli.pairs) <= int(cfg.nli.premises_per_claim)
+
+
 # ------------------------------------------------------------------------- registry
 
 def test_all_five_tools_are_registered(cfg):
