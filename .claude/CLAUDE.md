@@ -68,6 +68,11 @@ Python 3.11+.
 - Losing the `faiss_idx -> chunk_id` mapping across restarts. It must be persisted
   with the index.
 - Embedding a figure's generated description without its caption. Both, concatenated.
+- Deciding what to re-embed by `chunk_id` alone. A `chunk_id` is positional within its
+  paper, so it survives a re-ingest even when the text under it changes — figure chunks
+  gaining a vision description is exactly that. Skipping on id leaves the stale vector
+  in place and retrieval quietly keeps matching text the chunk no longer contains.
+  Compare `content_hash` against `indexed_hashes`, and rebuild when it differs.
 - Forgetting that `faiss_id_map` is **positional**. Index `i` means FAISS slot `i`, and
   `IndexFlat.remove_ids` swap-compacts, moving the last vector into the freed slot — so
   any removal invalidates every downstream entry of the map and every downstream row of

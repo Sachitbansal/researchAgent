@@ -54,22 +54,33 @@ def index_chunks(
         return {"error": "no_chunks", "detail": "chunks.jsonl is empty; run M2 ingest first",
                 "partial": None}
 
-    force_rebuild = rebuild or model_changed(manifest, config)
     rebuild_reason = ""
     if model_changed(manifest, config):
         rebuild_reason = (
             f"embedding model changed from {manifest.data.get('embedding_model')} "
             f"to {config.embedding.model}"
         )
+    force_rebuild = rebuild or bool(rebuild_reason)
 
     try:
-        index = (
-            VectorIndex(int(config.embedding.dim), config)
-            if force_rebuild
-            else VectorIndex.load(manifest, config)
-        )
+        existing = VectorIndex.load(manifest, config)
     except IndexError_ as exc:
         return {"error": "index_unreadable", "detail": str(exc), "partial": None}
+
+    # A chunk_id is positional within its paper, so it survives a re-ingest even when the
+    # text beneath it changes — figure chunks gaining a description is exactly that.
+    # Skipping on id alone therefore leaves a stale vector in place, and retrieval quietly
+    # keeps matching the old text. Staleness is checked on content_hash instead.
+    stale = [c for c in chunks if existing.is_stale(c["chunk_id"], c["content_hash"])]
+    if stale and not force_rebuild:
+        force_rebuild = True
+        rebuild_reason = (
+            f"{len(stale)} chunk(s) changed text under an unchanged chunk_id "
+            f"(e.g. {stale[0]['chunk_id']}); a flat index cannot replace a vector in "
+            "place without renumbering every position after it, so it is rebuilt"
+        )
+
+    index = VectorIndex(int(config.embedding.dim), config) if force_rebuild else existing
 
     already = set() if force_rebuild else index.indexed
     pending = [chunk for chunk in chunks if chunk["chunk_id"] not in already]
@@ -78,6 +89,7 @@ def index_chunks(
             "chunks_indexed": 0,
             "chunks_skipped": len(chunks),
             "cache_hits": 0,
+            "stale_detected": 0,
             "total_indexed": len(index),
             "rebuilt": False,
         }
@@ -92,7 +104,11 @@ def index_chunks(
         return {"error": "embedding_failed", "detail": str(exc), "partial": None}
 
     try:
-        index.add([chunk["chunk_id"] for chunk in pending], vectors)
+        index.add(
+            [chunk["chunk_id"] for chunk in pending],
+            vectors,
+            [chunk["content_hash"] for chunk in pending],
+        )
         index.save(manifest)
     except IndexError_ as exc:
         return {"error": "index_write_failed", "detail": str(exc), "partial": None}
@@ -102,6 +118,7 @@ def index_chunks(
         "chunks_indexed": len(pending),
         "chunks_skipped": len(chunks) - len(pending),
         "cache_hits": hits_before,
+        "stale_detected": len(stale),
         "total_indexed": len(index),
         "rebuilt": force_rebuild,
         "rebuild_reason": rebuild_reason,

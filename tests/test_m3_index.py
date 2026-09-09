@@ -199,6 +199,75 @@ def test_appending_preserves_existing_map_positions(cfg):
     assert after[: len(before)] == before, "an append must never reorder existing entries"
 
 
+def test_changed_chunk_text_is_re_embedded_not_skipped(cfg):
+    """A chunk_id is positional within its paper, so it survives a re-ingest even when
+    the text under it changes — a figure chunk gaining a vision description is exactly
+    that. Skipping on chunk_id alone leaves the stale vector in place and retrieval
+    keeps matching text the chunk no longer contains, silently.
+    """
+    from common.records import chunk_record
+
+    seed_chunks(cfg, "p1", n=2)
+    index_chunks(cfg, embedder=StubEmbedder(cfg))
+    before = Manifest.load(cfg, strict_model_check=False).data["indexed_hashes"]
+    assert len(before) == 2 and all(before), "the hash of what was embedded is recorded"
+
+    # Rewrite one chunk's text, keeping its chunk_id and position identical.
+    from corpus.chunk_store import ChunkStore
+
+    store = ChunkStore(config=cfg)
+    records = store.all()
+    for record in records:
+        if record["chunk_id"] == "p1__c0001":
+            replacement = chunk_record(
+                paper_id="p1", paper_title="T", topic_tags=["alpha"], chunk_type="text",
+                text="COMPLETELY DIFFERENT TEXT after a re-ingest", page=1, position=1,
+                n_tokens=8)
+            record.update(replacement)
+    store.rewrite(records)
+
+    result = index_chunks(cfg, embedder=StubEmbedder(cfg))
+    assert result["stale_detected"] >= 1
+    assert result["rebuilt"] is True, "a flat index cannot replace a vector in place"
+    assert "unchanged chunk_id" in result["rebuild_reason"]
+
+    after = Manifest.load(cfg, strict_model_check=False).data["indexed_hashes"]
+    changed = next(c for c in store.all() if c["chunk_id"] == "p1__c0001")
+    assert changed["content_hash"] in after, "the new text's hash is now what is indexed"
+
+
+def test_unchanged_chunks_are_still_skipped(cfg):
+    """Staleness detection must not defeat incremental indexing for the normal case."""
+    seed_chunks(cfg, "p1", n=3)
+    index_chunks(cfg, embedder=StubEmbedder(cfg))
+    second = index_chunks(cfg, embedder=StubEmbedder(cfg))
+    assert second["chunks_indexed"] == 0
+    assert second["stale_detected"] == 0
+    assert second["rebuilt"] is False
+
+
+def test_an_index_without_recorded_hashes_is_rebuilt_once(cfg):
+    """Vectors written before indexed_hashes existed are of unknown provenance, so they
+    are treated as stale rather than as current."""
+    seed_chunks(cfg, "p1", n=2)
+    index_chunks(cfg, embedder=StubEmbedder(cfg))
+
+    manifest = Manifest.load(cfg, strict_model_check=False)
+    del manifest.data["indexed_hashes"]
+    manifest.save()
+
+    result = index_chunks(cfg, embedder=StubEmbedder(cfg))
+    assert result["rebuilt"] is True
+    assert result["stale_detected"] == 2
+    assert index_chunks(cfg, embedder=StubEmbedder(cfg))["rebuilt"] is False, "settles after one"
+
+
+def test_add_refuses_mismatched_content_hashes(cfg):
+    index = VectorIndex(4, cfg)
+    with pytest.raises(IndexError_, match="content_hashes"):
+        index.add(["a", "b"], np.zeros((2, 4), dtype=np.float32), ["only-one-hash"])
+
+
 def test_changed_embedding_model_forces_a_rebuild(cfg):
     seed_chunks(cfg, "p1", n=3)
     index_chunks(cfg, embedder=StubEmbedder(cfg))

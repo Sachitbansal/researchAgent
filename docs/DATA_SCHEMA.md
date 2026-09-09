@@ -165,6 +165,7 @@ papers (or the same paper re-indexed) costs one vision call, not two.
     }
   },
   "faiss_id_map": ["chunk_id", "chunk_id", "..."],
+  "indexed_hashes": ["sha256", "sha256", "..."],
   "content_hashes": "map sha256 -> embedding cache reference. Not a dedup index.",
   "manifest_hash": "string — sha256 over paper_ids + chunk count, used as cache key"
 }
@@ -175,6 +176,31 @@ mapping from FAISS position → `chunk_id` exists nowhere else and is unrecovera
 lost. It is a plain list where index `i` holds the `chunk_id` at FAISS position `i`,
 and it must be written to disk in the same operation that writes the index. Never
 write one without the other.
+
+**`indexed_hashes` is positional too**, parallel to `faiss_id_map`: index `i` holds the
+`content_hash` of the text actually embedded at FAISS position `i`. It answers a
+question `faiss_id_map` cannot — *is this vector still current?*
+
+`chunk_id` is `{paper_id}__c{position}`, so it survives a re-ingest unchanged even when
+the text beneath it does not. Figure chunks are the case that proves it: a figure
+indexed before its vision description exists keeps the same `chunk_id` when the
+description arrives, but its `text` goes from `caption` to `caption + description`.
+Deciding what to embed by `chunk_id` alone leaves the old caption-only vector in place
+forever, and retrieval keeps matching text the chunk no longer contains — silently,
+with no error and no way to notice from the outside.
+
+So a chunk is re-embedded when its `content_hash` differs from its `indexed_hashes`
+entry, not merely when its `chunk_id` is absent. An index written before this field
+existed has no entries; those vectors are treated as unknown rather than current, which
+costs one full rebuild on first load and nothing after.
+
+**Changed content forces a rebuild, not an append.** This is the second exception to
+"incremental, never rebuild" (§5 of `ARCHITECTURE.md`), alongside a changed embedding
+model. A flat index cannot replace a vector in place: `remove_ids` swap-compacts, which
+renumbers every position after the hole and invalidates the rest of `faiss_id_map`.
+Rebuilding is cheap in practice because unchanged text hits the embedding cache — the
+rebuild that introduced this field re-embedded 17 figure chunks and served the other 98
+from cache.
 
 `embedding_model` and `embedding_dim` are recorded so a model change is detected on
 load. A mismatch means a full rebuild — appending vectors from a different model to
