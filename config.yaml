@@ -35,8 +35,12 @@ llm:
   # the whole M8 eval around $0.15. DeepSeek was considered and rejected: its cheap tier
   # (deepseek-v4-flash, $0.084) has no vision, and this role must accept images.
   agent_model: qwen/qwen3.7-flash                     # tools + vision, 1M ctx, ~$0.03/Mtok
-  vision_model: dots-studio/dots-3-note-preview:free  # most reliable reader of a chart
-  utility_model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free  # 8x faster on JSON
+  # Vision and utility moved off the free tier at M7 for the same reason the agent did:
+  # indexing an eval corpus is ~60 figure descriptions, and the free tier allows 50
+  # requests per day in total. qwen was measured at 3/3 on the same chart-reading probe
+  # the free model passed, so this costs accuracy nothing and removes the daily wall.
+  vision_model: qwen/qwen3.7-flash                    # chart reading verified 3/3
+  utility_model: qwen/qwen3.7-flash                   # arxiv query planning, claim extraction
   #
   # Rejected for the agent role, recorded so they are not retried:
   #   thinkingmachines/inkling-small:free, thinkingmachines/inkling:free
