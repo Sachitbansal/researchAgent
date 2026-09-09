@@ -83,6 +83,18 @@ class EvidenceRetriever:
         """Forget which chunks were already returned. Called at the start of a question."""
         self._returned.clear()
 
+    def invalidate(self) -> None:
+        """Drop the cached index and chunk table so the next call re-reads from disk.
+
+        Called after search_literature adds papers. Without it the retriever keeps
+        searching the corpus as it stood when this conversation began, and newly fetched
+        papers are invisible for the rest of the run — with no error, because a stale
+        index still returns plausible results.
+        """
+        self._index = None
+        self._chunks = None
+        self._by_position = None
+
     @property
     def returned(self) -> Set[str]:
         return set(self._returned)

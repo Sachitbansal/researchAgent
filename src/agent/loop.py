@@ -17,7 +17,7 @@ from agent.conversation import Conversation
 from agent.tool_registry import ToolRegistry
 from agent.trace import TraceWriter
 from config import CFG, Config
-from llm_client import LLMClient, LLMError, LLMResponse
+from llm_client import LLMClient, LLMError, LLMResponse, attach_images
 
 # What the model is told when it repeats a call it already made verbatim.
 LOOP_NOTICE = (
@@ -64,6 +64,26 @@ class AgentLoop:
         self.config = config
         self.client = client if client is not None else LLMClient(config=config)
         self.retriever = retriever
+
+    @staticmethod
+    def _attach_image(conversation: Conversation, resolved: Dict[str, Any]) -> None:
+        """Append the image on a user turn, which is the only place it is valid.
+
+        docs/ARCHITECTURE.md section 9: the tool returns a path, the loop attaches the
+        file. Keeping this in the loop rather than the tool is what lets inspect_figure
+        stay a structured-dict tool like every other one.
+        """
+        prompt = resolved.get("question") or "Read this image and answer from what it shows."
+        caption = resolved.get("caption")
+        parts = [f"Image for {resolved.get('figure_id') or 'the file you asked to inspect'}."]
+        if caption:
+            parts.append(f"Caption: {caption}")
+        parts.append(prompt)
+
+        # attach_images appends image parts to the last user turn, so the text goes first.
+        conversation.add_user(" ".join(parts))
+        attached = attach_images(conversation.messages(), [resolved["image_path"]])
+        conversation._messages[-1] = attached[-1]
 
     def run(self, question: str, question_id: Optional[str] = None,
             run_id: Optional[str] = None) -> Dict[str, Any]:
@@ -113,6 +133,8 @@ class AgentLoop:
             # verbatim, or the tool_call ids stop matching.
             conversation.add_assistant(response)
 
+            pending_images: List[Dict[str, Any]] = []
+
             for call in response.tool_calls:
                 if not call.ok:
                     conversation.add_tool_result(call.id, {
@@ -140,6 +162,16 @@ class AgentLoop:
 
                 tracer.record(iteration, call.name, call.arguments, result, latency_ms)
                 conversation.add_tool_result(call.id, result)
+
+                # A tool that resolved an image cannot hand it back in its own result:
+                # the OpenAI-compatible schema only accepts image parts on a user turn.
+                # Collect it now and attach after every tool_call has been answered,
+                # because an unanswered tool_call makes the whole request invalid.
+                if isinstance(result, dict) and result.get("image_path") and "error" not in result:
+                    pending_images.append(result)
+
+            for image in pending_images:
+                self._attach_image(conversation, image)
 
             conversation.elide_if_needed()
         else:

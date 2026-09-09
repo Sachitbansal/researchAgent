@@ -137,11 +137,52 @@ RETRIEVE_EVIDENCE_PARAMETERS: Dict[str, Any] = {
 
 
 def build_default_registry(retriever, config: Config = CFG) -> ToolRegistry:
-    """The M5 registry: one tool wired in, per docs/BUILD_PLAN.md."""
+    """Retrieval only — the M5 registry, kept for tests that want one tool."""
     registry = ToolRegistry(config)
+    registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, retriever.retrieve)
+    return registry
+
+
+def build_full_registry(
+    retriever=None,
+    config: Config = CFG,
+    client=None,
+) -> "ToolRegistry":
+    """All five tools, per docs/TOOLS.md.
+
+    `search_literature` is given a callback that clears the retriever's cached view of
+    the corpus. The retriever holds the index and chunk table in memory for the life of a
+    conversation, so papers added mid-conversation would otherwise be invisible to every
+    later retrieval — silently, since a stale index still returns plausible results.
+    The callback keeps control flow in the agent: no tool calls another tool.
+    """
+    from tools.analyze_corpus import ANALYZE_CORPUS_PARAMETERS, CorpusAnalyzer
+    from tools.check_evidence_consistency import (
+        CHECK_CONSISTENCY_PARAMETERS,
+        ConsistencyChecker,
+    )
+    from tools.inspect_figure import INSPECT_FIGURE_PARAMETERS, FigureInspector
+    from tools.retrieve_evidence import EvidenceRetriever
+    from tools.search_literature import SEARCH_LITERATURE_PARAMETERS, LiteratureSearcher
+
+    retriever = retriever if retriever is not None else EvidenceRetriever(config)
+    registry = ToolRegistry(config)
+
+    registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, retriever.retrieve)
     registry.register(
-        "retrieve_evidence",
-        RETRIEVE_EVIDENCE_PARAMETERS,
-        retriever.retrieve,
+        "search_literature",
+        SEARCH_LITERATURE_PARAMETERS,
+        LiteratureSearcher(config, client=client, on_corpus_change=retriever.invalidate).search,
+    )
+    registry.register(
+        "analyze_corpus", ANALYZE_CORPUS_PARAMETERS, CorpusAnalyzer(config).analyze
+    )
+    registry.register(
+        "inspect_figure", INSPECT_FIGURE_PARAMETERS, FigureInspector(config).inspect
+    )
+    registry.register(
+        "check_evidence_consistency",
+        CHECK_CONSISTENCY_PARAMETERS,
+        ConsistencyChecker(config, client=client).check,
     )
     return registry

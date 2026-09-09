@@ -147,7 +147,11 @@ nli:
   model: cross-encoder/nli-deberta-v3-small
   contradiction_threshold: 0.6   # TUNED
   entailment_threshold: 0.5      # TUNED
-  max_pairs: 30                  # cap pairwise comparisons
+  max_pairs: 30                  # cap pairwise chunk comparisons in contradiction mode
+  max_sentences_per_chunk: 8     # NLI degrades badly on paragraph-length input, so chunks
+                                 # are split and scored sentence by sentence. This caps the
+                                 # combinatorics: pairs grow as sentences_a x sentences_b.
+  max_claims: 20                 # atomic claims extracted from one drafted answer
 
 analysis:
   cluster_k_range: [2, 8]   # silhouette score picks k within this range
