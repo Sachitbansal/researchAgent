@@ -28,7 +28,13 @@ llm:
   #   nvidia/nemotron-3-nano-omni       vision 2/3  7.1s | json 3/3  9.4s
   #   google/gemma-4-31b-it             vision 0/3  0.4s | json 0/3  0.4s  (rate limited)
   #   google/gemma-4-26b-a4b-it         vision 0/3  0.4s | json 0/3  0.4s  (rate limited)
-  agent_model: dots-studio/dots-3-note-preview:free   # tools + vision verified, 512k ctx
+  #
+  # The agent role moved off the free tier at M5. The loop makes several calls per
+  # question, so 50 requests/day is roughly six questions — unworkable for development.
+  # qwen3.7-flash is $0.03/$0.13 per Mtok with tools, vision and 1M context, which puts
+  # the whole M8 eval around $0.15. DeepSeek was considered and rejected: its cheap tier
+  # (deepseek-v4-flash, $0.084) has no vision, and this role must accept images.
+  agent_model: qwen/qwen3.7-flash                     # tools + vision, 1M ctx, ~$0.03/Mtok
   vision_model: dots-studio/dots-3-note-preview:free  # most reliable reader of a chart
   utility_model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free  # 8x faster on JSON
   #
@@ -151,6 +157,15 @@ agent:
   max_iterations: 8
   loop_detection: true      # break on repeated (tool_name, args)
   dedup_chunks_across_calls: true
+  max_context_tokens: 60000 # Past this, the oldest tool results have their CONTENT
+                            # replaced by a placeholder. The messages themselves stay:
+                            # deleting a tool message orphans its assistant tool_call and
+                            # the API rejects the whole request.
+  elision_placeholder_chars: 200
+  final_answer_nudge: true  # on hitting max_iterations, make one more call with
+                            # tool_choice=none so the model must answer with what it has
+  trace_text_chars: 200     # per-chunk text kept in a trace record. Full chunk text in
+                            # every record makes the log unusable (DATA_SCHEMA section 7)
 
 paths:
   data_dir: data

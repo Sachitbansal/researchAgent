@@ -322,10 +322,19 @@ Only text, figures, and tables are in scope. No audio or video.
 
 ## 10. Answer synthesis
 
-Answers carry **inline per-claim citations** (`[paper_id:chunk_id]`), not a
-bibliography appended at the end. This makes groundedness checking mechanical, makes
-manual eval verification trivial, and means every claim is individually traceable to
-its source.
+Answers carry **inline per-claim citations** (`[chunk_id]`, e.g.
+`[2603_11114v1__c0004]`), not a bibliography appended at the end. This makes
+groundedness checking mechanical, makes manual eval verification trivial, and means
+every claim is individually traceable to its source.
+
+**The citation is the bare `chunk_id`.** An earlier draft specified
+`[paper_id:chunk_id]`, which is redundant: `chunk_id` is `{paper_id}__c{position}`, so
+that form expands to `[2603_11114v1:2603_11114v1__c0004]` with the paper named twice.
+The first live agent run showed why this matters — the model would not write it, and
+emitted `[2603_11114v1:c0004]` instead, splitting the id in a way that matches no chunk
+in the store. A citation the eval harness cannot resolve is worse than no citation,
+because it scores as a hallucinated source. One unambiguous token, which already
+carries the paper, avoids the whole problem.
 
 When evidence is insufficient or conflicting, the answer says so explicitly rather
 than resolving the conflict silently in favour of one source.
