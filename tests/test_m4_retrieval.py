@@ -128,10 +128,17 @@ def test_gate_fires_when_everything_scores_below_threshold(corpus):
 
 def test_weak_chunks_are_withheld_even_when_the_best_one_passes(corpus):
     """Gating on the top score alone still hands back everything beneath it, which is
-    what docs/ARCHITECTURE.md section 7 forbids."""
-    scores = {"pA__c0000": 5.0, "pA__c0001": -1.0, "pA__c0002": -2.0,
-              "pA__c0003": -3.0, "pA__c0004": -4.0}
-    result = retriever(corpus, scores=scores, default=-9.0).retrieve("routing", k=5)
+    what docs/ARCHITECTURE.md section 7 forbids.
+
+    Scores are placed relative to the configured threshold rather than hardcoded. The
+    threshold is a tuned value that moved from 0.0 to -3.0 in M8, and a test pinned to
+    one number tests the number rather than the behaviour.
+    """
+    threshold = float(corpus.retrieval.relevance_threshold)
+    scores = {"pA__c0000": threshold + 5.0, "pA__c0001": threshold - 1.0,
+              "pA__c0002": threshold - 2.0, "pA__c0003": threshold - 3.0,
+              "pA__c0004": threshold - 4.0}
+    result = retriever(corpus, scores=scores, default=threshold - 9.0).retrieve("routing", k=5)
 
     assert result["sufficient_evidence"] is True
     assert [c["chunk_id"] for c in result["chunks"]] == ["pA__c0000"]

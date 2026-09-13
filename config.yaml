@@ -142,8 +142,17 @@ retrieval:
                             # from this, so the two move together
   rerank_enabled: true
   reranker_model: cross-encoder/ms-marco-MiniLM-L-6-v2
-  relevance_threshold: 0.0  # TUNED in M8. Cross-encoder scores are uncalibrated —
-                            # this must be set from data, never assumed.
+  relevance_threshold: -3.0 # TUNED in M8 on the 10 non-held-out questions, never on the
+                            # held-out third. Cross-encoder scores are uncalibrated logits
+                            # roughly spanning -11..+11, so this can only come from data.
+                            # Swept -8..+2; the two halves trade off exactly as expected:
+                            #   -8.0  answers everything (1.00) but abstains only 0.50
+                            #   -3.0  answerable 0.875, absent 1.000  <- balanced 0.933
+                            #    0.0  answerable 0.500, absent 1.000  (the old placeholder,
+                            #         refusing half the answerable questions)
+                            #   +2.0  answerable 0.125 — gates off almost everything
+                            # Scored by harmonic mean so a threshold cannot win one half by
+                            # abandoning the other. See eval/results/threshold_sweep.json.
   neighbour_expansion: 1    # attach position ±1 from the same paper
   max_chunk_chars: 2000     # truncation before the chunk enters context
 
