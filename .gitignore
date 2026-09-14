@@ -18,4 +18,10 @@ venv/
 .cache/
 # test / eval artefacts
 .pytest_cache/
-eval/results/
+# eval/results/ is deliberately NOT ignored: docs/EVALUATION.md cites those numbers as
+# evidence, and they are not reproducible (live arXiv, a hosted model), so regenerating
+# them is not the same as recovering them. Only the sweep's scratch config is ignored.
+eval/results/_sweep_config.yaml
+
+# cold-start demo corpus — regenerable, same reasons as data/
+data_demo/
