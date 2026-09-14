@@ -412,3 +412,118 @@ reserved and run only after tuning stops.
 - **No index eviction.** Growth is bounded by `max_papers_per_topic` and made
   harmless by `topic_tags` filtering. Removal from a flat index with a positional
   id map implies a rebuild, which the incremental design rules out — see §6.	
+
+---
+
+## 15. How AI agents were used to build this
+
+The system was implemented with Claude Code driving the edits, against the specs in
+this directory. That arrangement is worth recording honestly, because the failure mode
+it produces is specific: **an agent writing code produces plausible code, and plausible
+code passes tests written by the same agent.** Almost every real defect below was
+caught by something other than a unit test.
+
+### What the arrangement looked like
+
+The specs (`ARCHITECTURE.md`, `TOOLS.md`, `DATA_SCHEMA.md`, `BUILD_PLAN.md`) were
+written first and treated as authority. Work went milestone by milestone, M0→M9, each
+ending at a **verification gate** — `scripts/mN_gate.py`, a script that runs the real
+pipeline on real data and prints pass/fail per claim. Gates are the reason this
+document can cite measurements rather than intentions.
+
+Two standing rules shaped the output more than anything else:
+
+1. **Do not silently substitute a design decision.** Where a spec looked wrong, the
+   instruction was to stop and say so rather than quietly implement something better.
+   Six specs turned out to be wrong and were *changed in the docs*, not worked around
+   in code — because later milestones read the docs, and a stale doc reintroduces the
+   bug two milestones later.
+2. **Ask when the spec is ambiguous.** A wrong guess that compiles is worse than a
+   question.
+
+### What review actually caught
+
+Concrete cases, each with the evidence that exposed it:
+
+**The bi-encoder was silently truncating every chunk.** The spec reasoned about a
+512-token limit and `chunking.max_tokens` was sized against the cross-encoder.
+`all-MiniLM-L6-v2` — the originally specified embedding model — actually caps at
+**256**. Every chunk over that was being cut in half at embed time, the stage that
+decides whether a chunk is findable at all, with no error anywhere. Found by reading
+the checkpoint's own config rather than trusting the spec's number. Fixed by swapping
+to `bge-small-en-v1.5` (512 tokens, same 384 dims) and re-deriving the ceiling from
+both encoders: bi-encoder 510, cross-encoder 512−3−64 = **445**, binding.
+
+**Stale vectors under an unchanged `chunk_id`.** `chunk_id` is positional within a
+paper, so it survives re-ingest even when the text beneath it changes — which is
+exactly what happens when a figure chunk gains a vision description. Deciding what to
+re-embed by id left the caption-only vector in the index while the chunk store held
+caption+description. Retrieval kept happily matching text the chunk no longer
+contained. No exception, no failing test, just quietly worse results. Fixed with a
+positional `indexed_hashes` in the manifest, compared against `content_hash`.
+
+**NLI passing its gate for the wrong reason.** `check_evidence_consistency` reported a
+1.000-confidence contradiction against a *true* claim. The premise it had picked was
+`"Story emphasizes open-ended generation."` — a sentence with nothing to do with the
+claim, which was about expert routing. The cause was a misreading of the spec:
+"best-matching sentence" had been implemented as *strongest NLI verdict* rather than
+*highest semantic similarity*, and over ~30 candidate premises the winner is reliably a
+spurious high-confidence contradiction. Fixed with bi-encoder premise selection and a
+`min_pair_similarity` floor of 0.75 — measured, not guessed: real conflicts sit at
+0.849–0.894, unrelated pairs from the same paper at 0.574–0.586. 254 candidate pairs
+dropped to 6, and the positive control still fires at 1.000.
+
+**A gate check that passed because nothing happened.** The M2 gate asserted "a re-run
+makes no new vision calls." It passed — against an empty description cache, where zero
+calls is trivially true. A check that cannot fail is worse than no check, because it
+reads as evidence. Fixed by failing the gate when the cache is empty.
+
+**Cached and uncached queries diverging.** The arXiv query planner folded category
+filters in *after* caching, so a cache hit searched a broader query than a cache miss.
+Deduplication silently stopped firing. Found by noticing the same paper arriving twice
+under one topic. The first fix then double-applied categories — `((q) AND cat) AND cat`
+— which was only distinguishable from the correct behaviour after confirming arXiv
+itself returns deterministic results (4/4 identical responses) before blaming the code.
+
+**A statistic chosen for the wrong distribution.** Heading detection used the *median*
+font size as the body-text baseline. Short caption and table lines dragged the median
+below true body size, and an entire abstract was promoted to headings. Replaced with a
+character-weighted mode, and the `body + 1.5pt` threshold derived from an actual
+font-size distribution: headings 10.96–11.96, contribution lists 9.96, table cells
+≤8.97, body 8.97.
+
+**Bibliographies indexed as content.** Every reference entry looks relevant to every
+query about the field. Caught by eyeballing sample chunks at a gate — `[Iccv, 2021. 2]`
+as an indexed "section" — not by any assertion. Fixed with `extraction.drop_sections`.
+
+**A citation format that could not be resolved.** The spec called for
+`[paper_id:chunk_id]` citations. The model emitted `[2603_11114v1:c0004]`, which
+matches no chunk, because `chunk_id` already contains the paper id. Zero of the
+citations in a sample answer resolved. Changed to a bare `[chunk_id]` in the spec and
+the system prompt; resolvable citations went 0 → 4 on the same question, and the eval
+now reports 1.000 citations resolved on both splits.
+
+**A tuned threshold that a test had quietly frozen.** `test_weak_chunks_are_withheld`
+hardcoded scores against the placeholder threshold of 0.0. When M8 tuned the threshold
+to −3.0 the test broke — correctly. The fix was to derive the test's scores from the
+configured threshold, so the test asserts the *behaviour* rather than the number.
+
+### What this says about the arrangement
+
+The pattern is consistent: **unit tests written alongside the code confirmed the code
+did what it was written to do, and the gates caught what it was written to do being
+wrong.** Every defect above surfaced from running the real pipeline on real data and
+looking at the output — a printed chunk, a font-size histogram, a citation that
+resolved to nothing — rather than from an assertion.
+
+Two habits did most of the work. **Measure instead of guessing:** every threshold in
+`config.yaml` carries the measurement that produced it, and the comment explaining the
+measurement is frequently longer than the value. **Verify the tool before blaming the
+code:** checking that arXiv returned deterministic results, and that a tokenizer's
+limit was what the docs claimed, each redirected a debugging session that was pointed
+at the wrong layer.
+
+The residual risk is the one this section cannot fully address: the same agent wrote
+the code, the tests, and the gates. Gates mitigate it by running real data and printing
+output for a human to read, but they do not eliminate it. `docs/EVALUATION.md` reports
+what a small, single-annotator question set can and cannot establish.
