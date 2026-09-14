@@ -95,6 +95,16 @@ Python 3.11+.
   cache key. Two papers may legitimately share text; both keep their own chunk record.
   Dropping one leaves a hole in `position`, and neighbour expansion walks straight
   over it. Within-paper dedup only, and assign `position` after it.
+- Passing explicit `categories` to `search_and_fetch` on top of a planned query. The
+  query planner already folds its own categories into `plan["query"]`
+  (`arxiv_query.apply_categories`), so the caller's are ANDed onto that filter rather
+  than replacing it, and the search narrows twice: a planner choosing
+  `q-bio.QM OR cs.LG OR cs.AI` plus a caller passing `q-bio.BM OR cs.LG` searches
+  neither set. Pass categories only when overriding the planner deliberately.
+- Hammering arXiv while iterating. `export.arxiv.org` rate-limits by IP and answers
+  HTTP 429 for *every* query once tripped, not just the one that tripped it — a
+  cooling-off period of many minutes, during which no collection work can proceed.
+  Retry with a bounded, spaced loop; never a tight one.
 - Trying to return an image as base64 inside a tool result. The OpenAI-compatible
   surface only accepts image parts on a `user` message, so the agent loop attaches the
   image on a follow-up turn (`llm_client.attach_images`); the tool returns a path.

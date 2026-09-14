@@ -75,11 +75,22 @@ collection:
   max_results_default: 8
   max_papers_per_topic: 10
   sort_by: relevance        # -> arxiv.SortCriterion.Relevance
-  request_delay_s: 3        # -> arxiv.Client(delay_seconds=...). arXiv asks for a delay
+  request_delay_s: 4        # -> arxiv.Client(delay_seconds=...). arXiv asks for a delay
                             # between calls; the client enforces it, we do not sleep by hand.
+                            # Above arXiv's requested 3s rather than exactly at it — the gap is
+                            # measured from when the previous response was handled, so sitting
+                            # exactly on the limit leaves no room for clock skew. The client is
+                            # shared process-wide (collect._build_client) because the delay is
+                            # tracked per client instance, not globally.
   max_retries: 3            # -> arxiv.Client(num_retries=...). Separate from llm.max_retries:
                             # a flaky arXiv feed and a flaky LLM provider are different faults
                             # and get tuned independently.
+  page_size: 25             # -> arxiv.Client(page_size=...). The library default is 100, which
+                            # asks arXiv for 100 records however few we intend to keep —
+                            # max_papers_per_topic is 10. Sized above that cap, not at it: the
+                            # search returns papers already held, which are filtered after the
+                            # response, so a page exactly the size of the cap can come back
+                            # entirely deduped and leave nothing new.
 
 extraction:
   min_figure_width: 150     # px — below this is almost always a logo or rule

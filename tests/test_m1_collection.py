@@ -5,6 +5,7 @@ In:  a tmp_path-scoped config, a stub arxiv.Client, and a fake LLM — no networ
 Out: assertions on record shapes, dedup behaviour, tag backfill, and error dicts.
 """
 
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -487,3 +488,87 @@ def test_topic_cap_is_enforced(cfg, monkeypatch, planned):
     stub_arxiv(monkeypatch, [StubResult("2102.00001v1")])
     result = collect.search_and_fetch("a topic", topic_tag="alpha", config=cfg)
     assert result["error"] == "topic_cap_reached"
+
+
+# --- arXiv request pacing -------------------------------------------------------
+
+
+class _PacingResponse:
+    """A response that always fails, so the client retries and we can time the gaps."""
+
+    status_code = 503
+    content = b""
+
+
+def _timed_client(monkeypatch):
+    """The shared client, with its HTTP layer replaced by a timestamp recorder.
+
+    Stubbing `_session.get` rather than `_parse_feed` or `__try_parse_feed` is the whole
+    point: the delay is enforced *inside* `__try_parse_feed`, so replacing either of
+    those bypasses the behaviour under test and the assertion passes vacuously.
+    """
+    import arxiv
+
+    from config import CFG
+    from corpus import collect
+
+    collect._CLIENT = None  # ignore any client a previous test built
+    collect._CLIENT_POLICY = None
+    client = collect._build_client(CFG)
+    stamps: list = []
+
+    def record(url, headers=None, **kwargs):
+        stamps.append(time.monotonic())
+        return _PacingResponse()
+
+    monkeypatch.setattr(client, "_session", type("S", (), {"get": staticmethod(record)})())
+    return collect, client, stamps
+
+
+def test_arxiv_requests_are_spaced_by_the_configured_delay(monkeypatch):
+    """arXiv asks for a gap between requests; the client must actually leave one."""
+    import arxiv
+
+    from config import CFG
+
+    collect, client, stamps = _timed_client(monkeypatch)
+    client.num_retries = 2  # one initial request plus two retries
+
+    with pytest.raises(Exception):
+        list(client.results(arxiv.Search(query="pacing", max_results=1)))
+
+    gaps = [stamps[i + 1] - stamps[i] for i in range(len(stamps) - 1)]
+    assert len(stamps) == 3, f"expected 3 requests, got {len(stamps)}"
+    delay = float(CFG.collection.request_delay_s)
+    assert delay > 3, "arXiv asks for 3s; the configured delay must exceed it, not sit on it"
+    assert all(gap >= delay - 0.2 for gap in gaps), f"gaps too tight: {gaps}"
+
+
+def test_the_arxiv_client_is_shared_so_the_delay_spans_separate_searches(monkeypatch):
+    """A fresh client per search would reset the delay clock and defeat the pacing.
+
+    `arxiv.Client` tracks `_last_request_dt` per instance, so two searches in quick
+    succession — the agent calling search_literature twice — would reach arXiv with no
+    gap at all if each built its own client.
+    """
+    import arxiv
+
+    from config import CFG
+
+    collect, client, stamps = _timed_client(monkeypatch)
+    assert collect._build_client(CFG) is client, "client must be reused across calls"
+
+    client.num_retries = 0
+    for _ in range(2):  # two separate 'search_and_fetch' calls
+        with pytest.raises(Exception):
+            list(collect._build_client(CFG).results(arxiv.Search(query="q", max_results=1)))
+
+    gap = stamps[1] - stamps[0]
+    assert gap >= float(CFG.collection.request_delay_s) - 0.2, f"no gap between searches: {gap}"
+
+
+def test_arxiv_endpoints_are_https():
+    """Queries and PDF fetches must not travel in the clear."""
+    import arxiv
+
+    assert arxiv.Client.query_url_format.startswith("https://")

@@ -37,13 +37,33 @@ def _error(code: str, detail: str, partial: Optional[Dict[str, Any]] = None) -> 
     return {"error": code, "detail": detail, "partial": partial}
 
 
+# One shared client for the whole process. Rebuilt only when the policy it was built
+# with changes.
+_CLIENT: Optional[arxiv.Client] = None
+_CLIENT_POLICY: Optional[tuple] = None
+
+
 def _build_client(config: Config) -> arxiv.Client:
-    """arXiv client with the delay and retry policy from config, not library defaults."""
-    return arxiv.Client(
-        page_size=100,
-        delay_seconds=float(config.collection.request_delay_s),
-        num_retries=int(config.collection.max_retries),
+    """arXiv client with the delay and retry policy from config, not library defaults.
+
+    Deliberately shared rather than constructed per search. `arxiv.Client` enforces
+    `delay_seconds` by comparing against `_last_request_dt`, which lives on the
+    *instance* — so a fresh client per call resets that clock and two searches in quick
+    succession reach arXiv with no gap at all. That is exactly the pattern the agent
+    produces when it calls `search_literature` twice, and that a gate produces when it
+    loops. Reusing the instance is what makes the configured delay real.
+    """
+    global _CLIENT, _CLIENT_POLICY
+    policy = (
+        float(config.collection.request_delay_s),
+        int(config.collection.max_retries),
+        int(config.collection.page_size),
     )
+    if _CLIENT is None or _CLIENT_POLICY != policy:
+        delay, retries, page_size = policy
+        _CLIENT = arxiv.Client(page_size=page_size, delay_seconds=delay, num_retries=retries)
+        _CLIENT_POLICY = policy
+    return _CLIENT
 
 
 def _to_paper_record(result: Any, pdf_path: str, topic_tag: str) -> Dict[str, Any]:
