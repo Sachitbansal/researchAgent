@@ -278,7 +278,17 @@ class EvidenceRetriever:
         # score alone still hands back everything below it, which is the thing
         # docs/ARCHITECTURE.md section 7 says not to do: a query whose best hit scrapes
         # over the line would drag four weak chunks into the context window with it.
-        threshold = float(self.config.retrieval.relevance_threshold)
+        # The threshold has to match whatever produced the score. Cross-encoder output is
+        # an uncalibrated logit spanning roughly -11..+11; bi-encoder output is a cosine
+        # in 0..1. Applying the cross-encoder's threshold to cosine scores lets every
+        # candidate through, which does not fail loudly — it silently removes abstention
+        # and answers absent-topic questions from whatever ranked first. That is the
+        # failure mode here, so the threshold is chosen by which scorer actually ran,
+        # including when reranking was requested but fell back above.
+        threshold = float(
+            self.config.retrieval.relevance_threshold if rerank_enabled
+            else self.config.retrieval.bi_encoder_relevance_threshold
+        )
         top_score = ranked[0]["rerank_score"] if ranked else float("-inf")
         passing = [item for item in ranked if item["rerank_score"] >= threshold]
 

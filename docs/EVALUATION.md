@@ -121,10 +121,13 @@ answerable questions — a bug that no unit test could have caught, because the 
 behaving exactly as written. −3.0 and −2.0 tie; −3.0 was taken as the more permissive of
 the two.
 
-## The rerank ablation — a marginal gain for a large cost
+## The rerank ablation — a marginal gain, and what the ablation missed
 
-This is the result that came out worse than hoped, and it is a finding rather than
-something to bury. Same 10 questions, retrieval only, rerank on vs. off:
+This is the result that came out worse than hoped, and then turned out to be measuring
+the wrong thing. Both halves are recorded here, because the second half only surfaced
+by acting on the first.
+
+Same 10 questions, retrieval only, rerank on vs. off:
 
 | | recall@1 | recall@3 | recall@5 | MRR | gold-paper hit | median latency |
 |---|---|---|---|---|---|---|
@@ -132,23 +135,76 @@ something to bury. Same 10 questions, retrieval only, rerank on vs. off:
 | rerank **off** | 0.042 | 0.063 | 0.108 | 0.317 | **1.000** | **21 ms** |
 | delta | 0 | +0.021 | +0.017 | **+0.027** | **−0.125** | **+1527 ms** |
 
-Reranking buys **+0.027 MRR for +1527 ms** — a 74× latency increase for a gain well
-inside the noise of a 10-question sample. And on the metric that matters most for a
-citing agent it is actively **worse**: rerank drops gold-paper hit rate from 1.000 to
-0.875, meaning on one question in eight the cross-encoder reorders the correct paper
-out of the top 5 that the bi-encoder had already found.
+Reranking buys **+0.027 MRR for +1527 ms** — a 74× latency increase. On gold-paper hit
+rate it is *worse*, 0.875 against 1.000.
 
-The honest reading is that **at 406 chunks the two-stage design is not yet earning its
-keep.** The bi-encoder alone is retrieving the right papers, and the shortlist is small
-enough that reordering it has little room to help and real room to hurt.
+### Both differences are below the noise floor
 
-Rerank is nevertheless left **enabled by default**, for a reason that is a judgement
-call and should be read as one: the stage's value scales with corpus size, and this
-corpus is small enough that the ablation cannot distinguish "does not help here" from
-"does not help." A corpus of 10,000 chunks — where the bi-encoder's top-40 contains far
-more near-misses — is the regime the design targets. What the measurement does justify
-is that anyone running this at this scale should turn `retrieval.rerank_enabled` off and
-take the 74× speedup.
+The ablation scores the 8 answerable questions in the tuning split. At n=8, one
+question moving from rank 2 to rank 1 shifts MRR by **0.0625**. The measured difference
+is **0.0271** — less than half the smallest move a single question can make. It is not
+a small effect; it is sub-resolution.
+
+The gold-paper hit difference is the same story from the other side: 0.875 vs 1.000 is
+**7/8 vs 8/8**, exactly one question.
+
+So neither the gain nor the harm is measurable here. The only robust number in the
+table is the cost: **74×**, which is not noise.
+
+### Acting on that read was wrong, and the correction is the finding
+
+The obvious conclusion — rerank is not earning its keep at 406 chunks, so turn it off —
+was tested before being applied. It does not survive, because **the ablation never
+measured abstention.** It reports recall, MRR, latency and gold-paper hit. It says
+nothing about whether the system still refuses questions the corpus cannot answer.
+
+The relevance gate is what produces abstention, and it thresholds whatever score the
+retrieval stage produced. With rerank on that is a cross-encoder logit (−11..+11, gated
+at −3.0). With rerank off it is a cosine (0..1), and every cosine clears −3.0 — so
+turning rerank off silently disables the gate entirely:
+
+```
+rerank=True   ABSENT topic ("sourdough fermentation")  -> 0 chunks, sufficient=False
+rerank=False  ABSENT topic ("sourdough fermentation")  -> 5 chunks, sufficient=True
+```
+
+Giving the bi-encoder its own tuned threshold does not recover it. Swept 0.0–0.80 on the
+same 10 tuning questions (`eval/results/bi_threshold_sweep.json`):
+
+| gate | best threshold | answers when answerable | abstains when absent | balanced |
+|---|---|---|---|---|
+| bi-encoder (rerank off) | 0.55 | 1.000 | **0.500** | **0.667** |
+| cross-encoder (rerank on) | −3.0 | 0.875 | **1.000** | **0.933** |
+
+No cosine threshold reaches the cross-encoder's separation. The thresholds that abstain
+correctly (0.75+) collapse answerable coverage to 0.125 — refusing 7 of 8 answerable
+questions. The ranges genuinely overlap: an absent topic scores 0.57, while real
+answerable questions sit at 0.55–0.65.
+
+That is a principled result rather than a tuning accident. Cosine measures overlap
+between two independently-encoded vectors. The cross-encoder attends over query and
+passage together, so it can represent "this passage does not answer this question" —
+a judgement a dot product between separate encodings cannot make.
+
+**Rerank stays enabled.** Not because the architecture says so, but because the metric
+it earns its cost on is abstention, and the ablation simply never looked there. What
+the MRR ablation does establish is narrower and still true: at this corpus size,
+reranking does not measurably improve *ordering*. It is paying 1527 ms for the gate,
+not for the ranking.
+
+Two things this leaves open, neither done:
+- **The ablation should measure abstention.** It is the metric rerank actually carries,
+  and it is absent from `eval/ablation.py`.
+- **`k_retrieve` is untouched at 40.** Rerank cost scales with the shortlist, so a
+  smaller pool may keep the gate at a fraction of the latency. That is a measurement
+  nobody has taken.
+
+A latent bug surfaced on the way, independent of this decision. `retrieve_evidence`
+falls back to bi-encoder scores when the reranker fails at runtime, but kept gating at
+the cross-encoder's −3.0 — so a reranker that failed in production would silently
+disable abstention with no error. The gate now selects its threshold by which scorer
+actually ran, and `bi_encoder_relevance_threshold` is tuned to 0.55 for that path, with
+its limits documented above.
 
 ## What else the numbers do not say
 

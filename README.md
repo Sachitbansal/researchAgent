@@ -131,10 +131,13 @@ On 11 papers / 406 chunks, over 15 hand-annotated questions:
 | gold-paper hit rate | 1.000 | 1.000 |
 | MRR | 0.660 | 0.458 |
 
-The rerank stage buys **+0.027 MRR for +1527 ms** at this corpus size — and lowers
-gold-paper hit rate from 1.000 to 0.875. At 406 chunks the two-stage design is not
-earning its keep; the reasoning for leaving it on anyway, and what it would take to
-change that, is in [`docs/EVALUATION.md`](docs/EVALUATION.md#the-rerank-ablation--a-marginal-gain-for-a-large-cost).
+The rerank stage buys **+0.027 MRR for +1527 ms** at this corpus size — a difference
+below the noise floor of an 8-question sample. It stays enabled anyway, for a reason the
+ablation could not see: the relevance gate thresholds whatever score retrieval produced,
+so turning rerank off swaps a cross-encoder logit for a cosine and silently disables
+abstention. A separately tuned cosine gate does not recover it. The measurement, and
+what it leaves open, is in
+[`docs/EVALUATION.md`](docs/EVALUATION.md#the-rerank-ablation--a-marginal-gain-and-what-the-ablation-missed).
 
 ## Examples
 
@@ -183,6 +186,7 @@ produced it. The ones most worth knowing:
 | `chunking.max_tokens` | 445 | min of the two encoder budgets; the cross-encoder binds |
 | `retrieval.k_retrieve` / `k_final` | 40 / 5 | wide cheap pool, narrow expensive context |
 | `retrieval.relevance_threshold` | −3.0 | swept −8..+2 on the tuning split only |
+| `retrieval.bi_encoder_relevance_threshold` | 0.55 | the gate when the cross-encoder did not run; a degraded fallback, not an alternative |
 | `agent.max_iterations` | 8 | with a forced final answer when the cap is hit |
 | `agent.max_context_tokens` | 60000 | past this the oldest tool results are elided |
 | `nli.min_pair_similarity` | 0.75 | below it, NLI scores unrelated sentences as confident contradictions |
@@ -194,7 +198,7 @@ agent's own conversation on a follow-up turn, so a text-only model breaks that p
 ## Tests
 
 ```bash
-python -m pytest tests/ -q          # 190 tests
+python -m pytest tests/ -q          # 191 tests
 python scripts/m5_gate.py           # one milestone's verification gate
 ```
 

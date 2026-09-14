@@ -95,6 +95,17 @@ Python 3.11+.
   cache key. Two papers may legitimately share text; both keep their own chunk record.
   Dropping one leaves a hole in `position`, and neighbour expansion walks straight
   over it. Within-paper dedup only, and assign `position` after it.
+- Reusing the cross-encoder's `relevance_threshold` on the bi-encoder fallback path.
+  Cross-encoder scores are uncalibrated logits spanning roughly -11..+11; bi-encoder
+  scores are cosines in 0..1, and every cosine clears a threshold of -3.0. The gate
+  then passes everything, which does not raise — it removes abstention and answers
+  absent-topic questions from whatever ranked first. The threshold must be chosen by
+  which scorer actually ran, including when reranking was requested and fell back.
+- Concluding that rerank is not worth its latency from the MRR ablation alone. That
+  ablation measures recall, MRR and latency, none of which is what rerank earns its
+  cost on here: the relevance gate thresholds the cross-encoder's score, so rerank is
+  what makes abstention work. Turning it off is a gate change wearing a ranking
+  change's clothes.
 - Passing explicit `categories` to `search_and_fetch` on top of a planned query. The
   query planner already folds its own categories into `plan["query"]`
   (`arxiv_query.apply_categories`), so the caller's are ANDed onto that filter rather

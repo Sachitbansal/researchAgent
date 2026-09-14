@@ -164,6 +164,18 @@ retrieval:
                             #   +2.0  answerable 0.125 — gates off almost everything
                             # Scored by harmonic mean so a threshold cannot win one half by
                             # abandoning the other. See eval/results/threshold_sweep.json.
+  bi_encoder_relevance_threshold: 0.55  # TUNED on the same 10 tuning questions, rerank
+                            # disabled. Gates on raw cosine, used whenever the cross-encoder
+                            # did not run: rerank_enabled false, or a reranker that failed at
+                            # runtime and fell back to bi-encoder scores. It cannot share
+                            # relevance_threshold — that number is a cross-encoder logit, and
+                            # every cosine clears it, which silently disables abstention and
+                            # answers absent-topic questions from whatever ranked first.
+                            # Swept 0.0..0.80; best achievable balance is 0.667, well short of
+                            # the cross-encoder's 0.933, because cosine ranges overlap: an
+                            # absent topic scores 0.57 while genuine answerable questions sit
+                            # at 0.55-0.65. This is a degraded fallback, not an alternative to
+                            # reranking. See eval/results/bi_threshold_sweep.json.
   neighbour_expansion: 1    # attach position ±1 from the same paper
   max_chunk_chars: 2000     # truncation before the chunk enters context
 

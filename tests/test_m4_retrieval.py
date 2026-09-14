@@ -32,6 +32,23 @@ def cfg(tmp_path, monkeypatch):
     return built
 
 
+def config_with_retrieval(base, **overrides):
+    """A copy of `base` with retrieval settings overridden.
+
+    Written through the YAML because config sections are read-only by design: a test
+    that pokes them in place would assert against a state the real system cannot reach.
+    """
+    import yaml
+
+    raw = yaml.safe_load(base.source_path.read_text(encoding="utf-8"))
+    raw["retrieval"].update(overrides)
+    scratch = base.paths.root / f"retrieval_override_{abs(hash(tuple(sorted(overrides.items()))))}.yaml"
+    scratch.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    built = load_config(scratch)
+    built.paths.prompts = base.paths.prompts
+    return built
+
+
 class StubEmbedder(Embedder):
     """Deterministic unit vectors; never downloads a model."""
 
@@ -248,9 +265,40 @@ def test_rerank_failure_falls_back_to_bi_encoder_order(corpus):
         def rerank(self, query, candidates):
             raise RerankError("model checkpoint missing")
 
-    agent = EvidenceRetriever(corpus, embedder=StubEmbedder(corpus), reranker=DeadReranker())
+    # The gate is not what this test is about: an explicit floor of 0.0 admits whatever
+    # the stub scores, so a failure here means the fallback ordering broke, not the gate.
+    permissive = config_with_retrieval(corpus, bi_encoder_relevance_threshold=0.0)
+    agent = EvidenceRetriever(permissive, embedder=StubEmbedder(permissive),
+                              reranker=DeadReranker())
     result = agent.retrieve("routing", k=3)
     assert result["sufficient_evidence"] is True
     assert result["chunks"]
     assert "rerank unavailable" in result["note"]
     assert result["reranked"] is False
+
+
+def test_the_gate_threshold_matches_whichever_scorer_ran(corpus):
+    """A cross-encoder threshold applied to cosine scores lets everything through.
+
+    Cross-encoder output is an uncalibrated logit spanning roughly -11..+11; bi-encoder
+    output is a cosine in 0..1. Every cosine clears a threshold of -3.0, so reusing the
+    cross-encoder's number on the fallback path does not fail loudly — it removes
+    abstention and answers absent-topic questions from whatever ranked first.
+    """
+    from retrieval.reranker import RerankError
+
+    class DeadReranker:
+        last_latency_ms = 0
+
+        def rerank(self, query, candidates):
+            raise RerankError("model checkpoint missing")
+
+    # A bi-encoder gate above anything the stub can score must withhold everything.
+    strict = config_with_retrieval(corpus, bi_encoder_relevance_threshold=0.99)
+    agent = EvidenceRetriever(strict, embedder=StubEmbedder(strict), reranker=DeadReranker())
+    result = agent.retrieve("routing", k=3)
+    assert result["sufficient_evidence"] is False, (
+        "fallback path gated on the cross-encoder threshold, so the bi-encoder gate "
+        "never applied and abstention was silently disabled"
+    )
+    assert result["chunks"] == []
