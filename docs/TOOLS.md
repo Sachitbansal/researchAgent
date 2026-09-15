@@ -71,6 +71,23 @@ Fetches new papers from arXiv and adds them to the index.
 failure. Partial success is reported, not thrown away — three good papers out of five
 is a valid result.
 
+**Rate limiting.** arXiv answers HTTP 429 per *IP*, for every query, not only the one
+that tripped it, and the block lasts minutes. Searches and PDF downloads therefore
+share one delay clock (`src/corpus/arxiv_fetch.py`); downloads do not go through
+`arxiv.Result.download_pdf`, which bypasses it. On a 429 the tool returns
+
+```json
+{"error": "arxiv_rate_limited", "detail": "...when it lifts, and how to clear it",
+ "partial": {"papers_added": [...], "chunks_added": 0, "topic_tag": "..."}}
+```
+
+and stops immediately rather than retrying — a retry is one more request into the
+block. `partial` carries whatever was downloaded and indexed before the 429, because
+dedup means papers not ingested now are never ingested. The expiry is recorded in
+`paths.arxiv_cooldown` and checked before the next search sends anything, so varying
+the wording and calling again costs zero requests; delete that file (or pass
+`--clear-arxiv-cooldown` to `main.py index`) to clear it early.
+
 ---
 
 ## 2. `retrieve_evidence`

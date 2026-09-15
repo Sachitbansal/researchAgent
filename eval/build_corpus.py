@@ -34,9 +34,23 @@ def main() -> int:
             max_results=settings.get("max_results"),
             categories=settings.get("categories"),
         )
+        rate_limited = False
         if "error" in result:
-            print(f"    FAILED {result['error']}: {result['detail']}", flush=True)
-            continue
+            partial = result.get("partial") or {}
+            if result["error"] != "arxiv_rate_limited" or not partial.get("papers_added"):
+                print(f"    FAILED {result['error']}: {result['detail']}", flush=True)
+                if result["error"] == "arxiv_rate_limited":
+                    # Every remaining topic would fast-fail off the cooldown memo anyway.
+                    print("    stopping: arXiv is rate-limiting this IP", flush=True)
+                    break
+                continue
+            # A 429 partway through still indexed whole papers. Report and tag them the
+            # same way a clean run would, then stop — reporting the topic as a bare
+            # FAILED would leave them counted by analyze_corpus but absent from every
+            # topic_filter for this tag.
+            print(f"    RATE LIMITED partway: {result['detail']}", flush=True)
+            result = partial
+            rate_limited = True
         # search_literature tags by a slug of the query; retag to the eval's own name so
         # questions can reference a stable tag.
         manifest = Manifest.load(CFG, strict_model_check=False)
@@ -45,6 +59,9 @@ def main() -> int:
         print(f"    tagged {result['topic_tag']!r}", flush=True)
         if result.get("failures"):
             print(f"    failures: {result['failures']}", flush=True)
+        if rate_limited:
+            print("    stopping: arXiv is rate-limiting this IP", flush=True)
+            break
 
     print("\n=== indexing", flush=True)
     print("   ", index_chunks(CFG), flush=True)

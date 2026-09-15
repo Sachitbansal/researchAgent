@@ -75,6 +75,22 @@ much as possible" rather than "the user must know arXiv query syntax".
 Parameters: `query`, `max_results` (default 8), `categories` (optional),
 `sort_by` (relevance default).
 
+**One HTTP seam, one clock.** `src/corpus/arxiv_fetch.py` is the only module that
+talks to arXiv over HTTP. It exists because arXiv rate-limits by IP and answers 429
+for *every* query once tripped, while the `arxiv` package splits its requests across
+two unrelated paths: `Client` paces feed requests against its own `_last_request_dt`,
+and `Result.download_pdf` calls `urllib.request.urlretrieve` directly, with no delay,
+no shared state and no identifying User-Agent. One search plus eight downloads was
+therefore one paced request and eight unpaced ones. Downloads now borrow the client's
+session and its clock, so the configured delay spans both kinds of request.
+
+A 429 aborts rather than retries — `RateLimited` deliberately sits outside the
+exception set `Client._parse_feed` retries on, so the library cannot spend three more
+requests on a host that is refusing all of them — and the expiry is recorded in
+`paths.arxiv_cooldown` and checked before the next search. That memo is the only
+cache here that stores a refusal rather than a result; like the others it is
+disposable, and deleting it only means the next call learns the same fact from arXiv.
+
 **Deduplication and caching, kept separate:**
 
 | Level | Key | Effect | Kind |
