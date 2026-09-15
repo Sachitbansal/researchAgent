@@ -6,14 +6,9 @@ own draft for unsupported claims, and answers with a citation on every claim —
 you it cannot answer, when the corpus does not support one.
 
 It is **topic-agnostic**: a topic is a runtime argument, not a configuration. Point it
-at a subject it has never seen and it collects, indexes and answers from scratch:
-
-```bash
-python scripts/m9_cold_start.py --fresh
-```
-
-That builds a corpus in `data_demo/` — separate from `data/`, so it cannot disturb the
-eval corpus — and writes a transcript to `examples/cold_start.md`.
+at a subject it has never seen and it collects, indexes and answers from scratch — see
+[`examples/cold_start.md`](examples/cold_start.md), a run from empty index to cited
+answer on protein structure prediction, a field neither eval topic touches.
 
 No agent framework. The tool loop is written directly against the provider's
 OpenAI-compatible API, because how the agentic system is structured is itself part of
@@ -144,12 +139,10 @@ what it leaves open, is in
 - [`examples/worked_examples.md`](examples/worked_examples.md) — an abstention, a
   conflicting-evidence case, and an ordinary multi-paper synthesis, lifted from scored
   eval runs
-- `examples/cold_start.md` — a topic from a different field entirely, taken from
-  nothing to an answered question, with every tool call shown. **Not checked in:**
-  generating it needs a live arXiv fetch, and the run is currently blocked by an
-  HTTP 429 rate limit on this host (see Known limitations). Run
-  `python scripts/m9_cold_start.py --fresh` once arXiv is reachable; `scripts/m9_gate.py`
-  reports the transcript as missing until then.
+- [`examples/cold_start.md`](examples/cold_start.md) — a topic from a different field
+  entirely, taken from nothing to an answered question, with every tool call shown.
+  Regenerate with `python scripts/m9_cold_start.py --fresh`; it builds into
+  `data_demo/`, so it cannot disturb the eval corpus in `data/`.
 
 ## Layout
 
@@ -233,6 +226,5 @@ gate's output, not by an assertion; `docs/ARCHITECTURE.md` §15 lists them.
 - **arXiv only**, and its rate limits are real. `export.arxiv.org` throttles by IP and
   then answers HTTP 429 to *every* query, not just the one that tripped it. A burst of
   indexing runs earns a cooling-off period measured in tens of minutes, during which no
-  collection can proceed. This is what currently blocks the cold-start transcript from
-  being generated; nothing else in the system is affected, since indexing and asking
-  work off the local corpus.
+  collection can proceed. Indexing and asking are unaffected once a corpus exists,
+  since both work off the local index.
