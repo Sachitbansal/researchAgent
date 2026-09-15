@@ -129,6 +129,10 @@ class Paths:
         self.descriptions = self.cache / "descriptions.json"
         self.arxiv_queries = self.cache / "arxiv_queries.json"
         self.clusters = self.cache / "clusters.json"
+        # Not a cache of results but of a refusal: when arXiv last rate-limited this IP.
+        # Lives beside the caches because it is equally disposable — deleting it only
+        # means the next call finds out from arXiv instead of from disk.
+        self.arxiv_cooldown = self.cache / "arxiv_cooldown.json"
 
         # tool-call traces, one file per run
         self.traces = self.logs / "traces"

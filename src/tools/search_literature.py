@@ -58,8 +58,17 @@ class LiteratureSearcher:
             query, max_results=max_results, categories=categories,
             config=self.config, llm=self.client,
         )
+        rate_limited: Optional[Dict[str, Any]] = None
         if "error" in fetched:
-            return fetched
+            partial = fetched.get("partial") or {}
+            if fetched["error"] != "arxiv_rate_limited" or not partial.get("papers_added"):
+                return fetched
+            # A 429 partway through the downloads still leaves whole PDFs on disk and
+            # their papers in the manifest. Extract and index them anyway: dedup means
+            # the next run skips them, so anything not ingested now is never ingested,
+            # and sits in the corpus invisible to retrieval.
+            rate_limited = fetched
+            fetched = partial
 
         added = fetched.get("papers_added", [])
         topic_tag = fetched["topic_tag"]
@@ -116,6 +125,10 @@ class LiteratureSearcher:
             result["note"] = (
                 f"{len(failures)} paper(s) could not be processed; the rest were indexed"
             )
+        if rate_limited is not None:
+            # Still an error, so the agent does not read this as a complete search and
+            # immediately ask for more — but it carries everything that did get indexed.
+            return _error("arxiv_rate_limited", rate_limited["detail"], partial=result)
         return result
 
 

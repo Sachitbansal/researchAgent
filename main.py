@@ -53,12 +53,24 @@ def cmd_index(args: argparse.Namespace) -> int:
 
     CFG.paths.ensure()
 
+    if args.clear_arxiv_cooldown:
+        CFG.paths.arxiv_cooldown.unlink(missing_ok=True)
+        print("      cleared the arXiv rate-limit cooldown", flush=True)
+
     print(f"[1/3] searching arXiv for {args.topic!r} ...", flush=True)
     collected = search_and_fetch(
         args.topic, max_results=args.max_results, categories=args.categories, config=CFG
     )
+    rate_limited = False
     if _failed(collected):
-        return _report_error("collection", collected)
+        partial = collected.get("partial") or {}
+        if collected["error"] != "arxiv_rate_limited" or not partial.get("papers_added"):
+            return _report_error("collection", collected)
+        # A 429 partway through still downloaded whole PDFs. Ingest and index them, or
+        # dedup hides them from every later run and they are never chunked at all.
+        print(f"      rate-limited partway: {collected['detail']}", file=sys.stderr)
+        collected = partial
+        rate_limited = True
     print(
         f"      {len(collected.get('papers_added', []))} added, "
         f"{collected.get('papers_skipped', 0)} already held, "
@@ -81,6 +93,15 @@ def cmd_index(args: argparse.Namespace) -> int:
         f"{indexed.get('cache_hits', 0)} cache hit(s), "
         f"{indexed.get('total_indexed', 0)} vectors in the index"
     )
+    if rate_limited:
+        # Non-zero: what did land is indexed, but the topic is short of what was asked
+        # for, and a caller scripting this must not read that as a complete collection.
+        print(
+            "\ncollection was cut short by an arXiv rate limit; "
+            "re-run this command once it lifts to fetch the rest",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 
@@ -186,6 +207,8 @@ def build_parser() -> argparse.ArgumentParser:
                        help="restrict to arXiv categories, e.g. cs.CL cs.LG")
     index.add_argument("--no-describe", action="store_true",
                        help="skip vision calls; figures index on caption text alone")
+    index.add_argument("--clear-arxiv-cooldown", action="store_true",
+                       help="forget a recorded arXiv rate limit and search anyway")
     index.add_argument("--rebuild", action="store_true",
                        help="rebuild the vector index from scratch")
     index.set_defaults(handler=cmd_index)

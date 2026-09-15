@@ -85,6 +85,20 @@ collection:
   max_retries: 3            # -> arxiv.Client(num_retries=...). Separate from llm.max_retries:
                             # a flaky arXiv feed and a flaky LLM provider are different faults
                             # and get tuned independently.
+  rate_limit_cooldown_s: 900
+                            # How long to refuse to touch arXiv after a 429, when the
+                            # response carries no Retry-After. A 429 is per-IP and applies
+                            # to every query, so the useful response is to stop asking:
+                            # the agent can vary its wording and call search_literature
+                            # again, and each attempt would otherwise extend the block.
+                            # Recorded as an absolute expiry in paths.arxiv_cooldown;
+                            # delete that file to clear it early.
+  download_timeout_s: 60    # per-PDF socket timeout. PDFs are fetched through the same
+                            # rate-limited session as searches (corpus.arxiv_fetch), not
+                            # arxiv.Result.download_pdf, which bypasses the delay entirely.
+  user_agent: "researchAgent/0.1 (+https://github.com/Sachitbansal; arXiv API client)"
+                            # arXiv asks clients to identify themselves. urllib's default
+                            # "Python-urllib/3.x" is what unidentified scrapers send.
   page_size: 25             # -> arxiv.Client(page_size=...). The library default is 100, which
                             # asks arXiv for 100 records however few we intend to keep —
                             # max_papers_per_topic is 10. Sized above that cap, not at it: the

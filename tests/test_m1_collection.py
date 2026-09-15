@@ -8,8 +8,11 @@ Out: assertions on record shapes, dedup behaviour, tag backfill, and error dicts
 import time
 from datetime import datetime, timezone
 
+import arxiv
 import pytest
+import requests
 
+from corpus import arxiv_fetch
 from corpus import arxiv_query
 from corpus import collect
 from common import records
@@ -50,28 +53,41 @@ class StubResult:
         self.categories = list(categories)
         self.pdf_url = f"https://arxiv.org/pdf/{short_id}"
         self.downloads = 0
+        self.download_error = None   # set to an exception to make this PDF fail
 
     def get_short_id(self):
         return self._short_id
 
-    def download_pdf(self, dirpath, filename):
-        self.downloads += 1
-        target = f"{dirpath}/{filename}"
-        with open(target, "wb") as handle:
-            handle.write(b"%PDF-1.4 stub")
-        return target
-
 
 def stub_arxiv(monkeypatch, results, fail_with=None):
-    """Replace collect's arxiv client so no request leaves the machine."""
+    """Replace collect's arxiv client and PDF fetch so no request leaves the machine.
+
+    Downloads are stubbed at `collect.download_pdf` rather than on the result, because
+    that is where the real fetch now lives: `arxiv.Result.download_pdf` bypasses the
+    shared rate-limit clock and is deliberately no longer called.
+    """
+    by_url = {r.pdf_url: r for r in results}
 
     class StubClient:
+        delay_seconds = 4.0
+        _last_request_dt = None
+
         def results(self, search):
             if fail_with is not None:
                 raise fail_with
             return list(results)
 
+    def fake_download(client, pdf_url, dest, timeout_s):
+        result = by_url[pdf_url]
+        result.downloads += 1
+        if result.download_error is not None:
+            raise result.download_error
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(b"%PDF-1.4 stub")
+        return dest
+
     monkeypatch.setattr(collect, "_build_client", lambda config: StubClient())
+    monkeypatch.setattr(collect, "download_pdf", fake_download)
 
 
 @pytest.fixture()
@@ -430,7 +446,7 @@ def test_empty_topic_is_rejected(cfg):
 
 def test_download_failure_is_partial_not_fatal(cfg, monkeypatch, planned):
     good, bad = StubResult("2101.00001v1"), StubResult("2101.00002v1")
-    bad.download_pdf = lambda dirpath, filename: (_ for _ in ()).throw(OSError("disk full"))
+    bad.download_error = OSError("disk full")
     stub_arxiv(monkeypatch, [good, bad])
 
     result = collect.search_and_fetch("a topic", config=cfg)
@@ -446,7 +462,7 @@ def test_failed_download_leaves_no_phantom_id_in_the_topic(cfg, monkeypatch, pla
     return an id that resolves to nothing.
     """
     good, bad = StubResult("2101.00001v1"), StubResult("2101.00002v1")
-    bad.download_pdf = lambda dirpath, filename: (_ for _ in ()).throw(OSError("disk full"))
+    bad.download_error = OSError("disk full")
     stub_arxiv(monkeypatch, [good, bad])
 
     collect.search_and_fetch("a topic", topic_tag="alpha", config=cfg)
@@ -521,7 +537,12 @@ def _timed_client(monkeypatch):
         stamps.append(time.monotonic())
         return _PacingResponse()
 
-    monkeypatch.setattr(client, "_session", type("S", (), {"get": staticmethod(record)})())
+    # `hooks` and `headers` are part of the requests.Session surface prepare_client
+    # touches, so the stub has to carry them or _build_client fails on the next call.
+    stub_session = type(
+        "S", (), {"get": staticmethod(record), "hooks": {"response": []}, "headers": {}}
+    )()
+    monkeypatch.setattr(client, "_session", stub_session)
     return collect, client, stamps
 
 
@@ -572,3 +593,218 @@ def test_arxiv_endpoints_are_https():
     import arxiv
 
     assert arxiv.Client.query_url_format.startswith("https://")
+
+
+# ------------------------------------------------------------------- rate limiting
+
+def test_rate_limited_download_stops_the_loop_after_one_attempt(cfg, monkeypatch, planned):
+    """A 429 is per-IP and applies to every arXiv request, so the burst must stop.
+
+    The old code recorded the 429 as a per-paper failure and continued, turning one
+    blocked request into N more that deepen the cooling-off.
+    """
+    results = [StubResult(f"2101.{i:05d}v1") for i in range(5)]
+    for r in results[1:]:
+        r.download_error = arxiv_fetch.RateLimited(r.pdf_url, retry_after="120")
+    stub_arxiv(monkeypatch, results)
+
+    result = collect.search_and_fetch("a topic", topic_tag="alpha", config=cfg, max_results=5)
+
+    assert result["error"] == "arxiv_rate_limited"
+    assert result["partial"]["retry_after"] == "120"
+    attempted = sum(r.downloads for r in results)
+    assert attempted == 2, f"stopped at the first 429, not {attempted} requests into the wall"
+
+
+def test_rate_limit_keeps_the_papers_that_did_land(cfg, monkeypatch, planned):
+    """Papers fetched before the 429 stay in the manifest; a 429 is not a rollback."""
+    results = [StubResult(f"2101.{i:05d}v1") for i in range(4)]
+    results[2].download_error = arxiv_fetch.RateLimited(results[2].pdf_url)
+    stub_arxiv(monkeypatch, results)
+
+    result = collect.search_and_fetch("a topic", topic_tag="alpha", config=cfg, max_results=4)
+
+    assert result["error"] == "arxiv_rate_limited"
+    assert len(result["partial"]["papers_added"]) == 2
+    manifest = Manifest.load(cfg)
+    assert manifest.papers_for_topic("alpha") == ["2101_00000v1", "2101_00001v1"]
+
+
+def test_rate_limited_search_is_not_reported_as_arxiv_unavailable(cfg, monkeypatch, planned):
+    """The search path distinguishes 'blocked for minutes' from 'arXiv is down'."""
+    stub_arxiv(monkeypatch, [], fail_with=arxiv_fetch.RateLimited("https://export.arxiv.org/api/query"))
+    result = collect.search_and_fetch("a topic", config=cfg)
+    assert result["error"] == "arxiv_rate_limited"
+
+
+def test_rate_limited_is_not_retried_by_the_arxiv_client():
+    """`RateLimited` must fall outside the exception set `_parse_feed` retries on.
+
+    If it were an `arxiv.HTTPError`, the library would send `num_retries` more requests
+    at a moment when arXiv is answering 429 to everything.
+    """
+    retried = (arxiv.HTTPError, arxiv.UnexpectedEmptyPageError, requests.exceptions.ConnectionError)
+    assert not issubclass(arxiv_fetch.RateLimited, retried)
+
+
+def test_downloads_wait_for_the_shared_rate_limit_slot(monkeypatch, tmp_path):
+    """Downloads read and write the same clock the library's feed path uses.
+
+    Without this, a search and every PDF after it leave together: the delay is enforced
+    only between feed requests, and `urlretrieve` touches none of that bookkeeping.
+    """
+    slept = []
+    monkeypatch.setattr(arxiv_fetch.time, "sleep", lambda s: slept.append(s))
+
+    class Recording:
+        delay_seconds = 4.0
+        _last_request_dt = None
+
+        def __init__(self):
+            self._session = self
+
+        def get(self, url, stream=False, timeout=None):
+            return _PdfResponse()
+
+    client = Recording()
+    arxiv_fetch.download_pdf(client, "https://arxiv.org/pdf/x", tmp_path / "a.pdf", 60.0)
+    assert slept == [], "nothing to wait for on the first request"
+    assert client._last_request_dt is not None, "the clock must be stamped for the next caller"
+
+    arxiv_fetch.download_pdf(client, "https://arxiv.org/pdf/y", tmp_path / "b.pdf", 60.0)
+    assert len(slept) == 1 and slept[0] > 3.0, f"expected a ~4s wait, got {slept}"
+
+
+class _PdfResponse:
+    status_code = 200
+    headers: dict = {}
+
+    def iter_content(self, chunk_size=0):
+        yield b"%PDF-1.4 stub body"
+
+    def close(self):
+        pass
+
+
+def test_a_truncated_download_never_becomes_a_cache_hit(monkeypatch, tmp_path):
+    """A body that dies mid-write must leave no file at the final path.
+
+    `urlretrieve` wrote straight to the destination, so a partial PDF looked like a
+    completed download forever after — `not pdf_path.is_file()` is the only re-fetch gate.
+    """
+    monkeypatch.setattr(arxiv_fetch.time, "sleep", lambda s: None)
+
+    class Dying:
+        status_code = 200
+        headers: dict = {}
+
+        def iter_content(self, chunk_size=0):
+            yield b"%PDF-1.4 part"
+            raise requests.exceptions.ChunkedEncodingError("connection reset")
+
+        def close(self):
+            pass
+
+    class Client:
+        delay_seconds = 0.0
+        _last_request_dt = None
+
+        def __init__(self):
+            self._session = self
+
+        def get(self, url, stream=False, timeout=None):
+            return Dying()
+
+    dest = tmp_path / "a.pdf"
+    with pytest.raises(arxiv_fetch.FetchError):
+        arxiv_fetch.download_pdf(Client(), "https://arxiv.org/pdf/x", dest, 60.0)
+    assert not dest.exists()
+    assert list(tmp_path.glob("*.part")) == [], "the partial file is cleaned up too"
+
+
+def test_an_html_error_page_with_status_200_is_not_accepted_as_a_pdf(monkeypatch, tmp_path):
+    """A size check passes on an error page; the magic bytes are what catch it."""
+    monkeypatch.setattr(arxiv_fetch.time, "sleep", lambda s: None)
+
+    class Html:
+        status_code = 200
+        headers: dict = {}
+
+        def iter_content(self, chunk_size=0):
+            yield b"<!DOCTYPE html><html><body>Too many requests</body></html>"
+
+        def close(self):
+            pass
+
+    class Client:
+        delay_seconds = 0.0
+        _last_request_dt = None
+
+        def __init__(self):
+            self._session = self
+
+        def get(self, url, stream=False, timeout=None):
+            return Html()
+
+    dest = tmp_path / "a.pdf"
+    with pytest.raises(arxiv_fetch.FetchError):
+        arxiv_fetch.download_pdf(Client(), "https://arxiv.org/pdf/x", dest, 60.0)
+    assert not dest.exists()
+
+
+def test_the_429_hook_is_installed_once_however_often_the_client_is_prepared():
+    """`_build_client` calls prepare_client on every search; hooks must not stack."""
+    client = arxiv.Client(page_size=1, delay_seconds=0, num_retries=0)
+    for _ in range(3):
+        arxiv_fetch.prepare_client(client, "researchAgent/test")
+    assert client._session.hooks["response"].count(arxiv_fetch._raise_on_429) == 1
+    assert client._session.headers["User-Agent"] == "researchAgent/test"
+
+
+def test_a_429_writes_a_cooldown_that_blocks_the_next_call_without_a_request(cfg, monkeypatch, planned):
+    """The agent can vary its wording and call again; the memo makes that cost 0 requests.
+
+    Loop detection only catches verbatim repeats, and `eval/build_corpus.py` moves to its
+    next topic on error — so without the memo one 429 becomes one per remaining topic.
+    """
+    results = [StubResult("2101.00001v1")]
+    results[0].download_error = arxiv_fetch.RateLimited(results[0].pdf_url, retry_after="300")
+    stub_arxiv(monkeypatch, results)
+
+    first = collect.search_and_fetch("a topic", config=cfg, max_results=1)
+    assert first["error"] == "arxiv_rate_limited"
+    assert cfg.paths.arxiv_cooldown.is_file()
+
+    searched = []
+    monkeypatch.setattr(
+        collect, "_build_client",
+        lambda config: searched.append(1) or (_ for _ in ()).throw(AssertionError("requested")),
+    )
+    second = collect.search_and_fetch("a different topic", config=cfg, max_results=1)
+
+    assert second["error"] == "arxiv_rate_limited"
+    assert searched == [], "no client was even built, so no request left the machine"
+    assert "Delete" in second["detail"], "the message must say how to clear the memo"
+
+
+def test_an_expired_cooldown_does_not_block(cfg, monkeypatch, planned):
+    """A stale memo must never become a silent permanent lockout."""
+    arxiv_fetch.write_cooldown(cfg.paths.arxiv_cooldown, retry_after="0", default_s=900)
+    assert arxiv_fetch.read_cooldown(cfg.paths.arxiv_cooldown) == 0.0
+
+    stub_arxiv(monkeypatch, [StubResult("2101.00001v1")])
+    assert len(collect.search_and_fetch("a topic", config=cfg)["papers_added"]) == 1
+
+
+def test_a_corrupt_cooldown_memo_reads_as_no_cooldown(cfg):
+    cfg.paths.arxiv_cooldown.write_text("{not json", encoding="utf-8")
+    assert arxiv_fetch.read_cooldown(cfg.paths.arxiv_cooldown) == 0.0
+
+
+def test_retry_after_is_honoured_over_the_configured_default(cfg):
+    seconds = arxiv_fetch.write_cooldown(cfg.paths.arxiv_cooldown, retry_after="42", default_s=900)
+    assert seconds == 42
+    # An HTTP-date Retry-After is not parsed; the default must apply rather than crash.
+    assert arxiv_fetch.write_cooldown(
+        cfg.paths.arxiv_cooldown, retry_after="Wed, 21 Oct 2026 07:28:00 GMT", default_s=900
+    ) == 900

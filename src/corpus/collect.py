@@ -13,6 +13,15 @@ from typing import Any, Dict, List, Optional, Sequence
 
 import arxiv
 
+from corpus.arxiv_fetch import (
+    FetchError,
+    RateLimited,
+    cooldown_detail,
+    download_pdf,
+    prepare_client,
+    read_cooldown,
+    write_cooldown,
+)
 from corpus.arxiv_query import apply_categories, plan_query
 from corpus.chunk_store import ChunkStore
 from config import CFG, Config
@@ -37,6 +46,16 @@ def _error(code: str, detail: str, partial: Optional[Dict[str, Any]] = None) -> 
     return {"error": code, "detail": detail, "partial": partial}
 
 
+def _record_rate_limit(exc: RateLimited, config: Config) -> str:
+    """Persist the cooldown and build the detail string. Both 429 paths go through here."""
+    seconds = write_cooldown(
+        config.paths.arxiv_cooldown,
+        exc.retry_after,
+        float(config.collection.rate_limit_cooldown_s),
+    )
+    return f"{exc} Not retrying for {seconds:.0f}s."
+
+
 # One shared client for the whole process. Rebuilt only when the policy it was built
 # with changes.
 _CLIENT: Optional[arxiv.Client] = None
@@ -52,6 +71,9 @@ def _build_client(config: Config) -> arxiv.Client:
     succession reach arXiv with no gap at all. That is exactly the pattern the agent
     produces when it calls `search_literature` twice, and that a gate produces when it
     loops. Reusing the instance is what makes the configured delay real.
+
+    The same instance also carries the session PDF downloads borrow, so the delay spans
+    searches *and* downloads rather than searches alone.
     """
     global _CLIENT, _CLIENT_POLICY
     policy = (
@@ -63,7 +85,7 @@ def _build_client(config: Config) -> arxiv.Client:
         delay, retries, page_size = policy
         _CLIENT = arxiv.Client(page_size=page_size, delay_seconds=delay, num_retries=retries)
         _CLIENT_POLICY = policy
-    return _CLIENT
+    return prepare_client(_CLIENT, str(config.collection.user_agent))
 
 
 def _to_paper_record(result: Any, pdf_path: str, topic_tag: str) -> Dict[str, Any]:
@@ -105,6 +127,16 @@ def search_and_fetch(
     tag = (topic_tag or slugify_topic(topic)).strip()
     config.paths.ensure()
 
+    # Checked before anything else costs money or a request: a live cooldown means every
+    # arXiv query would answer 429, so planning one is wasted LLM spend too.
+    remaining = read_cooldown(config.paths.arxiv_cooldown)
+    if remaining > 0:
+        return _error(
+            "arxiv_rate_limited",
+            cooldown_detail(remaining, config.paths.arxiv_cooldown),
+            partial={"topic_tag": tag, "retry_after_s": round(remaining)},
+        )
+
     try:
         manifest = Manifest.load(config)
     except ManifestError as exc:
@@ -134,8 +166,17 @@ def search_and_fetch(
     sort_by = _SORT_CRITERIA.get(str(config.collection.sort_by).lower(), arxiv.SortCriterion.Relevance)
     search = arxiv.Search(query=query, max_results=limit, sort_by=sort_by)
 
+    client = _build_client(config)
     try:
-        results = list(_build_client(config).results(search))
+        results = list(client.results(search))
+    except RateLimited as exc:
+        # Caught ahead of ArxivError on purpose: 429 is not "arXiv is down", it is
+        # "this IP is blocked for minutes, on every query". Retrying is what deepens it.
+        return _error(
+            "arxiv_rate_limited",
+            _record_rate_limit(exc, config),
+            partial={"arxiv_query": query, "topic_tag": tag, "retry_after": exc.retry_after},
+        )
     except (arxiv.ArxivError, arxiv.HTTPError, arxiv.UnexpectedEmptyPageError) as exc:
         return _error("arxiv_unavailable", f"arXiv search failed: {exc}", partial={"arxiv_query": query})
     except Exception as exc:  # network stack, DNS, TLS — anything urllib raises underneath
@@ -154,6 +195,7 @@ def search_and_fetch(
     skipped: List[str] = []
     failures: List[Dict[str, str]] = []
     touched: List[str] = []
+    rate_limited: Optional[RateLimited] = None
 
     for result in results:
         paper_id = normalise_paper_id(result.get_short_id())
@@ -171,8 +213,19 @@ def search_and_fetch(
         pdf_path = config.paths.paper_pdf(paper_id)
         if download and not pdf_path.is_file():
             try:
-                result.download_pdf(dirpath=str(config.paths.papers), filename=pdf_path.name)
-            except Exception as exc:
+                download_pdf(
+                    client,
+                    getattr(result, "pdf_url", "") or "",
+                    pdf_path,
+                    float(config.collection.download_timeout_s),
+                )
+            except RateLimited as exc:
+                # Stop the whole loop. Every remaining result would be one more request
+                # into a wall that answers 429 for all of them, and each one extends the
+                # cooling-off. Papers already added below are kept and saved.
+                rate_limited = exc
+                break
+            except Exception as exc:  # FetchError, OSError, and anything requests raises
                 failures.append({"paper_id": paper_id, "detail": f"pdf download failed: {exc}"})
                 continue
 
@@ -197,8 +250,26 @@ def search_and_fetch(
             }
         )
 
+    # Runs even after a rate-limit break: the papers that did land are already on disk
+    # and in the manifest, and dropping them would make a 429 halfway through a total
+    # loss that the next run has to redo — more arXiv traffic, not less.
     manifest.record_topic(tag, topic, query, touched)
     manifest.save()
+
+    if rate_limited is not None:
+        return _error(
+            "arxiv_rate_limited",
+            _record_rate_limit(rate_limited, config),
+            partial={
+                "arxiv_query": query,
+                "topic_tag": tag,
+                "retry_after": rate_limited.retry_after,
+                "papers_added": added,
+                "papers_skipped": len(skipped),
+                "papers_tagged": len(tagged),
+                "failures": failures,
+            },
+        )
 
     return {
         "papers_added": added,
