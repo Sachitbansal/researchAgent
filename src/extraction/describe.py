@@ -2,12 +2,15 @@
 Generates a text description of a figure or table image with one vision-LLM call.
 
 In:  figure records from figures.extract_figures, and an LLMClient.
-Out: the same records with a "description" field, cached by image_hash in
+Out: the same records with a "description" field, in input order, cached by image_hash in
      data/cache/descriptions.json so a re-index costs no vision calls at all.
+Calls are issued concurrently (extraction.describe_workers) — they are network-bound.
 """
 
 from __future__ import annotations
 
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence
 
@@ -24,28 +27,38 @@ class DescriptionCache:
 
     Keyed by content hash rather than by path, so the same image costs one vision call
     however many papers or re-indexes it appears in.
+
+    Every method takes a lock: describe_all fans its calls out across threads, and they
+    all share one cache instance so the file is still written exactly once.
     """
 
     def __init__(self, config: Config = CFG) -> None:
         self.path = config.paths.descriptions
         self._data: Dict[str, str] = read_json(self.path, default={}) or {}
         self._dirty = False
+        self._lock = threading.Lock()
 
     def get(self, image_hash: str) -> Optional[str]:
-        value = self._data.get(image_hash)
+        with self._lock:
+            value = self._data.get(image_hash)
         return value if isinstance(value, str) and value.strip() else None
 
     def put(self, image_hash: str, description: str) -> None:
-        self._data[image_hash] = description
-        self._dirty = True
+        with self._lock:
+            self._data[image_hash] = description
+            self._dirty = True
 
     def save(self) -> None:
-        if self._dirty:
-            write_json_atomic(self.path, self._data)
+        with self._lock:
+            if not self._dirty:
+                return
+            snapshot = dict(self._data)
             self._dirty = False
+        write_json_atomic(self.path, snapshot)
 
     def __len__(self) -> int:
-        return len(self._data)
+        with self._lock:
+            return len(self._data)
 
 
 def _build_messages(caption: str, kind: str, config: Config) -> List[Dict[str, Any]]:
@@ -102,15 +115,52 @@ def describe_figure(
     return {**figure, "description": description, "description_cached": False}
 
 
+def _thread_client(local: threading.local, config: Config) -> LLMClient:
+    """One LLMClient per worker thread, reused across that thread's calls.
+
+    Not one shared client: an LLMClient owns a requests.Session, which is not safe to
+    use from several threads at once. Not one client per call either — that would open a
+    fresh connection pool for every figure and throw away TLS session reuse.
+    """
+    client = getattr(local, "client", None)
+    if client is None:
+        client = LLMClient(config=config)
+        local.client = client
+    return client
+
+
 def describe_all(
     figures: Sequence[Dict[str, Any]],
     client: Optional[LLMClient] = None,
     config: Config = CFG,
 ) -> List[Dict[str, Any]]:
-    """Describe every figure, sharing one cache so the file is written once."""
+    """Describe every figure, sharing one cache so the file is written once.
+
+    The calls go out concurrently: each one is a vision request that spends its time
+    waiting on the network, so they overlap rather than queue. Results keep input order
+    regardless of which finishes first — ingest assigns `position` from this list.
+    """
     cache = DescriptionCache(config)
-    described = [describe_figure(figure, client=client, cache=cache, config=config)
-                 for figure in figures]
+    workers = max(1, int(config.extraction.describe_workers))
+
+    def describe(figure: Dict[str, Any]) -> Dict[str, Any]:
+        return describe_figure(figure, client=client, cache=cache, config=config)
+
+    if workers == 1 or len(figures) <= 1 or client is not None:
+        # A caller-supplied client is used as given — this function cannot know whether
+        # it is safe to share, and a test stub generally is not.
+        described = [describe(figure) for figure in figures]
+    else:
+        local = threading.local()
+
+        def describe_threaded(figure: Dict[str, Any]) -> Dict[str, Any]:
+            return describe_figure(
+                figure, client=_thread_client(local, config), cache=cache, config=config
+            )
+
+        with ThreadPoolExecutor(max_workers=min(workers, len(figures))) as pool:
+            described = list(pool.map(describe_threaded, figures))
+
     cache.save()
     return described
 

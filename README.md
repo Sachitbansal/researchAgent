@@ -57,6 +57,66 @@ OPENROUTER_APP_NAME=sciagent      # optional, used in the attribution header
 | `OPENROUTER_APP_NAME` | no | OpenRouter attribution header, defaults to `sciagent` |
 | `SCIAGENT_CONFIG` | no | path to an alternative `config.yaml`; same as `--config` |
 
+### GPU (optional)
+
+Three models run locally: the bi-encoder, the cross-encoder reranker and the NLI
+cross-encoder. `compute.device` in `config.yaml` governs all three.
+
+`auto` (the default) uses CUDA when torch can reach a device and falls back to CPU
+otherwise, so the project runs unchanged on a machine with no NVIDIA driver. Naming a
+device explicitly (`cuda`, `cuda:0`, `cpu`) is a hard assertion instead: an unreachable
+device fails at config resolution rather than quietly dropping to CPU, because a silent
+fallback turns a driver problem into an unexplained slowdown.
+
+Check what is actually in use, and time the three models on it:
+
+```bash
+python scripts/check_gpu.py              # exits 0 on CUDA, 1 on CPU
+python scripts/check_gpu.py --skip-bench # report the device only
+```
+
+Measured on the same 406-chunk corpus (278 tokens mean), 16-thread CPU vs an RTX 3050
+6GB laptop GPU, same texts in one process:
+
+| stage | when it runs | CPU | GPU | saved |
+|---|---|---|---|---|
+| embed 406 chunks | index time, once per new chunk | 23.9s | 3.6s | 20.3s |
+| rerank 40 pairs | per query | 1.35s | 0.20s | 1.15s |
+| NLI 30 pairs | per groundedness check | 1.18s | 0.32s | 0.86s |
+| CUDA context init | once per process | — | 2.2s | −2.2s |
+
+Which nets out, per command, as roughly:
+
+| command | saved |
+|---|---|
+| `index`, cold (406 new chunks) | ~18s |
+| `index`, incremental (one paper, ~37 chunks) | ~0s — the init costs more than it saves |
+| `ask`, one question | ~0s — likewise |
+| `eval`, 30 questions in one process | ~58s |
+
+Break-even is about **45 newly embedded chunks**, or **2 questions in a single process**.
+Below that the CUDA context init is not repaid. The GPU is worth having for the eval
+harness; it is not what makes indexing fast — the figure-description model is.
+
+**Installing the driver on Ubuntu.** The CUDA torch wheel is already installed; what is
+missing on a fresh machine is the host driver. Nothing in the project changes — with
+`compute.device: auto`, the next run picks the GPU up on its own.
+
+```bash
+ubuntu-drivers devices              # shows the recommended package for this card
+sudo ubuntu-drivers install         # installs it
+sudo reboot
+```
+
+If Secure Boot is enabled (`mokutil --sb-state`), the install prompts for a one-time
+password and the reboot stops at a blue **MOK Manager** screen. Choose *Enroll MOK* →
+*Continue* → *Yes*, enter that password, and reboot again. Skipping this step leaves the
+kernel module unsigned and unloadable, and `nvidia-smi` keeps failing with the driver
+apparently installed — which looks like a torch problem and is not one.
+
+On hybrid Intel + NVIDIA laptops the Intel chip keeps driving the display; the discrete
+GPU is used for compute only, and no Xorg or PRIME configuration is needed.
+
 ## Usage
 
 Three subcommands.

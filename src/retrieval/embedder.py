@@ -13,6 +13,7 @@ from typing import Any, Dict, List, Optional, Sequence
 import numpy as np
 
 from config import CFG, Config
+from common.device import resolve_device
 from common.records import content_hash
 from common.storage import read_json, write_json_atomic
 
@@ -70,6 +71,7 @@ class Embedder:
         self.normalize = bool(config.embedding.normalize)
         self.query_prefix = str(config.embedding.query_prefix)
         self.passage_prefix = str(config.embedding.passage_prefix)
+        self.device = resolve_device(config)
         self._model = None
 
     @property
@@ -80,9 +82,11 @@ class Embedder:
             except ImportError as exc:
                 raise EmbeddingError(f"sentence-transformers is not installed: {exc}") from None
             try:
-                self._model = SentenceTransformer(self.model_name)
+                self._model = SentenceTransformer(self.model_name, device=self.device)
             except Exception as exc:
-                raise EmbeddingError(f"could not load {self.model_name}: {exc}") from None
+                raise EmbeddingError(
+                    f"could not load {self.model_name} on {self.device}: {exc}"
+                ) from None
         return self._model
 
     def _encode(self, texts: Sequence[str]) -> np.ndarray:
