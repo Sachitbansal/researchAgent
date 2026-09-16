@@ -11,6 +11,7 @@ from __future__ import annotations
 import time
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
+from common.device import resolve_device
 from common.tokenization import TokenCounter
 from config import CFG, Config
 
@@ -36,6 +37,7 @@ class Reranker:
         self._model = None
         self.last_latency_ms = 0
         self.last_pair_count = 0
+        self.device = resolve_device(config)
 
     @property
     def model(self):
@@ -45,9 +47,11 @@ class Reranker:
             except ImportError as exc:
                 raise RerankError(f"sentence-transformers is not installed: {exc}") from None
             try:
-                self._model = CrossEncoder(self.model_name)
+                self._model = CrossEncoder(self.model_name, device=self.device)
             except Exception as exc:
-                raise RerankError(f"could not load {self.model_name}: {exc}") from None
+                raise RerankError(
+                    f"could not load {self.model_name} on {self.device}: {exc}"
+                ) from None
         return self._model
 
     def _pair(self, query: str, text: str) -> Tuple[str, str]:

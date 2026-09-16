@@ -37,9 +37,40 @@ llm:
   agent_model: qwen/qwen3.7-flash                     # tools + vision, 1M ctx, ~$0.03/Mtok
   # Vision and utility moved off the free tier at M7 for the same reason the agent did:
   # indexing an eval corpus is ~60 figure descriptions, and the free tier allows 50
-  # requests per day in total. qwen was measured at 3/3 on the same chart-reading probe
-  # the free model passed, so this costs accuracy nothing and removes the daily wall.
-  vision_model: qwen/qwen3.7-flash                    # chart reading verified 3/3
+  # requests per day in total.
+  #
+  # Moved off qwen3.7-flash at M10: it was the single largest cost in an index run.
+  # 57 figures at ~80s serial is ~51 minutes, which is why indexing dominated a run.
+  #
+  # Chosen on a full-corpus run, not a spot check: all 48 figures, describe_workers 5,
+  # description cache cold, one run per model.
+  #   model                          wall   unreadable  errors  med_words  %digit
+  #   qwen/qwen3.7-flash            51.1m*      0          0        86       96%   <- was
+  #   google/gemini-3-flash-preview  59.2s      0          0        75       96%   <- now
+  #   google/gemini-2.5-flash-lite   64.5s      0          0        58       88%
+  #   google/gemini-3.8-flash       118.2s      0          0        78       92%
+  #   (* projected from a measured 894.86s over 14 figures; the others are measured)
+  #
+  # gemini-3-flash-preview is both the fastest and the most faithful: 51.8x the old
+  # wall time while holding the numeric detail that makes a figure chunk retrievable —
+  # 96% of its descriptions contain a number, matching qwen exactly, where flash-lite
+  # drops to 88% and 58 median words. That matters because figure chunks embed
+  # caption+description, so description length is retrievable surface area.
+  # A full 48-figure index costs roughly $0.04 at $0.50/$3.00 per Mtok.
+  #
+  # It is a *preview* model and Google may withdraw or rename it. If it disappears,
+  # google/gemini-2.5-flash-lite is the stable fallback — 0 failures across every run,
+  # 6x cheaper, at the cost of shorter and less numeric descriptions.
+  #
+  # Rejected, recorded so they are not retried:
+  #   google/gemini-3.1-flash-lite, google/gemini-3.5-flash-lite -> fast (2-3s) but each
+  #     answered UNREADABLE on a figure other models described correctly. describe_figure
+  #     caches "" for UNREADABLE, so a flake is written to the cache permanently and the
+  #     figure keeps caption text only. A silent quality regression that never raises.
+  #   google/gemini-3.8-flash -> 2x the wall time of 3-flash-preview for no quality gain.
+  #     Clean over the full 48, but threw a non-reproducible UNREADABLE twice in small
+  #     samples (2 in ~20 calls; 3/3 clean on retest of the same figure).
+  vision_model: google/gemini-3-flash-preview         # 59.2s/48 figs, 96% numeric, 0 failures
   utility_model: qwen/qwen3.7-flash                   # arxiv query planning, claim extraction
   #
   # Rejected for the agent role, recorded so they are not retried:
@@ -51,8 +82,13 @@ llm:
   # PRODUCTION TIER — uncomment to switch. Do this before M8: openrouter/free is a
   # router that picks a free model *at random per request*, so it cannot give the
   # reproducible runs the eval harness needs (see temperature below).
+  #
+  # Do NOT uncomment the vision line: gemini-3.8-flash was measured at 118.2s over the
+  # 48-figure corpus against 59.2s for the gemini-3-flash-preview now set above, for no
+  # quality gain. The vision role is already on its measured best; this tier is about the
+  # agent and utility roles only.
   # agent_model: google/gemini-3.8-flash
-  # vision_model: google/gemini-3.8-flash
+  # vision_model: google/gemini-3.8-flash      # <- superseded, see vision_model above
   # utility_model: google/gemini-3.8-flash
   timeout_s: 60
   max_retries: 3
@@ -112,6 +148,14 @@ extraction:
   min_figure_width: 150     # px — below this is almost always a logo or rule
   min_figure_height: 150
   max_figures_per_paper: 5  # bounds vision-call cost at index time
+  describe_workers: 5       # figure descriptions are issued concurrently by
+                            # extraction.describe.describe_all. Sized to
+                            # max_figures_per_paper, not above it: describe_all is called
+                            # once per paper, so a paper never offers more than that many
+                            # calls and extra workers would idle. Raise both together if
+                            # the per-paper figure cap ever rises, and keep it modest —
+                            # these are OpenRouter requests and the ceiling is their rate
+                            # limit, not local CPU. 1 disables concurrency.
   caption_search_chars: 400 # captions are truncated to this many characters
   render_zoom: 2.0          # figure regions are rendered at this scale. Extraction is
                             # caption-driven and renders the region, rather than pulling
@@ -147,6 +191,30 @@ chunking:
                             # limits are recorded rather than only the binding one.
                             # Token counts are taken with the bi-encoder's tokenizer.
   section_aware: true
+
+compute:
+  # Device for every model that runs locally: the bi-encoder (embedding.model), the
+  # cross-encoder reranker (retrieval.reranker_model) and the NLI cross-encoder
+  # (nli.model). One key, because they are the same kind of cost and there is no reason
+  # to split them across devices.
+  #
+  # "auto" uses CUDA when torch can reach a device and falls back to CPU otherwise, so a
+  # machine without a working NVIDIA driver keeps running unchanged. Naming a device
+  # explicitly ("cuda", "cuda:0", "cpu") is a hard assertion: if it is unreachable the
+  # run fails at config resolution rather than quietly dropping to CPU, because a silent
+  # fallback turns a driver problem into a mysterious slowdown.
+  #
+  # Measured, 406 chunks / 278 tokens mean, 16-thread CPU vs RTX 3050 6GB, same texts:
+  #                            CPU      GPU    saved
+  #   embed   406 chunks     23.94s    3.64s   20.3s   (index time, once per new chunk)
+  #   rerank   40 pairs       1.35s    0.20s    1.15s  (per query)
+  #   NLI      30 pairs       1.18s    0.32s    0.86s  (per groundedness check)
+  #   CUDA context init          -     2.2s    -2.2s   (once per process)
+  # Break-even is ~45 new chunks or ~2 questions per process; below that the context
+  # init is not repaid, so a one-off `ask` is marginally slower on GPU than on CPU.
+  # Worth it for the eval harness (~58s over a 30-question split), not for indexing —
+  # indexing time is dominated by llm.vision_model, not by anything local.
+  device: auto
 
 embedding:
   # all-MiniLM-L6-v2 was the original choice but caps at 256 tokens, which would have

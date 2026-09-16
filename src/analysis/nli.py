@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 import numpy as np
 
+from common.device import resolve_device
 from config import CFG, Config
 
 LABELS = ("contradiction", "entailment", "neutral")
@@ -39,6 +40,7 @@ class NLIModel:
     def __init__(self, config: Config = CFG) -> None:
         self.model_name = str(config.nli.model)
         self._model = None
+        self.device = resolve_device(config)
         self._labels: List[str] = list(LABELS)
 
     @property
@@ -49,9 +51,11 @@ class NLIModel:
             except ImportError as exc:
                 raise NLIError(f"sentence-transformers is not installed: {exc}") from None
             try:
-                self._model = CrossEncoder(self.model_name)
+                self._model = CrossEncoder(self.model_name, device=self.device)
             except Exception as exc:
-                raise NLIError(f"could not load {self.model_name}: {exc}") from None
+                raise NLIError(
+                    f"could not load {self.model_name} on {self.device}: {exc}"
+                ) from None
 
             id2label = getattr(getattr(self._model, "config", None), "id2label", None)
             if isinstance(id2label, dict) and len(id2label) == 3:
