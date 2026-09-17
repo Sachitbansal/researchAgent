@@ -34,6 +34,11 @@ REQUIRED_SECTIONS = (
     "agent",
     "paths",
     "eval",
+    # `compute` is listed here for the same reason as every other section: a config
+    # without it used to pass validation and then fail much later inside
+    # resolve_device() with an AttributeError that never named the offending file.
+    # Validation exists to fail at load, with the path in the message.
+    "compute",
 )
 
 REQUIRED_PATH_KEYS = (
