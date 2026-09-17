@@ -111,15 +111,22 @@ def cmd_index(args: argparse.Namespace) -> int:
 def cmd_ask(args: argparse.Namespace) -> int:
     """Answer one question with the agent loop, printing the answer and the trace path."""
     from agent.loop import AgentLoop
+    from agent.progress import ConsoleReporter
     from agent.tool_registry import build_full_registry
     from config import CFG
     from retrieval.embedder import Embedder
     from tools.retrieve_evidence import EvidenceRetriever
 
     CFG.paths.ensure()
+    # Progress goes to stderr, so `ask ... > answer.txt` still captures the answer alone.
+    reporter = None if args.quiet else ConsoleReporter(stream=sys.stderr, config=CFG)
+    if reporter is not None:
+        # Loading the bi-encoder, cross-encoder and NLI models is the longest silence in
+        # the command and it happens before the loop can emit anything, so say so here.
+        print("loading models and the index ...", file=sys.stderr, flush=True)
     retriever = EvidenceRetriever(CFG, embedder=Embedder(CFG))
     loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG),
-                     config=CFG, retriever=retriever)
+                     config=CFG, retriever=retriever, on_event=reporter)
 
     result = loop.run(args.question)
     if _failed(result):
@@ -215,7 +222,10 @@ def build_parser() -> argparse.ArgumentParser:
 
     ask = subparsers.add_parser("ask", help="answer one question against the index")
     ask.add_argument("question", help="the question, quoted")
-    ask.add_argument("--show-tools", action="store_true", help="print each tool call made")
+    ask.add_argument("--show-tools", action="store_true",
+                     help="after the answer, print a one-line summary of every tool call")
+    ask.add_argument("--quiet", action="store_true",
+                     help="suppress the live progress lines printed to stderr")
     ask.set_defaults(handler=cmd_ask)
 
     evaluate = subparsers.add_parser("eval", help="run the eval harness")

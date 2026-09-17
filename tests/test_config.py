@@ -126,6 +126,42 @@ def test_missing_section_is_rejected(tmp_path: Path):
         load_config(bad)
 
 
+def test_every_section_in_config_yaml_is_validated():
+    """Every section the shipped config defines must be required by the loader.
+
+    `compute` was missing from REQUIRED_SECTIONS, so a config without it loaded cleanly
+    and then died inside resolve_device() with an AttributeError that never named the
+    file. This compares against config.yaml rather than iterating REQUIRED_SECTIONS —
+    iterating the tuple cannot detect a section absent from it, which is exactly the
+    bug. A new section added to config.yaml and read by the code fails here until it is
+    validated too.
+    """
+    import yaml
+
+    from config import REPO_ROOT, REQUIRED_SECTIONS
+
+    shipped = set(yaml.safe_load((REPO_ROOT / "config.yaml").read_text(encoding="utf-8")))
+    unvalidated = shipped - set(REQUIRED_SECTIONS)
+    assert not unvalidated, (
+        f"config.yaml defines {sorted(unvalidated)} but the loader does not require "
+        "them; a config omitting one would fail late instead of at load"
+    )
+
+
+def test_a_config_missing_compute_is_rejected_at_load(tmp_path: Path):
+    """The specific regression: no compute section must fail at load, naming the file."""
+    import yaml
+
+    from config import REPO_ROOT
+
+    raw = yaml.safe_load((REPO_ROOT / "config.yaml").read_text(encoding="utf-8"))
+    del raw["compute"]
+    bad = tmp_path / "config.yaml"
+    bad.write_text(yaml.safe_dump(raw), encoding="utf-8")
+    with pytest.raises(ConfigError, match="missing sections: compute"):
+        load_config(bad)
+
+
 def test_missing_file_is_rejected(tmp_path: Path):
     with pytest.raises(ConfigError, match="config file not found"):
         Config(tmp_path / "nope.yaml")

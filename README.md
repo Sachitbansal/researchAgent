@@ -14,6 +14,10 @@ No agent framework. The tool loop is written directly against the provider's
 OpenAI-compatible API, because how the agentic system is structured is itself part of
 what this project set out to evaluate.
 
+**Just want to see it work?** After [Setup](#setup), run `python web/server.py` and open
+<http://127.0.0.1:8000> — the same agent with a page to look at, including a live view of
+the steps it takes. See [Show it in a browser](#show-it-in-a-browser).
+
 ## What it does
 
 | | |
@@ -193,18 +197,50 @@ Results land in `eval/results/`. Full write-up in
 
 ### Show it in a browser
 
-A one-page demo of the same agent, for showing the system to someone rather than
-driving it:
+A one-page demo of the same agent, for showing the system to someone rather than driving
+it from a terminal.
 
 ```bash
-python web/server.py                 # then open http://127.0.0.1:8000
-python web/server.py --port 9000 --host 0.0.0.0
+source .venv/bin/activate
+python web/server.py
 ```
 
-The answer renders as formatted text with every citation numbered and resolvable to its
-paper, the agent's steps stream into the margin as it works, and a second tab lists
-every paper in the corpus. It needs the models and the index — this is a local demo, not
-a static site that can be hosted on its own.
+It loads the models first — about ten seconds — then prints:
+
+```
+loading models and the index ...
+ready — 22 paper(s) indexed
+open http://127.0.0.1:8000
+```
+
+Open that address. Stop it with `Ctrl-C`.
+
+```
+--port N        listen on a different port (default: 8000)
+--host H        default 127.0.0.1, this machine only.
+                --host 0.0.0.0 makes it reachable from another machine on the network
+--config PATH   is NOT a flag here; use SCIAGENT_CONFIG=... python web/server.py instead
+```
+
+**The Ask tab** takes a question and answers it with the same agent as `python main.py
+ask`, through the same config — there is no second code path, and no answer can appear
+here that the CLI would not also give. The answer arrives as formatted text; every
+citation is numbered like a paper's references, clickable, and listed with its title and
+an arXiv link underneath. While it works, each step streams into the margin: what the
+agent is thinking about, which tool it called with which arguments, what came back, and
+how long it took.
+
+**The Corpus tab** lists every paper currently indexed, grouped by the topic it was
+collected under, with the arXiv query the LLM planned for that topic. Per paper: title,
+authors, year, PDF filename, and how many chunks and figures it produced.
+
+It needs Python, the models and an index, so it cannot be hosted as a static site — run
+it on the machine that has the corpus. It holds one agent behind a lock, so it answers
+one question at a time and is not built for several people at once.
+
+If a question makes the agent call `search_literature`, that step can sit in the margin
+for minutes: fetching PDFs, extracting them, describing figures and embedding all happen
+inside that one tool call. For a demo, index the topic beforehand.
 
 `web/` sits outside `src/` and imports it, exactly as `eval/` does. Nothing in `src/`
 knows it exists: the system being evaluated is still the CLI.
@@ -256,13 +292,16 @@ src/
   analysis/            NLI
   prompts/             system prompt and tool descriptions, as files
 eval/                  question set, annotation, metrics, tuning, ablation
+web/                   the browser demo — server.py plus three static files
 scripts/               one verification gate per milestone, m0..m8, plus the M9 demos
 tests/                 unit and smoke tests
 docs/                  the specs — these are authority, not background reading
 ```
 
 `eval/` imports `src/`, never the reverse. That is why `main.py` sits at the repo root:
-`eval` is one of its subcommands.
+`eval` is one of its subcommands. `web/` sits outside `src/` for the same reason and
+follows the same rule — see
+[`docs/FUTURE_WORK.md`](docs/FUTURE_WORK.md#web-is-a-demo-shim-outside-the-system-under-evaluation).
 
 ## Configuration
 
