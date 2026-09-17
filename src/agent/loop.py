@@ -1,17 +1,18 @@
 """
 The agent loop: call the model, run whatever tools it asks for, repeat until it answers.
 
-In:  a question, an LLMClient, and a ToolRegistry.
-Out: {"answer", "iterations", "tool_calls", "run_id", "stopped_because", ...}. Written
-     directly against the provider SDK — no framework — because how this loop is shaped
-     is itself part of what the project is evaluating (ARCHITECTURE section 14).
+In:  a question, an LLMClient, a ToolRegistry, and an optional on_event observer.
+Out: {"answer", "iterations", "tool_calls", "run_id", "stopped_because", ...}, plus a
+     live event per step to on_event if one was given. Written directly against the
+     provider SDK — no framework — because how this loop is shaped is itself part of
+     what the project is evaluating (ARCHITECTURE section 14).
 """
 
 from __future__ import annotations
 
 import json
 import time
-from typing import Any, Dict, List, Optional, Sequence, Set, Tuple
+from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from agent.conversation import Conversation
 from agent.tool_registry import ToolRegistry
@@ -59,11 +60,26 @@ class AgentLoop:
         client: Optional[LLMClient] = None,
         config: Config = CFG,
         retriever: Optional[Any] = None,
+        on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self.registry = registry
         self.config = config
         self.client = client if client is not None else LLMClient(config=config)
         self.retriever = retriever
+        self.on_event = on_event
+
+    def _emit(self, kind: str, **fields: Any) -> None:
+        """Announce what the loop is about to do, or just did. Never raises.
+
+        Same rule as TraceWriter.record: an observer is for watching a run, so a broken
+        one must not be able to end it. No reporter means no work at all.
+        """
+        if self.on_event is None:
+            return
+        try:
+            self.on_event({"kind": kind, **fields})
+        except Exception:
+            pass
 
     @staticmethod
     def _attach_image(conversation: Conversation, resolved: Dict[str, Any]) -> None:
@@ -108,6 +124,7 @@ class AgentLoop:
         iteration = 0
 
         for iteration in range(max_iterations):
+            self._emit("thinking", iteration=iteration)
             try:
                 response = self.client.complete(
                     conversation.messages(), tools=self.registry.schemas(), role="agent"
@@ -126,6 +143,7 @@ class AgentLoop:
 
             if not response.has_tool_calls:
                 conversation.add_assistant(response)
+                self._emit("answering", iteration=iteration)
                 stopped_because = "answered"
                 break
 
@@ -142,6 +160,8 @@ class AgentLoop:
                         "detail": f"arguments were not valid JSON: {call.parse_error}",
                         "partial": None,
                     })
+                    self._emit("skipped", iteration=iteration, tool_name=call.name,
+                               reason="arguments were not valid JSON")
                     continue
 
                 key = _canonical(call.name, call.arguments)
@@ -152,13 +172,19 @@ class AgentLoop:
                     conversation.add_tool_result(call.id, {
                         "error": "repeated_call", "detail": LOOP_NOTICE, "partial": None,
                     })
+                    self._emit("skipped", iteration=iteration, tool_name=call.name,
+                               reason="already called with these arguments")
                     continue
 
                 seen_calls.add(key)
+                self._emit("tool_start", iteration=iteration, tool_name=call.name,
+                           args=call.arguments)
                 started = time.perf_counter()
                 result = self.registry.dispatch(call.name, call.arguments)
                 latency_ms = int((time.perf_counter() - started) * 1000)
                 tool_calls_made += 1
+                self._emit("tool_end", iteration=iteration, tool_name=call.name,
+                           result=result, latency_ms=latency_ms)
 
                 tracer.record(iteration, call.name, call.arguments, result, latency_ms)
                 conversation.add_tool_result(call.id, result)
@@ -171,12 +197,14 @@ class AgentLoop:
                     pending_images.append(result)
 
             for image in pending_images:
+                self._emit("image", iteration=iteration, image_path=image.get("image_path"))
                 self._attach_image(conversation, image)
 
             conversation.elide_if_needed()
         else:
             # Cap reached with tools still being requested.
             stopped_because = "iteration_cap"
+            self._emit("cap", iteration=max_iterations - 1)
             if bool(config.agent.final_answer_nudge):
                 conversation.add_user(CAP_NUDGE)
                 try:

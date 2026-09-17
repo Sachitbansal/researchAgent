@@ -404,3 +404,99 @@ def test_trace_summary_is_truncated(cfg):
 def test_chunk_ids_of_handles_a_result_without_chunks():
     assert chunk_ids_of({"error": "no_results"}) == []
     assert chunk_ids_of({}) == []
+
+
+# --------------------------------------------------------------------------- progress
+
+def test_progress_events_report_each_step_in_order(cfg):
+    """on_event sees the loop's steps as they happen, in the order they happen."""
+    client = ScriptedClient(
+        tool_response([("c1", "retrieve_evidence", {"query": "routing"})]),
+        text_response("answer"),
+    )
+    events = []
+    result = AgentLoop(registry_with(cfg, lambda **kw: ok_result(["pA__c0000"])),
+                       client=client, config=cfg, on_event=events.append).run("q")
+
+    assert [e["kind"] for e in events] == [
+        "thinking", "tool_start", "tool_end", "thinking", "answering",
+    ]
+    assert events[1]["tool_name"] == "retrieve_evidence"
+    assert events[1]["args"] == {"query": "routing"}
+    assert events[2]["result"]["chunks"][0]["chunk_id"] == "pA__c0000"
+    assert isinstance(events[2]["latency_ms"], int)
+    assert result["answer"] == "answer"
+
+
+def test_a_repeated_call_is_reported_as_skipped(cfg):
+    """A call that never dispatches emits `skipped`, not an unpaired tool_start."""
+    call = ("c1", "retrieve_evidence", {"query": "same"})
+    client = ScriptedClient(
+        tool_response([call]), tool_response([call]), text_response("answer"),
+    )
+    events = []
+    AgentLoop(registry_with(cfg, lambda **kw: ok_result()), client=client, config=cfg,
+              on_event=events.append).run("q")
+
+    kinds = [e["kind"] for e in events]
+    assert kinds.count("tool_start") == kinds.count("tool_end") == 1
+    assert "skipped" in kinds
+
+
+def test_malformed_arguments_are_reported_as_skipped(cfg):
+    """The other path that never dispatches: a line is never left open for it either."""
+    from llm_client import _parse_response
+
+    bad = _parse_response({
+        "model": "stub",
+        "choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "c1", "type": "function",
+             "function": {"name": "retrieve_evidence", "arguments": "{not json"}}]},
+            "finish_reason": "tool_calls"}],
+    })
+    events = []
+    result = AgentLoop(registry_with(cfg, lambda **kw: ok_result()),
+                       client=ScriptedClient(bad, text_response("recovered")), config=cfg,
+                       on_event=events.append).run("q")
+
+    assert result["answer"] == "recovered"
+    kinds = [e["kind"] for e in events]
+    assert kinds.count("tool_start") == kinds.count("tool_end") == 0
+    assert kinds.count("skipped") == 1
+
+
+def test_a_broken_reporter_cannot_end_a_run(cfg):
+    """An observer is for watching a run, so its failure must not stop one."""
+    def explode(event):
+        raise RuntimeError("reporter is broken")
+
+    client = ScriptedClient(
+        tool_response([("c1", "retrieve_evidence", {"query": "q"})]),
+        text_response("answer"),
+    )
+    result = AgentLoop(registry_with(cfg, lambda **kw: ok_result()), client=client,
+                       config=cfg, on_event=explode).run("q")
+    assert result["answer"] == "answer"
+    assert result["tool_calls"] == 1
+
+
+def test_progress_lines_are_one_per_event(cfg):
+    """tool_start opens a line and tool_end closes it; every other kind closes its own."""
+    import io
+
+    from agent.progress import ConsoleReporter
+
+    stream = io.StringIO()
+    reporter = ConsoleReporter(stream=stream, config=cfg)
+    reporter({"kind": "thinking", "iteration": 0})
+    reporter({"kind": "tool_start", "iteration": 0, "tool_name": "retrieve_evidence",
+              "args": {"query": "protein folding"}})
+    reporter({"kind": "tool_end", "iteration": 0, "tool_name": "retrieve_evidence",
+              "result": ok_result(["pA__c0000"]), "latency_ms": 840})
+    reporter({"kind": "answering", "iteration": 1})
+
+    lines = stream.getvalue().splitlines()
+    assert lines[0] == "[1] thinking..."
+    assert lines[1].startswith("[1] → retrieve_evidence(query='protein folding') ... ")
+    assert lines[1].endswith("1 chunk, 840ms")
+    assert lines[2] == "[2] answering"

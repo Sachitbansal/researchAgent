@@ -304,6 +304,9 @@ agent:
                             # tool_choice=none so the model must answer with what it has
   trace_text_chars: 200     # per-chunk text kept in a trace record. Full chunk text in
                             # every record makes the log unusable (DATA_SCHEMA section 7)
+  progress_text_chars: 60   # width of the args/result phrase on a live progress line.
+                            # Separate from trace_text_chars: a trace is read later and
+                            # can be wide, a progress line has to fit a terminal.
 
 paths:
   data_dir: data
