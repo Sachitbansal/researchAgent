@@ -28,6 +28,61 @@ The five tools are `retrieve_evidence`, `search_literature`, `analyze_corpus`,
 `inspect_figure` and `check_evidence_consistency` — specified in
 [`docs/TOOLS.md`](docs/TOOLS.md).
 
+## Architecture
+
+Two phases. **Indexing** is slow and runs once per topic; **asking** is cheap and reads
+what indexing produced. They share nothing but files on disk.
+
+```
+index "<topic>"
+  arXiv query planned by an LLM, cached by topic hash
+  → search, dedup against the manifest, download new PDFs
+  → PyMuPDF text; figure regions rendered and described by a vision model
+  → section-aware chunks (350 tokens, max 445)
+  → BGE embeddings → FAISS IndexFlatIP + a positional chunk_id map
+
+ask "<question>"
+  agent loop ── chooses among five tools, up to 8 iterations
+       │
+       ├─ retrieve_evidence          bi-encoder top-40 → cross-encoder rerank
+       │                             → relevance gate → top-5 + neighbours
+       ├─ search_literature          fetch and index new papers mid-question
+       ├─ analyze_corpus             stats, timeline, KMeans clustering
+       ├─ inspect_figure             attach a figure image to the conversation
+       └─ check_evidence_consistency NLI: contradictions, groundedness
+```
+
+### Design choices
+
+**No agent framework.** The loop is written directly against the provider's API. How the
+agentic system is structured is part of what is being evaluated, and a framework hides
+it. The whole loop is ~200 lines.
+
+**The agent chooses its tools.** There is no routing logic — the model gets five schemas
+and decides. Most questions need only `retrieve_evidence`; some need none of them.
+
+**Statelessness is handled explicitly.** `/chat/completions` stores nothing between
+requests, so the entire message array is rebuilt and re-sent every iteration.
+`agent/conversation.py` owns that array and enforces the API's pairing rules in code —
+the assistant turn is appended verbatim before its results so `tool_call_id`s stay
+intact. Past a token budget the oldest tool results have their *content* replaced with a
+placeholder; the messages stay, because deleting one orphans its `tool_call` and the API
+rejects the whole request.
+
+**Two-stage retrieval.** A bi-encoder scores the whole index cheaply; the cross-encoder
+only ever rescores its top 40. Reranking the corpus directly would defeat the point.
+
+**Abstention is a mechanism, not a prompt instruction.** Chunks scoring below a tuned
+relevance threshold are withheld, and the tool reports `sufficient_evidence: false`.
+Naive top-k always returns something, which is what lets a model answer confidently from
+irrelevant text.
+
+**Every threshold is measured.** `config.yaml` carries the sweep or measurement behind
+each number rather than a plausible-looking constant.
+
+Full detail, including rejected alternatives, is in
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Setup
 
 Tested on **Python 3.10.12**, Linux.
@@ -55,67 +110,26 @@ OPENROUTER_APP_NAME=sciagent      # optional, used in the attribution header
 |---|---|---|
 | `OPENROUTER_API_KEY` | yes | LLM, vision and utility calls |
 | `OPENROUTER_APP_NAME` | no | OpenRouter attribution header, defaults to `sciagent` |
-| `SCIAGENT_CONFIG` | no | path to an alternative `config.yaml`; same as `--config` |
+| `SCIAGENT_CONFIG` | no | use a different `config.yaml`; paths live in it, so this selects a separate corpus |
 
 ### GPU (optional)
 
-Three models run locally: the bi-encoder, the cross-encoder reranker and the NLI
-cross-encoder. `compute.device` in `config.yaml` governs all three.
+Three models run locally — the bi-encoder, the cross-encoder reranker and the NLI
+model. `compute.device` in `config.yaml` governs all three.
 
-`auto` (the default) uses CUDA when torch can reach a device and falls back to CPU
-otherwise, so the project runs unchanged on a machine with no NVIDIA driver. Naming a
-device explicitly (`cuda`, `cuda:0`, `cpu`) is a hard assertion instead: an unreachable
-device fails at config resolution rather than quietly dropping to CPU, because a silent
-fallback turns a driver problem into an unexplained slowdown.
-
-Check what is actually in use, and time the three models on it:
+`auto` (the default) uses CUDA when torch can reach a device and falls back to CPU, so
+the project runs unchanged with no NVIDIA driver present. Naming a device explicitly
+(`cuda`, `cpu`) is a hard assertion instead: an unreachable device fails at config
+resolution rather than quietly dropping to CPU, because a silent fallback turns a driver
+problem into an unexplained slowdown.
 
 ```bash
-python scripts/check_gpu.py              # exits 0 on CUDA, 1 on CPU
+python scripts/check_gpu.py              # reports the device and times the models
 python scripts/check_gpu.py --skip-bench # report the device only
 ```
 
-Measured on the same 406-chunk corpus (278 tokens mean), 16-thread CPU vs an RTX 3050
-6GB laptop GPU, same texts in one process:
-
-| stage | when it runs | CPU | GPU | saved |
-|---|---|---|---|---|
-| embed 406 chunks | index time, once per new chunk | 23.9s | 3.6s | 20.3s |
-| rerank 40 pairs | per query | 1.35s | 0.20s | 1.15s |
-| NLI 30 pairs | per groundedness check | 1.18s | 0.32s | 0.86s |
-| CUDA context init | once per process | — | 2.2s | −2.2s |
-
-Which nets out, per command, as roughly:
-
-| command | saved |
-|---|---|
-| `index`, cold (406 new chunks) | ~18s |
-| `index`, incremental (one paper, ~37 chunks) | ~0s — the init costs more than it saves |
-| `ask`, one question | ~0s — likewise |
-| `eval`, 30 questions in one process | ~58s |
-
-Break-even is about **45 newly embedded chunks**, or **2 questions in a single process**.
-Below that the CUDA context init is not repaid. The GPU is worth having for the eval
-harness; it is not what makes indexing fast — the figure-description model is.
-
-**Installing the driver on Ubuntu.** The CUDA torch wheel is already installed; what is
-missing on a fresh machine is the host driver. Nothing in the project changes — with
-`compute.device: auto`, the next run picks the GPU up on its own.
-
-```bash
-ubuntu-drivers devices              # shows the recommended package for this card
-sudo ubuntu-drivers install         # installs it
-sudo reboot
-```
-
-If Secure Boot is enabled (`mokutil --sb-state`), the install prompts for a one-time
-password and the reboot stops at a blue **MOK Manager** screen. Choose *Enroll MOK* →
-*Continue* → *Yes*, enter that password, and reboot again. Skipping this step leaves the
-kernel module unsigned and unloadable, and `nvidia-smi` keeps failing with the driver
-apparently installed — which looks like a torch problem and is not one.
-
-On hybrid Intel + NVIDIA laptops the Intel chip keeps driving the display; the discrete
-GPU is used for compute only, and no Xorg or PRIME configuration is needed.
+It is worth having for indexing and the eval harness, and makes no difference to a
+single question — the CUDA context costs more to start than one query saves.
 
 ## Usage
 
@@ -146,10 +160,23 @@ Indexing a second topic adds to the *same* index — papers are distinguished by
 
 ```bash
 python main.py ask "What load-balancing losses do these papers use for MoE routing?"
-python main.py ask "..." --show-tools     # print each tool call the agent made
+python main.py ask "..." --show-tools     # after the answer, one line per tool call
+python main.py ask "..." --quiet          # no live progress
 ```
 
-Prints the answer, then the iteration count, tool-call count, context size, and the
+While it runs, each step is printed to **stderr** as it happens — the model thinking,
+every tool call with its arguments, what came back and how long it took:
+
+```
+[1] thinking...
+[1] → retrieve_evidence(query='sparse mixture-of-experts load balancing') ... 8 chunks, 6796ms
+[2] thinking...
+[2] → check_evidence_consistency(mode='groundedness', ...) ... 20 claims, grounded 0.5, 45571ms
+[3] answering
+```
+
+The answer itself goes to stdout, so `ask "..." > answer.txt` still captures the answer
+alone. Afterwards it prints the iteration count, tool-call count, context size, and the
 path to a full JSONL trace of every tool call under `logs/traces/`.
 
 ### Run the eval
@@ -164,15 +191,23 @@ python main.py eval --limit 3     # a quick smoke run (saved separately, so it
 Results land in `eval/results/`. Full write-up in
 [`docs/EVALUATION.md`](docs/EVALUATION.md).
 
-### Working against a separate corpus
+### Show it in a browser
 
-`--config` points the whole system at a different `config.yaml`, and a config with
-different `paths.*` gives an entirely separate corpus — used by the cold-start demo so
-it cannot disturb the eval corpus:
+A one-page demo of the same agent, for showing the system to someone rather than
+driving it:
 
 ```bash
-python main.py --config data_demo/config.yaml ask "..."
+python web/server.py                 # then open http://127.0.0.1:8000
+python web/server.py --port 9000 --host 0.0.0.0
 ```
+
+The answer renders as formatted text with every citation numbered and resolvable to its
+paper, the agent's steps stream into the margin as it works, and a second tab lists
+every paper in the corpus. It needs the models and the index — this is a local demo, not
+a static site that can be hosted on its own.
+
+`web/` sits outside `src/` and imports it, exactly as `eval/` does. Nothing in `src/`
+knows it exists: the system being evaluated is still the CLI.
 
 ## Results in brief
 
@@ -273,18 +308,3 @@ gate's output, not by an assertion; `docs/ARCHITECTURE.md` §15 lists them.
 | [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) | records, ids, hashes, on-disk layout |
 | [`docs/EVALUATION.md`](docs/EVALUATION.md) | what was measured and what the numbers do not say |
 | [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) | the milestones and their verification gates |
-
-## Known limitations
-
-- **Small eval set.** 15 questions, one annotator. Every number above should be read
-  with that in mind.
-- **No index eviction.** Removing from a flat index with a positional id map implies a
-  full rebuild. Bounded instead by `max_papers_per_topic`. `IndexIDMap` is the fix if it
-  ever matters.
-- **Tables are images.** No structural table parsing; a table is rendered and described
-  like a figure.
-- **arXiv only**, and its rate limits are real. `export.arxiv.org` throttles by IP and
-  then answers HTTP 429 to *every* query, not just the one that tripped it. A burst of
-  indexing runs earns a cooling-off period measured in tens of minutes, during which no
-  collection can proceed. Indexing and asking are unaffected once a corpus exists,
-  since both work off the local index.
