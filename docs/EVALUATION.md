@@ -57,7 +57,7 @@ that was itself chosen from data.
 The set now holds **18 questions, 6 held out**, so the held-out share is still a third.
 The new category is `absent_fetchable`. Its subject is absent from the corpus but well
 covered on arXiv, so the right outcome is to abstain **and** propose a fetch for the user
-to approve (`docs/DECISIONS.md` D20). Abstention is scored as before, and the proposal
+to approve (`docs/DECISIONS.md` D14). Abstention is scored as before, and the proposal
 is scored separately.
 
 | question | split | subject | origin |
@@ -77,7 +77,7 @@ is scored separately.
   the admission gate's job is to find that arXiv has nothing.
 - **Scoring.** `eval.metrics.fetch_proposal_detected(run)` reads the structured
   `fetch_proposal` field that `AgentLoop.run` derives from the run's last
-  `coverage_gap` (D24). The runner reports `fetch_proposal_on_fetchable` (the target)
+  `coverage_gap` (D18). The runner reports `fetch_proposal_on_fetchable` (the target)
   and `fetch_proposal_on_answerable` (false alarms: a needless fetch button).
 - **No numbers yet.** The full agent eval has not been run on this category. The prompt
   rule that acts on the hint is phase 2 and will change behaviour, and measuring before it
@@ -249,7 +249,7 @@ its limits documented above.
 ## Admission threshold sweep
 
 `search_literature` scores `(query, title + abstract)` with the cross-encoder before any
-download (`docs/DECISIONS.md` D22). The threshold was swept offline, with no arXiv calls,
+download (`docs/DECISIONS.md` D16). The threshold was swept offline, with no arXiv calls,
 over 175 labelled pairs against the 11 indexed abstracts (`eval/tune_admission.py`,
 `eval/results/admission_sweep.json`), using the tuning split only.
 

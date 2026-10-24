@@ -18,11 +18,12 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **By:** Claude. User said "Next.js / React, whichever is best" and accepted.
 - **Why:** local app with a Python backend, so no SSR needed. Static build that FastAPI serves: one process, one command.
 - **Rejected:** Next.js (SSR/Vercel strengths unused; adds a Node server). Revisit if it is ever hosted publicly.
+- **`@types/react` + `@types/react-dom` approved (By: user).** Dev-only type definitions `tsc` needs to check JSX.
 
 ## D3 — Three-pane conversational layout
 *2026-10-24 · `frontend/src/`*
 - **By:** user. Why: should feel like an agentic chat UI (Claude Desktop). Chats on the left, conversation in the middle, tool calls and memory on the right.
-- **Consequence:** Memory pane is a placeholder. Each question is still answered independently; the UI says so.
+- **Consequence:** Memory pane is a placeholder. Each question is still answered independently; the UI says so. *Superseded by D12: chats are threads with short-term memory, and the Memory pane shows each answer's notes.*
 
 ## D4 — Per-tool call limits replace the global iteration cap
 *2026-10-24 · `src/agent/loop.py`, `config.yaml` agent · changes ARCHITECTURE §7, TOOLS.md "Loop control"*
@@ -40,7 +41,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **By:** Claude (subagent).
 - **Why:** `EventSource` reconnects when a stream ends and would silently re-run the question. A POST body also keeps the question out of URLs and logs.
 - **Rejected:** GET + `EventSource` (the old demo's approach, which needed a manual close to avoid re-runs); WebSockets (two-way, and nothing needs that).
-- **Consequence:** frames are `step`* then `answer` | `failed`, then `done`, or else `busy`, `done`.
+- **Consequence:** frames are `step`* then `answer` | `failed`, then `done`, or else `busy`, `done`. *Since D12, a `thread` frame `{thread_id, created, title}` comes first; `busy` creates no thread.*
 
 ## D6 — One run at a time, and the worker thread owns it
 
@@ -99,7 +100,25 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Rejected:** the skill's first suggestion (teal and orange with Plus Jakarta Sans), which reads as SaaS marketing; the first pass's serif answers and highlighter-yellow brand, which looked closer to the cream-and-serif "AI" look; and purple/blue gradients and glass effects, which the user excluded.
 - **No strong reason** for Plex over Inter, which the skill ranked just behind it. Plex was already loaded and has a matching mono.
 
-## D20 — CRAG trigger: the agent proposes a fetch, the user approves it
+## D12 — Conversation memory v1: short-term, per thread
+
+*2026-10-25 · `src/memory/`, `src/agent/loop.py`, `web/api.py`, `main.py` · adds ARCHITECTURE §7.1*
+
+- **By:** user. "Simple hybrid": each prior turn is sent as its question and answer, verbatim, plus a one-line note per tool call. There are no LLM summaries. Stored in SQLite at `data/threads.sqlite3`, with a 9k-token history budget (`agent.thread_history_tokens`). The oldest turns are dropped whole.
+- **Why SQLite:** stdlib, no server, a single file, transactions, and SQL queries for listing and ordering.
+- **Rejected:** JSON files (no transactions; concurrent CLI and web writes race), Postgres and Redis (a server for a single-user tool), a vector DB (v1 has no long-term recall).
+- **Consequence:** `thread_id=None` is exactly the old behaviour, and the eval harness never passes one (a test asserts it). Notes are assistant messages, never replayed tool messages, so no `tool_call` pairing can break.
+
+## D13 — "Seen = still visible" chunk dedup
+
+*2026-10-25 · `src/tools/retrieve_evidence.py`, `src/agent/conversation.py`*
+
+- **By:** user, who wanted dedup to span the whole thread. Claude found that elision hid a result's text while its chunks stayed marked as seen, so they could not be fetched again. Fixed by releasing the elided chunks: `Conversation.last_released` feeds `EvidenceRetriever.release()`.
+- **Rule:** the seen set holds only chunks whose text is in the context now. A run starts from the chunks visible in its conversation.
+- **Rejected:** seeding the seen set from the chunk ids in prior turns' notes. That would suppress chunks whose text the model no longer has.
+- **Consequence:** history is notes only, so in practice dedup spans the current question. A history strategy that replays results would widen it with no code change.
+
+## D14 — CRAG trigger: the agent proposes a fetch, the user approves it
 
 *2026-10-25 · `src/tools/retrieve_evidence.py`, `src/agent/fetch_proposal.py`; the button is phase 2*
 
@@ -108,7 +127,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Why:** the relevance gate already makes the agent abstain, but nothing helped it go and get the missing literature.
 - **Rejected:** auto-fetch, because it pollutes the shared corpus and arXiv returns *something* even for topics it barely covers. Plain abstention was also rejected, because it leaves the gap for the user to diagnose.
 
-## D21 — A structured `coverage_gap` hint, plus a prompt rule
+## D15 — A structured `coverage_gap` hint, plus a prompt rule
 
 *2026-10-25 · `src/tools/retrieve_evidence.py`, `config.yaml` retrieval*
 
@@ -118,7 +137,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Why so small:** no failed retrieval, at any distance, was recovered by rewording the same request. The one answerable miss (mp03) sits 2.51 below, further than four absent topics. A wrong `rephrase` silently suppresses the proposal; a wrong `propose_fetch` is a button the user can ignore.
 - **Resolved by Claude:** the hint is absent on non-gate paths (empty filter, no candidates, all already returned). `proposed_query` is the retrieve query itself, because `search_literature` plans its own arXiv syntax.
 
-## D22 — Admission gate: abstracts scored by the cross-encoder before download
+## D16 — Admission gate: abstracts scored by the cross-encoder before download
 
 *2026-10-25 · `src/corpus/admission.py`, `src/corpus/collect.py`, `src/tools/search_literature.py`*
 
@@ -127,7 +146,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Trade-off:** question-shaped queries score far lower against whole abstracts, so only 61.5% of those positives are admitted at -3.0. The pooled sweep's -7.0 would let 3 of 11 adjacent cross-topic papers in instead. Needs user confirmation.
 - **Resolved by Claude:** the gate also covers dedup hits, so a rejected paper already held is not tagged with the new topic. `main.py index` calls `collect` directly and stays ungated, because it is an explicit user command, not the agent. `eval/build_corpus.py` goes through `LiteratureSearcher`, so it is now gated. The selection rule (topic-shaped pairs first) was adopted after the pooled sweep had recommended -7.0, and both numbers are recorded.
 
-## D23 — Eval: an `absent_fetchable` category, plus a manual check on a throwaway copy
+## D17 — Eval: an `absent_fetchable` category, plus a manual check on a throwaway copy
 
 *2026-10-25 · `eval/questions.json`, `eval/metrics.py`, `eval/runner.py`, `scripts/crag_fetch_check.py`*
 
@@ -136,7 +155,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Rejected / benched:** record/replay of arXiv responses for an automated end-to-end test.
 - **Note:** the full agent eval has not been run on the new category. Phase 2 changes the agent's behaviour, so no numbers exist yet.
 
-## D24 — Proposal mechanism: a structured `fetch_proposal` field derived by the loop
+## D18 — Proposal mechanism: a structured `fetch_proposal` field derived by the loop
 
 *2026-10-25 · `src/agent/fetch_proposal.py`, `src/agent/loop.py` (one field)*
 
@@ -149,7 +168,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 
 ## Benched questions
 
-- **Chat history storage:** undecided. Design it together with conversation memory. Until then, chats live only in page memory, seeded with the samples (D10). The server stores nothing (D5).
-- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts.
-- **`@types/react`, `@types/react-dom`:** dev-only TypeScript type definitions that `tsc` needs to check JSX. Installed; awaiting the user's approval.
-- **Record/replay of arXiv responses** for an automated CRAG end-to-end test: benched (D23). The live path is checked by hand on a throwaway copy instead.
+- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts. (v1 in D12 is hand-rolled.)
+- **Record/replay of arXiv responses** for an automated CRAG end-to-end test (D17). Until then the live path is checked by hand on a throwaway copy.
+- **Roadmap, in the user's order:** long-term research memory, then history summarisation, prompt caching plus a smaller context, the framework comparison, and a tracing UI.
+- **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; Tailwind and KaTeX (waiting on the user's `npm install`); saving the research report under `docs/research/`; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).

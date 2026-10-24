@@ -1,5 +1,5 @@
 /* Shapes that come off the wire from web/api.py, typed once and checked everywhere.
-   In:  nothing — declarations only. Out: the corpus, stream-event and in-memory chat types.
+   In:  nothing — declarations only. Out: the corpus, stream-event, thread and chat types.
    Step fields mirror AgentLoop._emit in src/agent/loop.py; anything the loop adds later
    arrives as an extra field and is ignored rather than breaking the page. */
 
@@ -24,6 +24,13 @@ export interface Stats {
   // them rather than fall over.
   stopped_because?: string;
   run_id?: string | null;
+  elapsed_ms?: number;
+  // Stored with a thread's turn: how much of the chat's history this answer was given.
+  history_turns?: number;
+  history_turns_dropped?: number;
+  history_tokens?: number;
+  error?: string;
+  detail?: string;
 }
 
 export interface UserMessage {
@@ -42,19 +49,50 @@ export interface AssistantMessage {
   error?: { error: string; detail: string };
   ts: number;
   elapsed_ms?: number;
+  // The one-line tool-call notes later questions in the thread are shown (D12).
+  notes?: string[];
 }
 
 export type Message = UserMessage | AssistantMessage;
 
-/* A chat lives only in the page's memory: where chat history is stored is undecided
-   (docs/DECISIONS.md, benched questions), so nothing persists across a reload. */
+/* A hand-written sample chat from fixtures/sampleChats.ts. Real chats are threads stored
+   by the server (docs/DECISIONS.md D12) and arrive as ThreadSummary / ThreadDetail. */
 export interface Chat {
   id: string;
   title: string;
   created_at: number;
   updated_at: number;
   messages: Message[];
-  sample?: boolean; // a hand-written fixture from fixtures/sampleChats.ts
+  sample?: boolean;
+}
+
+export interface ThreadSummary {
+  id: string;
+  title: string;
+  created_at: number;
+  updated_at: number;
+  n_turns: number;
+}
+
+export interface StoredTurn {
+  seq: number;
+  question: string;
+  answer: string;
+  stats: Stats;
+  notes: string[];
+  steps: Step[];
+  run_id?: string | null;
+  created_at: number;
+}
+
+export interface ThreadDetail extends ThreadSummary {
+  turns: StoredTurn[];
+}
+
+export interface ThreadEvent {
+  thread_id: string;
+  created: boolean;
+  title: string;
 }
 
 export interface Paper {
@@ -89,6 +127,8 @@ export interface Corpus {
 
 export interface AnswerEvent extends Stats {
   answer: string;
+  thread_id?: string | null;
+  turn_seq?: number | null;
 }
 
 export interface FailedEvent {
@@ -96,4 +136,6 @@ export interface FailedEvent {
   detail: string;
   answer: string;
   run_id?: string | null;
+  thread_id?: string | null;
+  turn_seq?: number | null;
 }

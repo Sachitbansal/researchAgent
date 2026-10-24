@@ -2,9 +2,10 @@
 Offline tests for the browser UI's API (web/api.py) against a stubbed agent.
 
 In:  a FastAPI TestClient over create_app, with a stub loop that emits scripted events
-     and a config rooted at tmp_path — no models, no network, no real index.
-Out: assertions on the corpus shape, the SSE order, that the server stores no chats, the
-     busy and failed paths, and that figure serving cannot be walked out of its directory.
+     and appends turns to a real ThreadStore, and a config rooted at tmp_path — no models,
+     no network, no real index.
+Out: assertions on the corpus shape, the SSE order (`thread` first), the threads routes,
+     the busy and failed paths, and that figure serving cannot be walked out of its directory.
 """
 
 from __future__ import annotations
@@ -23,6 +24,7 @@ if str(ROOT) not in sys.path:
 
 from fastapi.testclient import TestClient  # noqa: E402
 
+from memory.threads import ThreadStore  # noqa: E402
 from web.api import create_app, figure_url, resolve_figure  # noqa: E402
 
 PAPER = "2101_00001v1"
@@ -30,14 +32,16 @@ CHUNK = f"{PAPER}__c0003"
 
 
 class StubLoop:
-    """Stands in for AgentLoop: emits the loop's event kinds through on_event, returns a
-    result shaped like loop.run's — including a non-serialisable object, as the real
-    Conversation is."""
+    """Stands in for AgentLoop: emits the loop's event kinds through on_event, appends the
+    turn to its store when given a thread (as AgentLoop does), and returns a result shaped
+    like loop.run's — including a non-serialisable object, as the real Conversation is."""
 
-    def __init__(self, figure_path: str, fail: bool = False) -> None:
+    def __init__(self, figure_path: str, store: Any = None, fail: bool = False) -> None:
         self.on_event = None
         self.questions: List[str] = []
+        self.thread_ids: List[Any] = []
         self.figure_path = figure_path
+        self.store = store
         self.fail = fail
         self.on_event_during_run: List[Any] = []
 
@@ -45,8 +49,19 @@ class StubLoop:
         if self.on_event is not None:
             self.on_event({"kind": kind, **fields})
 
-    def run(self, question: str) -> Dict[str, Any]:
+    def _save(self, thread_id: Any, question: str, answer: str, stats: Dict[str, Any]) -> Any:
+        if thread_id is None or self.store is None:
+            return None
+        saved = self.store.append_turn(
+            thread_id, question, answer, stats=stats, notes=["retrieve_evidence(...) → 1 chunk"],
+            steps=[{"kind": "thinking", "iteration": 0},
+                   {"kind": "image", "iteration": 0, "image_path": self.figure_path}],
+            run_id=stats.get("run_id"))
+        return saved.get("seq")
+
+    def run(self, question: str, thread_id: Any = None) -> Dict[str, Any]:
         self.questions.append(question)
+        self.thread_ids.append(thread_id)
         self.on_event_during_run.append(self.on_event)
         self._emit("thinking", iteration=0)
         self._emit("tool_start", iteration=0, tool_name="retrieve_evidence", args={"query": question})
@@ -57,17 +72,24 @@ class StubLoop:
         })
         self._emit("image", iteration=0, image_path=self.figure_path)
         if self.fail:
+            seq = self._save(thread_id, question, "half an answer",
+                             {"run_id": "run-x", "error": "provider_error"})
             return {"error": "provider_error", "detail": "upstream 502",
-                    "partial": {"answer": "half an answer", "run_id": "run-x"}}
+                    "partial": {"answer": "half an answer", "run_id": "run-x"},
+                    "thread_id": thread_id, "turn_seq": seq}
         self._emit("answering", iteration=1)
+        answer = f"Widgets are blue [{CHUNK}]."
+        seq = self._save(thread_id, question, answer, {"run_id": "run-1", "iterations": 2})
         return {
-            "answer": f"Widgets are blue [{CHUNK}].",
+            "answer": answer,
             "question": question,
             "iterations": 2,
             "tool_calls": 1,
             "context_tokens": 1234,
             "stopped_because": "answered",
             "run_id": "run-1",
+            "thread_id": thread_id,
+            "turn_seq": seq,
             "conversation": object(),   # must never reach the wire
         }
 
@@ -93,17 +115,18 @@ def _config(tmp_path: Path) -> SimpleNamespace:
     }), encoding="utf-8")
     return SimpleNamespace(
         paths=SimpleNamespace(manifest=index / "manifest.json", figures=figures, logs=tmp_path / "logs"),
-        agent=SimpleNamespace(trace_text_chars=50),
+        agent=SimpleNamespace(trace_text_chars=50, thread_title_chars=24),
     )
 
 
 @pytest.fixture
 def setup(tmp_path):
     config = _config(tmp_path)
-    loop = StubLoop(str(config.paths.figures / PAPER / f"{PAPER}__f01.png"))
+    store = ThreadStore(tmp_path / "threads.sqlite3")
+    loop = StubLoop(str(config.paths.figures / PAPER / f"{PAPER}__f01.png"), store=store)
     app = create_app(lambda: (loop, config), dist_dir=tmp_path / "no_dist")
     with TestClient(app) as client:
-        yield SimpleNamespace(client=client, loop=loop, config=config, app=app)
+        yield SimpleNamespace(client=client, loop=loop, config=config, app=app, store=store)
 
 
 def _frames(body: str) -> List[tuple]:
@@ -114,8 +137,11 @@ def _frames(body: str) -> List[tuple]:
     return out
 
 
-def _ask(client, question: str):
-    response = client.post("/api/ask", json={"question": question})
+def _ask(client, question: str, thread_id: Any = None):
+    body: Dict[str, Any] = {"question": question}
+    if thread_id is not None:
+        body["thread_id"] = thread_id
+    response = client.post("/api/ask", json=body)
     assert response.status_code == 200
     assert response.headers["content-type"].startswith("text/event-stream")
     return _frames(response.text)
@@ -142,12 +168,13 @@ def test_papers_without_an_index_is_structured(setup):
 # ---------------------------------------------------------------- ask
 
 
-def test_ask_streams_steps_then_answer_then_done(setup):
+def test_ask_streams_thread_then_steps_then_answer_then_done(setup):
     frames = _ask(setup.client, "  What colour are widgets?  ")
     events = [e for e, _ in frames]
 
+    assert events[0] == "thread"
     assert events[-2:] == ["answer", "done"]
-    assert set(events[:-2]) == {"step"}
+    assert set(events[1:-2]) == {"step"}
     kinds = [p["kind"] for e, p in frames if e == "step"]
     assert kinds == ["thinking", "tool_start", "tool_end", "image", "answering"]
 
@@ -159,10 +186,11 @@ def test_ask_streams_steps_then_answer_then_done(setup):
 
     answer = frames[-2][1]
     assert set(answer) == {"answer", "iterations", "tool_calls", "context_tokens",
-                           "stopped_because", "run_id"}
+                           "stopped_because", "run_id", "thread_id", "turn_seq"}
     assert answer["run_id"] == "run-1"
+    assert answer["thread_id"] == frames[0][1]["thread_id"] and answer["turn_seq"] == 1
 
-    # The loop got the bare question, and its observer was set during the run only.
+    # The loop got the question as typed, and its observer was set during the run only.
     assert setup.loop.questions == ["What colour are widgets?"]
     assert setup.loop.on_event_during_run[0] is not None and setup.loop.on_event is None
     assert not setup.app.state.lock.locked()
@@ -171,15 +199,120 @@ def test_ask_streams_steps_then_answer_then_done(setup):
     assert served.status_code == 200 and served.content.startswith(b"\x89PNG")
 
 
-def test_ask_is_stateless(setup):
-    """Chat storage is undecided (docs/DECISIONS.md), so the server must keep none: each
-    question reaches the agent bare, and nothing is written under logs/."""
-    _ask(setup.client, "first question")
-    _ask(setup.client, "second question")
+def test_the_server_never_pastes_history_into_the_question(setup):
+    """History is the loop's job (memory.history), from the store. The server passes the
+    question as typed plus the thread id, and writes nothing under logs/ itself."""
+    first = _ask(setup.client, "first question")
+    tid = first[0][1]["thread_id"]
+    _ask(setup.client, "second question", thread_id=tid)
     assert setup.loop.questions == ["first question", "second question"]
+    assert setup.loop.thread_ids == [tid, tid]
     logs = setup.config.paths.logs
     assert not logs.exists() or not any(logs.rglob("*"))
     assert setup.client.get("/api/chats").status_code == 404
+
+
+# ---------------------------------------------------------------- threads
+
+
+def test_ask_without_a_thread_creates_one_named_after_the_question(setup):
+    frames = _ask(setup.client, "How are widgets coloured in practice, at scale?")
+    event, payload = frames[0]
+    assert event == "thread" and payload["created"] is True
+    assert payload["title"] == "How are widgets…"
+    tid = payload["thread_id"]
+
+    listed = setup.client.get("/api/threads").json()["threads"]
+    assert [t["id"] for t in listed] == [tid]
+    assert listed[0]["title"] == "How are widgets…"          # thread_title_chars=24
+    assert listed[0]["n_turns"] == 1
+
+    thread = setup.client.get(f"/api/threads/{tid}").json()
+    turn = thread["turns"][0]
+    assert turn["question"] == "How are widgets coloured in practice, at scale?"
+    assert turn["answer"] == f"Widgets are blue [{CHUNK}]."
+    assert turn["seq"] == 1 and turn["notes"] and turn["stats"]["run_id"] == "run-1"
+    image = next(s for s in turn["steps"] if s["kind"] == "image")
+    assert image["image_url"] == f"/api/figures/{PAPER}/{PAPER}__f01.png"
+
+
+def test_ask_with_a_thread_appends_a_turn(setup):
+    tid = _ask(setup.client, "first")[0][1]["thread_id"]
+    frames = _ask(setup.client, "second", thread_id=tid)
+    assert frames[0] == ("thread", {"thread_id": tid, "created": False, "title": "first"})
+    assert frames[-2][1]["turn_seq"] == 2
+
+    thread = setup.client.get(f"/api/threads/{tid}").json()
+    assert [t["question"] for t in thread["turns"]] == ["first", "second"]
+    assert len(setup.client.get("/api/threads").json()["threads"]) == 1
+
+
+def test_a_failed_run_in_a_thread_is_still_a_turn(setup):
+    setup.loop.fail = True
+    frames = _ask(setup.client, "will fail")
+    failed = frames[-2][1]
+    assert frames[-2][0] == "failed" and failed["thread_id"] == frames[0][1]["thread_id"]
+    assert failed["turn_seq"] == 1
+    turn = setup.client.get(f"/api/threads/{failed['thread_id']}").json()["turns"][0]
+    assert turn["answer"] == "half an answer" and turn["stats"]["error"] == "provider_error"
+
+
+def test_ask_with_a_bad_or_unknown_thread_is_refused_before_streaming(setup):
+    bad = setup.client.post("/api/ask", json={"question": "q", "thread_id": "../etc"})
+    assert bad.status_code == 400 and bad.json()["error"] == "bad_thread_id"
+    missing = setup.client.post("/api/ask", json={"question": "q", "thread_id": "0" * 32})
+    assert missing.status_code == 404 and missing.json()["error"] == "thread_not_found"
+    assert setup.loop.questions == []
+    assert not setup.app.state.lock.locked()
+
+
+def test_threads_routes_create_list_get_delete(setup):
+    c = setup.client
+    made = c.post("/api/threads", json={"title": "  A named   chat "})
+    assert made.status_code == 201
+    first = made.json()
+    assert first["title"] == "A named chat" and first["n_turns"] == 0
+    second = c.post("/api/threads").json()                  # title is optional
+    assert second["title"] == "Untitled chat"
+
+    listed = c.get("/api/threads").json()["threads"]
+    assert [t["id"] for t in listed] == [second["id"], first["id"]]   # newest first
+    got = c.get(f"/api/threads/{first['id']}").json()
+    assert got["id"] == first["id"] and got["turns"] == []
+
+    deleted = c.delete(f"/api/threads/{first['id']}")
+    assert deleted.status_code == 200 and deleted.json()["deleted"] == first["id"]
+    assert c.get(f"/api/threads/{first['id']}").status_code == 404
+    assert c.delete(f"/api/threads/{first['id']}").status_code == 404
+    assert [t["id"] for t in c.get("/api/threads").json()["threads"]] == [second["id"]]
+
+
+def test_threads_routes_validate_ids(setup):
+    for url in ("/api/threads/not-hex", "/api/threads/" + "G" * 32, "/api/threads/%27%3B--"):
+        assert setup.client.get(url).status_code == 400, url
+        assert setup.client.delete(url).status_code == 400, url
+    assert setup.client.get("/api/threads/" + "0" * 32).json()["error"] == "thread_not_found"
+
+
+def test_delete_refuses_the_thread_a_run_is_writing_to(setup):
+    tid = setup.store.create_thread("t")["id"]
+    setup.app.state.lock.acquire()
+    setup.app.state.running_thread = tid
+    try:
+        response = setup.client.delete(f"/api/threads/{tid}")
+    finally:
+        setup.app.state.running_thread = None
+        setup.app.state.lock.release()
+    assert response.status_code == 409 and response.json()["error"] == "thread_busy"
+    assert setup.client.delete(f"/api/threads/{tid}").status_code == 200
+
+
+def test_threads_need_a_store(tmp_path):
+    config = _config(tmp_path)
+    app = create_app(lambda: (StubLoop(""), config), dist_dir=tmp_path / "no_dist")
+    with TestClient(app) as client:
+        assert client.get("/api/threads").status_code == 503
+        assert client.post("/api/ask", json={"question": "q"}).status_code == 503
 
 
 def test_busy_when_the_lock_is_held(setup):
@@ -191,6 +324,8 @@ def test_busy_when_the_lock_is_held(setup):
     assert [e for e, _ in frames] == ["busy", "done"]
     assert setup.loop.questions == []
     assert setup.client.get("/api/status").json() == {"busy": False}
+    # A refused question leaves no empty thread behind.
+    assert setup.client.get("/api/threads").json()["threads"] == []
 
 
 def test_failed_run_streams_failed_with_the_partial_answer(setup):
@@ -204,7 +339,7 @@ def test_failed_run_streams_failed_with_the_partial_answer(setup):
 
 
 def test_loop_that_raises_still_frees_the_agent(setup):
-    def boom(question):
+    def boom(question, thread_id=None):
         raise RuntimeError("kaput")
     setup.loop.run = boom
     frames = _ask(setup.client, "q")

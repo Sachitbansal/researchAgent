@@ -379,6 +379,20 @@ agent:
   progress_text_chars: 60   # width of the args/result phrase on a live progress line.
                             # Separate from trace_text_chars: a trace is read later and
                             # can be wide, a progress line has to fit a terminal.
+  # ---- conversation memory v1: short-term, per thread (docs/DECISIONS.md D12) ----
+  thread_history_tokens: 9000
+                            # Budget for EARLIER turns of a thread, counted with the
+                            # bi-encoder's tokenizer (common.tokenization), the same ruler
+                            # max_context_tokens uses. Each prior turn costs its question,
+                            # its answer and its tool-call note; over budget the OLDEST
+                            # turns are dropped, whole, first. The current question is
+                            # never dropped. User's value: kept well under
+                            # max_context_tokens so history cannot crowd out new evidence.
+  thread_note_arg_chars: 80 # width of the arguments phrase in one tool-call note line
+                            # ("retrieve_evidence(query=...) -> 5 chunks [...]"). Notes
+                            # are re-sent with every later question, so they stay short.
+  thread_title_chars: 72    # a thread created by its first question is named after that
+                            # question, cut at a word boundary to this many characters
 
 paths:
   data_dir: data
@@ -387,6 +401,7 @@ paths:
   cache_dir: data/cache
   logs_dir: logs
   prompts_dir: src/prompts
+  threads_db: data/threads.sqlite3   # conversation threads (SQLite, stdlib); D12
 
 eval:
   questions_file: eval/questions.json

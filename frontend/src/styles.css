@@ -223,8 +223,10 @@ mark {
 .nav-label { flex: 1; }
 .nav-count { font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
 
+/* Stored chats, then the samples: one scroll area, so neither group can starve the other. */
+.chat-groups { flex: 1; min-height: 0; overflow-y: auto; }
 .chat-list-head { padding: var(--s4) var(--s3) var(--s1); font-size: 12px; font-weight: 600; color: var(--faint); }
-.chat-list { flex: 1; min-height: 0; margin: 0; padding: 0; list-style: none; overflow-y: auto; }
+.chat-list { margin: 0; padding: 0; list-style: none; }
 .chat-empty { padding: var(--s1) var(--s3); color: var(--faint); font-size: 13px; }
 
 .chat-row { position: relative; display: flex; align-items: center; border-radius: var(--r2); transition: background var(--ease); }
@@ -259,7 +261,6 @@ mark {
 }
 
 .sidebar-foot { margin-top: var(--s1); padding-top: var(--s2); border-top: 1px solid var(--rule); }
-.foot-note { margin: 0 var(--s3) var(--s2); font-size: 12px; line-height: 1.45; color: var(--faint); }
 .theme-btn {
   display: flex; align-items: center; gap: var(--s2); width: 100%; min-height: 36px;
   padding: 0 var(--s3); border: 0; border-radius: var(--r2); background: none;
@@ -539,6 +540,9 @@ mark {
 
 .memory h3 { margin: var(--s1) 0 var(--s2); font-size: 14.5px; font-weight: 600; }
 .memory p { margin: 0 0 10px; font-size: 14px; line-height: 1.6; }
+.memory-notes { display: grid; gap: var(--s1); margin: 0 0 var(--s3); padding: 0; list-style: none; }
+.memory-notes code { display: block; font-size: 11.5px; line-height: 1.5; color: var(--soft); overflow-wrap: anywhere; }
+.thread-loading { padding: var(--s6) 0; text-align: center; }
 
 /* ---------------------------------------------------------------- citation card */
 

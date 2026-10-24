@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import time
-from typing import Any, Dict, List, Optional, Sequence, Set
+from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 
 from common.tokenization import TokenCounter
 from config import CFG, Config
@@ -60,8 +60,10 @@ class EvidenceRetriever:
     """Holds the models and the index so repeated calls in one conversation are cheap.
 
     Also holds the set of chunk_ids already returned, which is what stops a re-query
-    from stacking the same passages into the context window a second time. The agent
-    loop owns one instance per conversation and calls reset() between conversations.
+    from stacking the same passages into the context window a second time. The rule is
+    "seen = still visible" (docs/DECISIONS.md D13): a chunk stays suppressed only while
+    its text is in the conversation. The loop calls reset() at the start of a question
+    and release() when elision takes a result's text out of view.
     """
 
     def __init__(
@@ -82,9 +84,22 @@ class EvidenceRetriever:
 
     # ---- conversation state ----------------------------------------------------
 
-    def reset(self) -> None:
-        """Forget which chunks were already returned. Called at the start of a question."""
-        self._returned.clear()
+    def reset(self, visible: Iterable[str] = ()) -> None:
+        """Start a question: the seen set becomes exactly the chunks already visible.
+
+        For a fresh conversation, and for a thread whose history carries notes but no
+        chunk text, that is nothing, so the set starts empty.
+        """
+        self._returned = {str(chunk_id) for chunk_id in visible}
+
+    def release(self, chunk_ids: Iterable[str]) -> None:
+        """Make these chunks returnable again: their text has left the context window.
+
+        Without this, an elided chunk stays suppressed for the rest of the question, so
+        the model can neither read it nor get it back by asking again.
+        """
+        for chunk_id in chunk_ids:
+            self._returned.discard(str(chunk_id))
 
     def invalidate(self) -> None:
         """Drop the cached index and chunk table so the next call re-reads from disk.

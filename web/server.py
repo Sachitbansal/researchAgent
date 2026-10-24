@@ -2,9 +2,9 @@
 Entry point for the browser UI: `python web/server.py [--host H] [--port N]`.
 
 In:  command-line flags; SCIAGENT_CONFIG and .env as the CLI reads them. Out: one uvicorn
-     worker serving web/api.py, with the agent, its models and the index loaded once at
-     startup. Lives outside src/ and imports it, as eval/ does — nothing in src/ knows
-     this exists, and the system under evaluation is still the CLI.
+     worker serving web/api.py, with the agent, its models, the index and the thread
+     store loaded once at startup. Lives outside src/ and imports it, as eval/ does;
+     nothing in src/ knows this exists, and the system under evaluation is still the CLI.
 """
 
 from __future__ import annotations
@@ -26,13 +26,17 @@ def build_agent() -> Tuple[Any, Any]:
     from agent.loop import AgentLoop
     from agent.tool_registry import build_full_registry
     from config import CFG
+    from memory.threads import ThreadStore
     from retrieval.embedder import Embedder
     from tools.retrieve_evidence import EvidenceRetriever
 
     print("loading models and the index ...", flush=True)
     CFG.paths.ensure()
     retriever = EvidenceRetriever(CFG, embedder=Embedder(CFG))
-    loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG), config=CFG, retriever=retriever)
+    # The same store `main.py ask --thread` uses, so a chat started in either continues
+    # in the other (docs/DECISIONS.md D12).
+    loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG), config=CFG,
+                     retriever=retriever, store=ThreadStore(CFG.paths.threads_db))
 
     from web.corpus_view import read_corpus
 

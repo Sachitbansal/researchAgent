@@ -1,9 +1,11 @@
 """
-The message array the loop re-sends on every call — the system's only memory.
+The message array the loop re-sends on every call — the agent's working memory.
 
-In:  a system prompt, the user question, assistant turns, and tool results.
+In:  a system prompt, optional prior-turn messages (a thread's history), the user
+     question, assistant turns, and tool results.
 Out: `messages()`, the full conversation in provider wire format. Enforces the pairing
-     rules the API requires, and elides old tool content when the array outgrows budget.
+     rules the API requires, and elides old tool content when the array outgrows budget,
+     reporting which chunk ids that took out of view (`last_released`).
 
 The provider is stateless. /chat/completions remembers nothing between requests, so the
 model "recalls" its own earlier tool call only because that call and its result are
@@ -14,7 +16,7 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any, List
+from typing import Any, List, Optional, Sequence
 
 from common.tokenization import TokenCounter
 from config import CFG, Config
@@ -23,6 +25,20 @@ from llm_client import LLMResponse, Message
 
 class ConversationError(RuntimeError):
     """The message array is in a state the API would reject."""
+
+
+def _chunk_ids(content: Any) -> List[str]:
+    """chunk_ids in a serialised tool result, or [] when it is not one that carries chunks."""
+    if not isinstance(content, str):
+        return []
+    try:
+        payload = json.loads(content)
+    except ValueError:
+        return []
+    chunks = payload.get("chunks") if isinstance(payload, dict) else None
+    if not isinstance(chunks, list):
+        return []
+    return [str(c["chunk_id"]) for c in chunks if isinstance(c, dict) and c.get("chunk_id")]
 
 
 def _serialise(result: Any) -> str:
@@ -44,15 +60,28 @@ class Conversation:
     keeping the array inside a token budget — is ours to manage.
     """
 
-    def __init__(self, system_prompt: str, question: str, config: Config = CFG) -> None:
+    def __init__(self, system_prompt: str, question: str, config: Config = CFG,
+                 history: Optional[Sequence[Message]] = None) -> None:
         self.config = config
         self.counter = TokenCounter(config)
+        # Earlier turns of a thread go between the system prompt and the question, as
+        # plain user/assistant text (memory.history). Never tool messages: a replayed
+        # tool_call would need its result replayed too, or the request is invalid.
+        prior = [copy.deepcopy(dict(m)) for m in (history or [])]
+        if any(m.get("role") not in ("user", "assistant") or m.get("tool_calls")
+               for m in prior):
+            raise ConversationError("history may hold only plain user/assistant messages")
         self._messages: List[Message] = [
             {"role": "system", "content": system_prompt},
+            *prior,
             {"role": "user", "content": question},
         ]
+        # Where this question starts. final_text() looks only after it, or a run that
+        # fails before answering would report the previous turn's answer as its own.
+        self._question_index = len(self._messages) - 1
         self._pending: List[str] = []  # tool_call_ids awaiting a result
         self.elided = 0
+        self.last_released: List[str] = []
 
     # ---- reading ---------------------------------------------------------------
 
@@ -80,11 +109,28 @@ class Conversation:
         return total
 
     def final_text(self) -> str:
-        """The last assistant message's text — the answer, once the loop stops."""
-        for message in reversed(self._messages):
+        """The last assistant message's text for THIS question — the answer, once the loop
+        stops. Prior-turn answers in the history are never returned."""
+        for message in reversed(self._messages[self._question_index + 1:]):
             if message.get("role") == "assistant" and isinstance(message.get("content"), str):
                 return message["content"]
         return ""
+
+    def visible_chunk_ids(self) -> List[str]:
+        """chunk_ids whose text is in the array right now: un-elided tool results only.
+
+        The retriever's "already returned" set must be a subset of this (docs/DECISIONS.md
+        D13). Suppressing a chunk the model can no longer read leaves it with neither the
+        text nor a way to get it back.
+        """
+        seen: List[str] = []
+        for message in self._messages:
+            if message.get("role") != "tool":
+                continue
+            for chunk_id in _chunk_ids(message.get("content")):
+                if chunk_id not in seen:
+                    seen.append(chunk_id)
+        return seen
 
     # ---- writing ---------------------------------------------------------------
 
@@ -134,9 +180,14 @@ class Conversation:
 
         The placeholder still tells the agent that search already happened, so it does
         not simply repeat it.
+
+        The chunk ids an elided result carried are left in `last_released` (this call's
+        only): their text is gone from view, so the loop releases them from the
+        retriever's dedup set and a later query may return them again (D13).
         """
         budget = int(self.config.agent.max_context_tokens)
         elided = 0
+        released: List[str] = []
         for message in self._messages:
             if self.token_estimate() <= budget:
                 break
@@ -145,9 +196,14 @@ class Conversation:
             content = message.get("content")
             if not isinstance(content, str) or content.startswith("[earlier result elided"):
                 continue
+            # Read the ids before the content is replaced: afterwards they are gone.
+            released.extend(c for c in _chunk_ids(content) if c not in released)
             message["content"] = self._placeholder(content)
             elided += 1
         self.elided += elided
+        # Only ids no other un-elided result still shows are out of view.
+        still_visible = set(self.visible_chunk_ids()) if released else set()
+        self.last_released = [c for c in released if c not in still_visible]
         return elided
 
     def _placeholder(self, content: str) -> str:
