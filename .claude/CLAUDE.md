@@ -41,8 +41,10 @@ Python 3.10+ (developed and tested on 3.10.12).
   genuinely helps, but only after comparing options with the user. Log it in
   `docs/DECISIONS.md`. Never adopt one by default.
 - **No multi-agent orchestration.** One agent, five tools.
-- **No UI.** CLI only. `web/` is a demo shim outside `src/` that imports it, like
-  `eval/`; nothing in `src/` may depend on it (`docs/FUTURE_WORK.md`).
+- **No UI inside `src/`.** The CLI is the system. `web/` (FastAPI server) and
+  `frontend/` (React page) sit outside `src/` and import it, like `eval/`. Nothing in
+  `src/` may depend on them, and the browser must run the same `AgentLoop` as
+  `main.py ask` (`docs/FUTURE_WORK.md`, `docs/DECISIONS.md`).
 - **Tools return structured dicts, never raw strings.** Every tool result is
   JSON-serialisable with explicit fields.
 - **Tools never raise.** Errors come back as `{"error": ..., "detail": ...}`.

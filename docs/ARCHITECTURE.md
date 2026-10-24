@@ -425,9 +425,9 @@ reserved and run only after tuning stops.
   hand-written loop shows the design rather than hiding it inside a framework.
 - **No human-in-the-loop gates.** This is autonomous QA, not a research workflow
   with approval steps.
-- **No UI.** Explicitly out of scope per the task statement. `web/` is a demo shim
-  added afterwards to show the system to someone; it sits outside `src/`, imports it,
-  and runs the same agent — see `docs/FUTURE_WORK.md`.
+- **No UI.** Explicitly out of scope per the task statement. `web/` (with its page in
+  `frontend/`) is a demo shim added afterwards to show the system to someone; it sits
+  outside `src/`, imports it, and runs the same agent — see `docs/FUTURE_WORK.md`.
 - **No structural table parsing.** Tables are handled as images; the trade-off is
   documented above.
 - **No index eviction.** Growth is bounded by `max_papers_per_topic` and made

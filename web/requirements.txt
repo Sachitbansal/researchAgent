@@ -1,0 +1,7 @@
+# The browser UI's server (docs/DECISIONS.md, D1). Kept out of the root requirements.txt
+# on purpose: that file pins the system under evaluation, and web/ is not part of it.
+# Install with: pip install -r web/requirements.txt
+fastapi==0.162.0
+uvicorn==0.54.0
+# Only for tests/test_web_api.py — FastAPI's TestClient is built on it.
+httpx==0.28.1

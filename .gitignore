@@ -29,3 +29,7 @@ eval/results/_sweep_config.yaml
 
 # cold-start demo corpus — regenerable, same reasons as data/
 data_demo/
+
+# frontend build + deps — regenerable with `npm ci && npm run build` in frontend/
+frontend/node_modules/
+frontend/dist/
