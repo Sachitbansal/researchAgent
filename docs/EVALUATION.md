@@ -52,6 +52,42 @@ decision touched only the first ten. The held-out five were run once, at the end
 are reported separately below. That is the only defensible way to report a threshold
 that was itself chosen from data.
 
+### Absent but fetchable (added for CRAG phase 1, not yet run)
+
+The set now holds **18 questions, 6 held out**, so the held-out share is still a third.
+The new category is `absent_fetchable`. Its subject is absent from the corpus but well
+covered on arXiv, so the right outcome is to abstain **and** propose a fetch for the user
+to approve (`docs/DECISIONS.md` D20). Abstention is scored as before, and the proposal
+is scored separately.
+
+| question | split | subject | origin |
+|---|---|---|---|
+| `ni02` | tuning | 4-bit quantization of vision transformers | re-tagged from `not_in_corpus` |
+| `ni03` | held out | client drift in federated learning | re-tagged from `not_in_corpus` |
+| `af01` | tuning | few-step diffusion sampling | new |
+| `af02` | tuning | over-smoothing in graph networks | new |
+| `af03` | held out | sim-to-real transfer for robot policies | new |
+
+- **Annotation.** `expect_fetch_proposal: true`. `expect_abstention` stays `true`, so the
+  re-tag alone does not change how the M8 gate sweeps score `ni02`/`ni03` (`previous_category`
+  records their history). The af questions were written before any score was probed. They
+  do join the tuning split, so a re-run of a gate sweep now sees 12 tuning questions.
+- **`ni01` stays a pure abstention control.** It carries no `expect_fetch_proposal`, so
+  it is not scored for proposals either way. Proposing a fetch for sourdough is not wrong:
+  the admission gate's job is to find that arXiv has nothing.
+- **Scoring.** `eval.metrics.fetch_proposal_detected(run)` reads the structured
+  `fetch_proposal` field that `AgentLoop.run` derives from the run's last
+  `coverage_gap` (D24). The runner reports `fetch_proposal_on_fetchable` (the target)
+  and `fetch_proposal_on_answerable` (false alarms: a needless fetch button).
+- **No numbers yet.** The full agent eval has not been run on this category. The prompt
+  rule that acts on the hint is phase 2 and will change behaviour, and measuring before it
+  lands would only produce a number that is about to go stale. All results below are on
+  the original 15 questions and four categories.
+- **The live fetch path is not in the automated eval.** Record/replay of arXiv responses
+  is benched. `scripts/crag_fetch_check.py` runs one real `search_literature` on a
+  throwaway copy of the data dir and proves the real `data/index` is byte-identical
+  afterwards.
+
 ## Results
 
 These results were measured under the old global 8-iteration cap (`agent.max_iterations: 8`), before per-tool call limits replaced it (`docs/DECISIONS.md` D4).
@@ -209,6 +245,43 @@ the cross-encoder's −3.0 — so a reranker that failed in production would sil
 disable abstention with no error. The gate now selects its threshold by which scorer
 actually ran, and `bi_encoder_relevance_threshold` is tuned to 0.55 for that path, with
 its limits documented above.
+
+## Admission threshold sweep
+
+`search_literature` scores `(query, title + abstract)` with the cross-encoder before any
+download (`docs/DECISIONS.md` D22). The threshold was swept offline, with no arXiv calls,
+over 175 labelled pairs against the 11 indexed abstracts (`eval/tune_admission.py`,
+`eval/results/admission_sweep.json`), using the tuning split only.
+
+- **Positives:** each topic's query against its own papers (topic-shaped), and each
+  tuning question against its gold papers (question-shaped).
+- **Absent negatives:** the absent and absent-fetchable tuning questions, plus five
+  off-domain queries from `eval/topics.yaml`, against every abstract.
+- **Cross-topic negatives:** each topic's query against the other topic's papers (and the
+  question-shaped equivalent). Adjacent but distinct is the hard case.
+
+Scored by harmonic mean of the three rates, as above:
+
+| threshold | admits positive | rejects absent | rejects cross-topic | balanced | topic-shaped | question-shaped |
+|---|---|---|---|---|---|---|
+| −8.0 | 0.885 | 0.990 | 0.800 | 0.885 | 0.783 | 0.877 |
+| −7.0 | 0.846 | 1.000 | 0.920 | **0.918** | 0.889 | 0.885 |
+| −5.0 | 0.769 | 1.000 | 0.960 | 0.898 | 0.968 | 0.812 |
+| −4.0 | 0.692 | 1.000 | 0.980 | 0.866 | 0.968 | 0.724 |
+| **−3.0** | 0.615 | 1.000 | 1.000 | 0.828 | **1.000** | 0.600 |
+| 0.0 | 0.577 | 1.000 | 1.000 | 0.804 | 1.000 | 0.522 |
+| +2.0 | 0.385 | 1.000 | 1.000 | 0.652 | 0.968 | 0.000 |
+
+- **Topic-shaped pairs separate perfectly** anywhere in (−3.94, +1.23]. `search_literature`
+  is called with topic phrases, so −3.0, the permissive end of that gap, was taken.
+- **The hardest adjacent negative** (the pruning query against an MoE routing paper)
+  sits 0.94 below −3.0, and n is 11 per group.
+- **The cost is on question-shaped queries.** A long question scores far lower against
+  a whole abstract than a topic phrase does, and only 61.5% of those positives are
+  admitted at −3.0. The pooled optimum, −7.0, would admit 3 of the 11 topic-shaped
+  cross-topic papers instead. A gate that keeps adjacent papers out also rejects some
+  useful ones. They are listed in `papers_rejected` with their scores, never silently
+  dropped.
 
 ## What else the numbers do not say
 

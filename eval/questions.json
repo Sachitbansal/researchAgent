@@ -10,7 +10,9 @@
     "Questions are paraphrased, never copied from paper wording, so retrieval cannot",
     "succeed by string matching.",
     "",
-    "held_out: true marks the ~third reserved for a single run after M8 tuning stops."
+    "held_out: true marks the ~third reserved for a single run after M8 tuning stops.",
+    "",
+    "category absent_fetchable (CRAG phase 1): the subject is absent from the corpus but well covered on arXiv. Scored by abstention AND by fetch_proposal_detected (eval/metrics.py). expect_fetch_proposal is set only on these; a question without it is not scored for proposals."
   ],
   "questions": [
     {
@@ -371,7 +373,7 @@
     {
       "question_id": "ni02",
       "question": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
-      "category": "not_in_corpus",
+      "category": "absent_fetchable",
       "gold_paper_ids": [],
       "gold_chunk_ids": [],
       "expected_facts": [],
@@ -379,18 +381,20 @@
       "expected_tools": [
         "retrieve_evidence"
       ],
-      "notes": "The hard abstention case. Shares vocabulary with the corpus on purpose — quantization appears 106 times and 4-bit 7 times — while the subject is absent: no ImageNet, no vision transformer, no top-1 accuracy anywhere in a corpus of language-model work. Tests that the relevance gate reacts to meaning rather than to surface overlap. An earlier marker list named 4-bit, which the gate correctly rejected: that term is the shared vocabulary, not the thing that makes the question unanswerable.",
+      "notes": "The hard abstention case. Shares vocabulary with the corpus on purpose — quantization appears 106 times and 4-bit 7 times — while the subject is absent: no ImageNet, no vision transformer, no top-1 accuracy anywhere in a corpus of language-model work. Tests that the relevance gate reacts to meaning rather than to surface overlap. An earlier marker list named 4-bit, which the gate correctly rejected: that term is the shared vocabulary, not the thing that makes the question unanswerable. Re-tagged from not_in_corpus to absent_fetchable (CRAG phase 1): arXiv covers this subject well, so the right outcome is abstaining AND proposing a fetch. expect_abstention stays true, so the category change alone does not alter how the M8 gate sweeps score this question.",
       "held_out": false,
       "absent_markers": [
         "imagenet",
         "vision transformer",
         "top-1 accuracy"
-      ]
+      ],
+      "previous_category": "not_in_corpus",
+      "expect_fetch_proposal": true
     },
     {
       "question_id": "ni03",
       "question": "How is client drift handled when training is distributed across devices holding non-identically distributed data?",
-      "category": "not_in_corpus",
+      "category": "absent_fetchable",
       "gold_paper_ids": [],
       "gold_chunk_ids": [],
       "expected_facts": [],
@@ -398,12 +402,74 @@
       "expected_tools": [
         "retrieve_evidence"
       ],
-      "notes": "Federated learning: adjacent ML vocabulary, absent subject.",
+      "notes": "Federated learning: adjacent ML vocabulary, absent subject. Re-tagged from not_in_corpus to absent_fetchable (CRAG phase 1): arXiv covers this subject well, so the right outcome is abstaining AND proposing a fetch. expect_abstention stays true, so the category change alone does not alter how the M8 gate sweeps score this question.",
       "held_out": true,
       "absent_markers": [
         "federated",
         "client drift",
         "non-iid"
+      ],
+      "previous_category": "not_in_corpus",
+      "expect_fetch_proposal": true
+    },
+    {
+      "question_id": "af01",
+      "question": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "category": "absent_fetchable",
+      "gold_paper_ids": [],
+      "gold_chunk_ids": [],
+      "expected_facts": [],
+      "expect_abstention": true,
+      "expect_fetch_proposal": true,
+      "expected_tools": [
+        "retrieve_evidence"
+      ],
+      "notes": "Few-step diffusion sampling / distillation. Absent from a corpus of language-model compression and routing work, but heavily covered on arXiv, so the right outcome is abstain plus a fetch proposal. Shares 'distillation' and 'quality vs cost' vocabulary with the compression papers on purpose. Written before any score was probed.",
+      "held_out": false,
+      "absent_markers": [
+        "diffusion",
+        "denoising",
+        "sampling steps"
+      ]
+    },
+    {
+      "question_id": "af02",
+      "question": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "category": "absent_fetchable",
+      "gold_paper_ids": [],
+      "gold_chunk_ids": [],
+      "expected_facts": [],
+      "expect_abstention": true,
+      "expect_fetch_proposal": true,
+      "expected_tools": [
+        "retrieve_evidence"
+      ],
+      "notes": "Over-smoothing in graph neural networks. Adjacent ML vocabulary (layers, representations), absent subject, well covered on arXiv. Written before any score was probed.",
+      "held_out": false,
+      "absent_markers": [
+        "graph neural",
+        "over-smoothing",
+        "message passing"
+      ]
+    },
+    {
+      "question_id": "af03",
+      "question": "How do robot control policies learned entirely in a physics simulator get carried over to real hardware without failing?",
+      "category": "absent_fetchable",
+      "gold_paper_ids": [],
+      "gold_chunk_ids": [],
+      "expected_facts": [],
+      "expect_abstention": true,
+      "expect_fetch_proposal": true,
+      "expected_tools": [
+        "retrieve_evidence"
+      ],
+      "notes": "Sim-to-real transfer in robot learning. Absent subject, well covered on arXiv. Held out: run once with the rest of the held-out third, never used for tuning. Written before any score was probed.",
+      "held_out": true,
+      "absent_markers": [
+        "sim-to-real",
+        "simulator",
+        "domain randomization"
       ]
     }
   ]

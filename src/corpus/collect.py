@@ -3,13 +3,14 @@ Fetches papers from arXiv and records them: the fetch half of `search_literature
 
 In:  a natural-language topic, a topic_tag, and caps (max_results, categories).
 Out: {"papers_added", "papers_skipped", "papers_tagged", "topic_tag", "arxiv_query", ...}
-     or an error dict. Never raises, and never indexes — chunking is M2's job.
+     or an error dict. Never raises, and never indexes — chunking is M2's job. An optional
+     admission callable filters search results before any download (corpus.admission).
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import arxiv
 
@@ -106,6 +107,21 @@ def _to_paper_record(result: Any, pdf_path: str, topic_tag: str) -> Dict[str, An
     )
 
 
+# (topic, arXiv results) -> corpus.admission.gate_results-shaped dict.
+AdmissionGate = Callable[[str, List[Any]], Dict[str, Any]]
+
+
+def _admission_fields(gate: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """What the caller reports about the admission gate. Empty when no gate ran."""
+    if gate is None:
+        return {}
+    return {
+        "papers_rejected": list(gate.get("rejected", [])),
+        "admission_threshold": gate.get("threshold"),
+        "admission_gate": gate.get("status"),
+    }
+
+
 def search_and_fetch(
     topic: str,
     topic_tag: Optional[str] = None,
@@ -114,11 +130,17 @@ def search_and_fetch(
     config: Config = CFG,
     llm: Optional[LLMClient] = None,
     download: bool = True,
+    admission: Optional[AdmissionGate] = None,
 ) -> Dict[str, Any]:
     """Plan a query, search arXiv, dedup against the manifest, and download new PDFs.
 
     Papers already in the manifest are not re-downloaded; they gain `topic_tag` on
     both their paper record and every chunk record they already produced.
+
+    `admission`, when given, sees every search result before anything is downloaded or
+    tagged, and only the papers it admits go further. It applies to papers already held
+    too: a dedup hit it rejects is not tagged with this topic, because a tag claims the
+    paper is about the topic, and analyze_corpus and topic_filter both believe it.
     """
     topic = (topic or "").strip()
     if not topic:
@@ -189,6 +211,30 @@ def search_and_fetch(
             partial={"arxiv_query": query, "topic_tag": tag},
         )
 
+    gate: Optional[Dict[str, Any]] = None
+    if admission is not None:
+        gate = admission(topic, results)
+        results = list(gate.get("admitted", results))
+        if not results:
+            # Nothing cleared the gate. Not an error — arXiv answered, and what it
+            # answered with is not about this topic. Nothing is downloaded, and no topic
+            # entry is written: a topic holding zero papers would show up in
+            # analyze_corpus as coverage the corpus does not have.
+            return {
+                "papers_added": [],
+                "papers_skipped": 0,
+                "papers_tagged": 0,
+                "topic_tag": tag,
+                "arxiv_query": query,
+                "query_was_cached": plan.get("cached", False),
+                "query_was_fallback": plan.get("fallback", False),
+                "total_indexed": len(manifest.papers),
+                "failures": [],
+                "all_rejected": True,
+                **_admission_fields(gate),
+            }
+    scores = (gate or {}).get("scores", {})
+
     store = ChunkStore(config=config)
     added: List[Dict[str, Any]] = []
     tagged: List[str] = []
@@ -247,6 +293,8 @@ def search_and_fetch(
                 "title": record["title"],
                 "year": record["year"],
                 "abstract_snippet": record["abstract"][:200],
+                **({"admission_score": scores[record["arxiv_id"]]}
+                   if record["arxiv_id"] in scores else {}),
             }
         )
 
@@ -268,6 +316,7 @@ def search_and_fetch(
                 "papers_skipped": len(skipped),
                 "papers_tagged": len(tagged),
                 "failures": failures,
+                **_admission_fields(gate),
             },
         )
 
@@ -281,4 +330,5 @@ def search_and_fetch(
         "query_was_fallback": plan.get("fallback", False),
         "total_indexed": len(manifest.papers),
         "failures": failures,
+        **_admission_fields(gate),
     }

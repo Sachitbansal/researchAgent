@@ -24,3 +24,20 @@ topics:
 # A third topic, never indexed. Used to check that the agent abstains rather than
 # inventing an answer when the corpus genuinely lacks the subject.
 absent_topic_probe: "sourdough fermentation temperature and starter culture biology"
+
+# Off-domain search queries, used ONLY by eval/tune_admission.py as easy negatives for
+# the search_literature admission gate: each is scored against every indexed abstract and
+# should be rejected. They are deliberately far from both eval topics; the hard negatives
+# (adjacent topics, absent-but-fetchable questions) come from questions.json and the two
+# topics above. Topic names live here, never in src/.
+admission_off_domain_queries:
+  - "sourdough fermentation temperature and starter culture biology"
+  - "coral reef bleaching under rising ocean temperatures"
+  - "medieval castle fortification architecture"
+  - "tax treatment of small business expenses"
+  - "pressing tactics in professional football"
+
+# The absent-but-fetchable query scripts/crag_fetch_check.py runs against a THROWAWAY copy
+# of the data dir. The subject of ni02 (tuning split), phrased as a topic, since that is
+# what search_literature is called with. Lives here so no topic is named in scripts/.
+crag_fetch_check_query: "post-training 4-bit quantization of vision transformers on ImageNet"

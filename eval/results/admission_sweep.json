@@ -1,0 +1,1579 @@
+{
+  "rows": [
+    {
+      "threshold": -10.0,
+      "all": {
+        "admits_positive": 0.9231,
+        "rejects_absent": 0.9394,
+        "rejects_cross_topic": 0.58,
+        "balanced": 0.7748
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.4545,
+        "balanced": 0.7142
+      },
+      "question": {
+        "admits_positive": 0.8667,
+        "rejects_absent": 0.8636,
+        "rejects_cross_topic": 0.6154,
+        "balanced": 0.7621
+      }
+    },
+    {
+      "threshold": -9.0,
+      "all": {
+        "admits_positive": 0.9231,
+        "rejects_absent": 0.9798,
+        "rejects_cross_topic": 0.72,
+        "balanced": 0.8589
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.4545,
+        "balanced": 0.7142
+      },
+      "question": {
+        "admits_positive": 0.8667,
+        "rejects_absent": 0.9545,
+        "rejects_cross_topic": 0.7949,
+        "balanced": 0.8672
+      }
+    },
+    {
+      "threshold": -8.0,
+      "all": {
+        "admits_positive": 0.8846,
+        "rejects_absent": 0.9899,
+        "rejects_cross_topic": 0.8,
+        "balanced": 0.8848
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.5455,
+        "balanced": 0.7826
+      },
+      "question": {
+        "admits_positive": 0.8,
+        "rejects_absent": 0.9773,
+        "rejects_cross_topic": 0.8718,
+        "balanced": 0.8771
+      }
+    },
+    {
+      "threshold": -7.0,
+      "all": {
+        "admits_positive": 0.8462,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.92,
+        "balanced": 0.9178
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.7273,
+        "balanced": 0.8889
+      },
+      "question": {
+        "admits_positive": 0.7333,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.9744,
+        "balanced": 0.885
+      }
+    },
+    {
+      "threshold": -6.0,
+      "all": {
+        "admits_positive": 0.8462,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.92,
+        "balanced": 0.9178
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.7273,
+        "balanced": 0.8889
+      },
+      "question": {
+        "admits_positive": 0.7333,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.9744,
+        "balanced": 0.885
+      }
+    },
+    {
+      "threshold": -5.0,
+      "all": {
+        "admits_positive": 0.7692,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.96,
+        "balanced": 0.8977
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.9091,
+        "balanced": 0.9677
+      },
+      "question": {
+        "admits_positive": 0.6,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.9744,
+        "balanced": 0.8124
+      }
+    },
+    {
+      "threshold": -4.0,
+      "all": {
+        "admits_positive": 0.6923,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.98,
+        "balanced": 0.8658
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 0.9091,
+        "balanced": 0.9677
+      },
+      "question": {
+        "admits_positive": 0.4667,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.7242
+      }
+    },
+    {
+      "threshold": -3.0,
+      "all": {
+        "admits_positive": 0.6154,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.8276
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 1.0
+      },
+      "question": {
+        "admits_positive": 0.3333,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.6
+      }
+    },
+    {
+      "threshold": -2.0,
+      "all": {
+        "admits_positive": 0.6154,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.8276
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 1.0
+      },
+      "question": {
+        "admits_positive": 0.3333,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.6
+      }
+    },
+    {
+      "threshold": -1.0,
+      "all": {
+        "admits_positive": 0.5769,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.8036
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 1.0
+      },
+      "question": {
+        "admits_positive": 0.2667,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.5218
+      }
+    },
+    {
+      "threshold": 0.0,
+      "all": {
+        "admits_positive": 0.5769,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.8036
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 1.0
+      },
+      "question": {
+        "admits_positive": 0.2667,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.5218
+      }
+    },
+    {
+      "threshold": 1.0,
+      "all": {
+        "admits_positive": 0.4615,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.72
+      },
+      "topic": {
+        "admits_positive": 1.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 1.0
+      },
+      "question": {
+        "admits_positive": 0.0667,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.1765
+      }
+    },
+    {
+      "threshold": 2.0,
+      "all": {
+        "admits_positive": 0.3846,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.6522
+      },
+      "topic": {
+        "admits_positive": 0.9091,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.9677
+      },
+      "question": {
+        "admits_positive": 0.0,
+        "rejects_absent": 1.0,
+        "rejects_cross_topic": 1.0,
+        "balanced": 0.0
+      }
+    }
+  ],
+  "recommended": {
+    "threshold": -3.0,
+    "all": {
+      "admits_positive": 0.6154,
+      "rejects_absent": 1.0,
+      "rejects_cross_topic": 1.0,
+      "balanced": 0.8276
+    },
+    "topic": {
+      "admits_positive": 1.0,
+      "rejects_absent": 1.0,
+      "rejects_cross_topic": 1.0,
+      "balanced": 1.0
+    },
+    "question": {
+      "admits_positive": 0.3333,
+      "rejects_absent": 1.0,
+      "rejects_cross_topic": 1.0,
+      "balanced": 0.6
+    }
+  },
+  "n_pairs": 175,
+  "n_papers": 11,
+  "question_ids": [
+    "sp01",
+    "sp02",
+    "sp03",
+    "mp01",
+    "mp02",
+    "mp03",
+    "cf01",
+    "cf02",
+    "ni01",
+    "ni02",
+    "af01",
+    "af02"
+  ],
+  "distributions": {
+    "positive/topic": {
+      "n": 11,
+      "min": 1.231,
+      "median": 5.329,
+      "max": 7.942
+    },
+    "positive/question": {
+      "n": 15,
+      "min": -11.01,
+      "median": -4.843,
+      "max": 1.649
+    },
+    "absent_topic/topic": {
+      "n": 55,
+      "min": -11.323,
+      "median": -11.095,
+      "max": -10.936
+    },
+    "absent_topic/question": {
+      "n": 44,
+      "min": -11.315,
+      "median": -11.058,
+      "max": -7.586
+    },
+    "cross_topic/topic": {
+      "n": 11,
+      "min": -10.907,
+      "median": -8.355,
+      "max": -3.938
+    },
+    "cross_topic/question": {
+      "n": 39,
+      "min": -11.276,
+      "median": -10.526,
+      "max": -4.731
+    }
+  },
+  "pairs": [
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2310_00811v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 7.9415
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2607_16427v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 6.8412
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2605_17598v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 6.9006
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2410_18035v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 5.338
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2608_15102v2",
+      "group": "positive",
+      "shape": "topic",
+      "score": 5.3287
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2503_06184v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -10.7962
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2502_01705v4",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -10.688
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2412_11629v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -10.9069
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2505_18232v4",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -7.7106
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2506_18952v2",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -10.6459
+    },
+    {
+      "query": "sparse mixture-of-experts routing in transformer models",
+      "paper_id": "2607_08027v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -10.044
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2310_00811v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -8.3554
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2607_16427v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -3.9379
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2605_17598v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -5.9148
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2410_18035v1",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -5.9002
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2608_15102v2",
+      "group": "cross_topic",
+      "shape": "topic",
+      "score": -7.8439
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2503_06184v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 1.2313
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2502_01705v4",
+      "group": "positive",
+      "shape": "topic",
+      "score": 2.8419
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2412_11629v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 5.9569
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2505_18232v4",
+      "group": "positive",
+      "shape": "topic",
+      "score": 4.1879
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2506_18952v2",
+      "group": "positive",
+      "shape": "topic",
+      "score": 5.1447
+    },
+    {
+      "query": "structured pruning and quantization for efficient transformer inference",
+      "paper_id": "2607_08027v1",
+      "group": "positive",
+      "shape": "topic",
+      "score": 3.0396
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2310_00811v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -4.843
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2503_06184v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.2314
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2502_01705v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.8836
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2412_11629v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.0557
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2505_18232v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.2104
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2506_18952v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.1482
+    },
+    {
+      "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+      "paper_id": "2607_08027v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.1256
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2410_18035v1",
+      "group": "positive",
+      "shape": "question",
+      "score": 0.4475
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2503_06184v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.7892
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2502_01705v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.9291
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2412_11629v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -4.7311
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2505_18232v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.1284
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2506_18952v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.5258
+    },
+    {
+      "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+      "paper_id": "2607_08027v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -8.8187
+    },
+    {
+      "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+      "paper_id": "2310_00811v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.2691
+    },
+    {
+      "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+      "paper_id": "2607_16427v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.9614
+    },
+    {
+      "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+      "paper_id": "2605_17598v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.8548
+    },
+    {
+      "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+      "paper_id": "2410_18035v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.8055
+    },
+    {
+      "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+      "paper_id": "2608_15102v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.9749
+    },
+    {
+      "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+      "paper_id": "2412_11629v1",
+      "group": "positive",
+      "shape": "question",
+      "score": 0.7944
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2310_00811v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.0627
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2607_16427v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.1953
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2605_17598v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.0277
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2410_18035v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.9023
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2608_15102v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.2759
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2503_06184v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -8.6725
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2412_11629v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -10.0982
+    },
+    {
+      "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+      "paper_id": "2505_18232v4",
+      "group": "positive",
+      "shape": "question",
+      "score": -3.1505
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2607_16427v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -3.8594
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2605_17598v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -5.7278
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2608_15102v2",
+      "group": "positive",
+      "shape": "question",
+      "score": -5.5661
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2503_06184v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.1284
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2502_01705v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.0263
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2412_11629v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.9671
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2505_18232v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.1455
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2506_18952v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.064
+    },
+    {
+      "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+      "paper_id": "2607_08027v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.7656
+    },
+    {
+      "query": "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?",
+      "paper_id": "2607_16427v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -11.0099
+    },
+    {
+      "query": "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?",
+      "paper_id": "2503_06184v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -4.9816
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2310_00811v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.1854
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2607_16427v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -11.016
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2605_17598v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.5143
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2410_18035v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -9.5254
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2608_15102v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -10.7449
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2412_11629v1",
+      "group": "positive",
+      "shape": "question",
+      "score": -7.6594
+    },
+    {
+      "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+      "paper_id": "2505_18232v4",
+      "group": "positive",
+      "shape": "question",
+      "score": -1.2586
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2607_16427v1",
+      "group": "positive",
+      "shape": "question",
+      "score": 1.6487
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2608_15102v2",
+      "group": "positive",
+      "shape": "question",
+      "score": 0.7994
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2503_06184v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -8.1907
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2502_01705v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -7.744
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2412_11629v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -7.6119
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2505_18232v4",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -7.9226
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2506_18952v2",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -8.961
+    },
+    {
+      "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+      "paper_id": "2607_08027v1",
+      "group": "cross_topic",
+      "shape": "question",
+      "score": -7.719
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0583
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0792
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1667
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.103
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1397
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1206
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1576
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0925
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.136
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1896
+    },
+    {
+      "query": "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1073
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.2676
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.297
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.278
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.306
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.2857
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.3155
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -9.2547
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -9.5055
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.2955
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -8.578
+    },
+    {
+      "query": "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.213
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.9309
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0856
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.4531
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.9925
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1815
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.3879
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -9.9714
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.5745
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -9.27
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.2837
+    },
+    {
+      "query": "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.4974
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0634
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -7.5861
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.6493
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.9429
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.9444
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0467
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.9744
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.7284
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -10.5432
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.1467
+    },
+    {
+      "query": "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "question",
+      "score": -11.0069
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2173
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1733
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.3127
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2298
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.3069
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2479
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.3138
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2497
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2988
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.3234
+    },
+    {
+      "query": "sourdough fermentation temperature and starter culture biology",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2324
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9693
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9746
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0426
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9873
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.027
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9711
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0078
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9482
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0449
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0743
+    },
+    {
+      "query": "coral reef bleaching under rising ocean temperatures",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9882
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9356
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0203
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9395
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9932
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1484
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9753
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.096
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0264
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0481
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.112
+    },
+    {
+      "query": "medieval castle fortification architecture",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -10.9588
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0697
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0803
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1913
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0748
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.186
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1294
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1932
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1152
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1278
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.247
+    },
+    {
+      "query": "tax treatment of small business expenses",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0825
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2310_00811v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0655
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2607_16427v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0964
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2605_17598v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1691
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2410_18035v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0593
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2608_15102v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.2094
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2503_06184v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0828
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2502_01705v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1633
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2412_11629v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0951
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2505_18232v4",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1286
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2506_18952v2",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.1921
+    },
+    {
+      "query": "pressing tactics in professional football",
+      "paper_id": "2607_08027v1",
+      "group": "absent_topic",
+      "shape": "topic",
+      "score": -11.0606
+    }
+  ]
+}

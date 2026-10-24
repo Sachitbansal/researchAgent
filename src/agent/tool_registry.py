@@ -185,7 +185,10 @@ def build_full_registry(
     registry.register(
         "search_literature",
         SEARCH_LITERATURE_PARAMETERS,
-        LiteratureSearcher(config, client=client, on_corpus_change=retriever.invalidate).search,
+        # The retriever's cross-encoder doubles as search_literature's admission gate,
+        # so the model is loaded once rather than once per tool.
+        LiteratureSearcher(config, client=client, on_corpus_change=retriever.invalidate,
+                           reranker=getattr(retriever, "reranker", None)).search,
     )
     registry.register(
         "analyze_corpus", ANALYZE_CORPUS_PARAMETERS, CorpusAnalyzer(config).analyze

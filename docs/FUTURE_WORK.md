@@ -41,21 +41,39 @@ alone produced a wrong conclusion once already (see `docs/EVALUATION.md`).
 Fixed at 40. Rerank latency scales with the shortlist, so a smaller pool might keep the
 gate at a fraction of the 1527 ms. No measurement has been taken.
 
-## The eval has no "absent but fetchable" category
+## The "absent but fetchable" category exists but has not been run
 
-All three `not_in_corpus` questions are annotated `expect_abstention: true`, but two of
-them (`ni02` four-bit quantization on ViTs, `ni03` client drift under non-IID data) are
-topics arXiv covers well. The eval therefore rewards abstaining where calling
-`search_literature` was arguably the better action. A third category — where fetching is
-correct and abstention counts as a miss — would test the tool the current set never
-exercises.
+`ni02` and `ni03` are now `absent_fetchable`, alongside three new questions, and are
+scored by `fetch_proposal_detected` (`docs/EVALUATION.md`; `docs/DECISIONS.md` D23). No
+agent run has scored them yet: the prompt rule that acts on `coverage_gap` is phase 2,
+and numbers taken before it would be stale on arrival. The live fetch path is also only
+checked by hand (`scripts/crag_fetch_check.py`). Record/replay of arXiv responses would
+make it an automated test, and is benched.
+
+## `rephrase_margin` and `admission_threshold` rest on very little data
+
+Both are measured, and both are thin. Distance below the gate does not separate "bad
+wording" from "missing literature": the one answerable miss sits further down than four
+absent topics. So the margin is held under the nearest absent miss (0.27 logits) rather
+than fitted. The admission gate separates topic-shaped queries perfectly on 11 + 11
+pairs, but question-shaped queries lose 38% of their positives at the chosen −3.0. If
+phase 2 hands `search_literature` long questions, either the proposed query should be
+condensed to a topic phrase first or the threshold re-swept on that shape.
+
+A filtered retrieval can also yield a false proposal. `coverage_gap` is emitted on any
+gate failure, including calls with `topic_filter` or `chunk_types`, so a run whose last
+call was a figure-only search that found no figure proposes a fetch even when the
+unfiltered corpus covers the subject. Two fixes for phase 2: carry the filter in the gap,
+or have the loop ignore filtered gaps.
 
 ## Abstention vs. literature search is resolved by prompt, not by rule
 
 Both answer the same signal: the corpus cannot answer this. Which one fires is left to
 the model via `src/prompts/system.md`. In every eval run the agent chose to abstain and
 *offer* to search rather than search, so `search_literature` is implemented and tested
-but has no end-to-end transcript.
+but has no end-to-end transcript. CRAG phase 1 turns the offer into data: a
+`coverage_gap` hint and a loop-derived `fetch_proposal` for the user to approve
+(`docs/DECISIONS.md` D20–D24). The prompt rule that uses them is phase 2.
 
 ## No cross-session memory
 

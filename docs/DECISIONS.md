@@ -99,6 +99,52 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Rejected:** the skill's first suggestion (teal and orange with Plus Jakarta Sans), which reads as SaaS marketing; the first pass's serif answers and highlighter-yellow brand, which looked closer to the cream-and-serif "AI" look; and purple/blue gradients and glass effects, which the user excluded.
 - **No strong reason** for Plex over Inter, which the skill ranked just behind it. Plex was already loaded and has a matching mono.
 
+## D20 — CRAG trigger: the agent proposes a fetch, the user approves it
+
+*2026-10-25 · `src/tools/retrieve_evidence.py`, `src/agent/fetch_proposal.py`; the button is phase 2*
+
+- **Decision:** when retrieval cannot answer, the agent proposes a literature fetch, and a "Fetch papers" button in the UI runs it on the user's approval.
+- **By:** user.
+- **Why:** the relevance gate already makes the agent abstain, but nothing helped it go and get the missing literature.
+- **Rejected:** auto-fetch, because it pollutes the shared corpus and arXiv returns *something* even for topics it barely covers. Plain abstention was also rejected, because it leaves the gap for the user to diagnose.
+
+## D21 — A structured `coverage_gap` hint, plus a prompt rule
+
+*2026-10-25 · `src/tools/retrieve_evidence.py`, `config.yaml` retrieval*
+
+- **Decision:** when the gate fails, `retrieve_evidence` returns `coverage_gap` with the query, best score, the threshold and scorer that actually ran, up to 3 closest topics, `suggested_next` (`rephrase` | `propose_fetch`) and `proposed_query`. It is data, not a call, so tools still never call tools.
+- **By:** user. The prompt rule that tells the agent how to act on the hint is phase 2 (`src/prompts/system.md` is untouched here).
+- **Margins (by Claude, measured, need user confirmation):** `rephrase_margin` is 0.25 logits and `bi_encoder_rephrase_margin` is 0.0. They are per scorer for the same reason the thresholds are.
+- **Why so small:** no failed retrieval, at any distance, was recovered by rewording the same request. The one answerable miss (mp03) sits 2.51 below, further than four absent topics. A wrong `rephrase` silently suppresses the proposal; a wrong `propose_fetch` is a button the user can ignore.
+- **Resolved by Claude:** the hint is absent on non-gate paths (empty filter, no candidates, all already returned). `proposed_query` is the retrieve query itself, because `search_literature` plans its own arXiv syntax.
+
+## D22 — Admission gate: abstracts scored by the cross-encoder before download
+
+*2026-10-25 · `src/corpus/admission.py`, `src/corpus/collect.py`, `src/tools/search_literature.py`*
+
+- **Decision:** `search_literature` scores `(query, title + abstract)` for every arXiv result with the retriever's cross-encoder (no new model) and never downloads, indexes or tags papers below `collection.admission_threshold`. They are reported in `papers_rejected`. If every result is rejected, the tool says arXiv does not cover the topic well, and this is a result, not an error. A broken cross-encoder admits everything with `admission_gate: "skipped: <reason>"`.
+- **By:** user. The threshold is measured offline (`eval/tune_admission.py`, no arXiv calls): -3.0, the permissive end of the perfect separation on topic-shaped pairs.
+- **Trade-off:** question-shaped queries score far lower against whole abstracts, so only 61.5% of those positives are admitted at -3.0. The pooled sweep's -7.0 would let 3 of 11 adjacent cross-topic papers in instead. Needs user confirmation.
+- **Resolved by Claude:** the gate also covers dedup hits, so a rejected paper already held is not tagged with the new topic. `main.py index` calls `collect` directly and stays ungated, because it is an explicit user command, not the agent. `eval/build_corpus.py` goes through `LiteratureSearcher`, so it is now gated. The selection rule (topic-shaped pairs first) was adopted after the pooled sweep had recommended -7.0, and both numbers are recorded.
+
+## D23 — Eval: an `absent_fetchable` category, plus a manual check on a throwaway copy
+
+*2026-10-25 · `eval/questions.json`, `eval/metrics.py`, `eval/runner.py`, `scripts/crag_fetch_check.py`*
+
+- **Decision:** a new category, `absent_fetchable`, with `expect_fetch_proposal: true`. `ni02` and `ni03` are re-tagged into it, keeping their ids, `previous_category` and `expect_abstention: true`. Three new questions are added: af01 and af02 tuning, af03 held out (18 total, 6 held out). `ni01` stays a pure abstention control. The live search path is exercised by hand with `scripts/crag_fetch_check.py`, which copies the data dir to a temp dir, runs one `search_literature` with 3 results, verifies the real `data/index` hashes are unchanged, and deletes the copy.
+- **By:** user.
+- **Rejected / benched:** record/replay of arXiv responses for an automated end-to-end test.
+- **Note:** the full agent eval has not been run on the new category. Phase 2 changes the agent's behaviour, so no numbers exist yet.
+
+## D24 — Proposal mechanism: a structured `fetch_proposal` field derived by the loop
+
+*2026-10-25 · `src/agent/fetch_proposal.py`, `src/agent/loop.py` (one field)*
+
+- **Decision:** `AgentLoop.run` returns `fetch_proposal: {query, searched_for, best_score, closest_topics} | null`. It is derived from the run's last `retrieve_evidence` call when that call's `coverage_gap` says `propose_fetch` and `search_literature` was not called afterwards. A later passing retrieval clears it. `eval.metrics.fetch_proposal_detected` only reads this field.
+- **By:** user.
+- **Rejected:** a text marker the agent writes, because it can be forgotten or garbled.
+- **Consequence:** the `loop.py` change is one import and one return field, kept small because the memory branch edits the same file.
+
 ---
 
 ## Benched questions
@@ -106,3 +152,4 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Chat history storage:** undecided. Design it together with conversation memory. Until then, chats live only in page memory, seeded with the samples (D10). The server stores nothing (D5).
 - **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts.
 - **`@types/react`, `@types/react-dom`:** dev-only TypeScript type definitions that `tsc` needs to check JSX. Installed; awaiting the user's approval.
+- **Record/replay of arXiv responses** for an automated CRAG end-to-end test: benched (D23). The live path is checked by hand on a throwaway copy instead.
