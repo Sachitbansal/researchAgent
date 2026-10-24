@@ -1,8 +1,8 @@
 /* Right pane: how the selected answer was made — tool calls, sources, and memory.
-   In:  one assistant message (persisted or live) and the corpus's papers.
+   In:  one assistant message (stored or live) and the corpus's papers.
    Out: a turn-by-turn timeline of the loop's events with the run's final stats; the
-        passages the answer cites; and a labelled placeholder for memory, which the agent
-        does not have yet. */
+        passages the answer cites; and what this answer leaves in the chat's short-term
+        memory (its tool-call notes) and how much earlier history it was given. */
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { AssistantMessage, Paper, Step } from "../types";
@@ -16,6 +16,7 @@ interface Props {
   open: boolean;
   message: AssistantMessage | null;
   isLatest: boolean;
+  sample: boolean;
   papersById: Map<string, Paper>;
   tab: InspectorTab;
   setTab: (t: InspectorTab) => void;
@@ -39,7 +40,7 @@ export function Inspector(p: Props) {
       {p.message && !p.isLatest && <div className="inspector-scope">Showing an earlier answer in this chat.</div>}
       <div className="inspector-body">
         {p.tab === "memory" ? (
-          <Memory />
+          <Memory message={p.message} sample={p.sample} />
         ) : !p.message ? (
           <p className="quiet">Ask a question and each step the agent takes shows up here as it happens.</p>
         ) : p.tab === "calls" ? (
@@ -192,6 +193,10 @@ function RunStats({ message }: { message: AssistantMessage }) {
   if (s.context_tokens != null) rows.push(["Context", `${s.context_tokens.toLocaleString()} tokens`]);
   if (message.elapsed_ms != null) rows.push(["Wall time", secs(message.elapsed_ms)]);
   if (s.stopped_because) rows.push(["Stopped because", humanise(s.stopped_because)]);
+  if (s.history_turns != null) {
+    const dropped = s.history_turns_dropped ? `, ${s.history_turns_dropped} older left out` : "";
+    rows.push(["Earlier turns sent", `${s.history_turns}${dropped}`]);
+  }
   if (message.error) rows.push(["Error", `${humanise(message.error.error)}${message.error.detail ? `: ${message.error.detail}` : ""}`]);
   if (s.run_id) rows.push(["Trace", `logs/traces, run ${s.run_id}`]);
   if (!rows.length) return null;
@@ -258,12 +263,44 @@ function Sources({ message, papersById, highlight }: { message: AssistantMessage
 
 // ------------------------------------------------------------------ memory
 
-function Memory() {
+/* Short-term memory, per chat (docs/DECISIONS.md D12). What a later question in this
+   chat is sent from this answer: the question, the answer, and these notes. */
+function Memory({ message, sample }: { message: AssistantMessage | null; sample: boolean }) {
+  const notes = message?.notes ?? [];
+  const s = message?.stats ?? {};
   return (
     <div className="memory">
-      <h3>Not implemented yet</h3>
-      <p>The agent has no cross-session memory. Every question starts from nothing but the corpus and the question itself, in the browser and on the command line alike.</p>
-      <p className="quiet small">This panel is where remembered facts and preferences will appear once that exists. See docs/FUTURE_WORK.md.</p>
+      <h3>What later questions see</h3>
+      <p>
+        Each new question in this chat is sent with the earlier questions and answers, and a one-line note for each tool
+        call. The passages themselves are not carried over, so the agent retrieves them again. Once the history passes its
+        budget, the oldest turns are left out first.
+      </p>
+      {sample ? (
+        <p className="quiet small">Samples are fixtures and are never sent to the agent.</p>
+      ) : !message ? (
+        <p className="quiet small">Nothing yet. Ask a question to start this chat.</p>
+      ) : message.status === "running" ? (
+        <p className="quiet small">The notes for this answer are saved when it finishes.</p>
+      ) : (
+        <>
+          <div className="detail-label">Notes kept from this answer</div>
+          {notes.length ? (
+            <ul className="memory-notes">
+              {notes.map((n, i) => <li key={i}><code>{n}</code></li>)}
+            </ul>
+          ) : (
+            <p className="quiet small">None: this answer called no tools.</p>
+          )}
+          {s.history_turns != null && (
+            <p className="quiet small">
+              This answer was written with {plural(s.history_turns, "earlier turn")} in view
+              {s.history_turns_dropped ? `, and ${s.history_turns_dropped} older left out` : ""}.
+            </p>
+          )}
+        </>
+      )}
+      <p className="quiet small">Nothing is remembered from one chat to another.</p>
     </div>
   );
 }

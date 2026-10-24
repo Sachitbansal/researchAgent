@@ -4,7 +4,8 @@ Single source of truth for every record shape in the system. If a field is not
 described here, it does not exist. Every module reads and writes these shapes — do
 not invent local variants.
 
-All ids are strings. All timestamps are ISO 8601 UTC.
+All ids are strings. All timestamps are ISO 8601 UTC, except in the threads database
+(§9), which stores epoch seconds as SQLite `REAL` so it can sort by them.
 
 **Topic naming.** Three similar names appear across records and tool surfaces. They are
 not interchangeable, and the plural/singular distinction is load-bearing:
@@ -234,6 +235,7 @@ data/
     descriptions.json       # { "<image_hash>": "<description>" }
     arxiv_queries.json      # { "<sha256(topic)>": "<planned arxiv query>" }
     clusters.json           # { "<manifest_hash>": { /* cluster result */ } }
+  threads.sqlite3           # conversation threads (§9). Not a cache: deleting it deletes every chat
 ```
 
 `embeddings.npy` is kept alongside the FAISS index because `analyze_corpus` needs raw
@@ -319,3 +321,39 @@ get looked at rather than silently passing.
 
 `gold_chunk_ids` may be empty for `not_in_corpus` questions — there is nothing to
 retrieve, and the correct behaviour is abstention.
+
+---
+
+## 9. Conversation threads
+
+`data/threads.sqlite3` (`paths.threads_db`), written only by `memory.threads.ThreadStore`
+(docs/DECISIONS.md D12). It is not committed.
+
+```sql
+threads(
+  id          TEXT PRIMARY KEY,   -- uuid4 hex, 32 chars; validated before any query
+  title       TEXT NOT NULL,      -- the first question, cut to agent.thread_title_chars
+  created_at  REAL NOT NULL,      -- epoch seconds
+  updated_at  REAL NOT NULL       -- moves with every appended turn; the list sorts on it
+)
+turns(
+  thread_id   TEXT NOT NULL REFERENCES threads(id) ON DELETE CASCADE,
+  seq         INTEGER NOT NULL,   -- 1, 2, ...; assigned inside the INSERT
+  question    TEXT NOT NULL,      -- verbatim
+  answer      TEXT NOT NULL,      -- verbatim, citations included; "" if the run failed first
+  stats_json  TEXT NOT NULL,      -- iterations, tool_calls, tool_call_counts, context_tokens,
+                                  -- stopped_because, run_id, elapsed_ms, history_turns,
+                                  -- history_turns_dropped, history_tokens; error, detail if failed
+  notes_json  TEXT NOT NULL,      -- ["retrieve_evidence(query=\"…\") → 5 chunks [id, …]", ...]
+  steps_json  TEXT NOT NULL,      -- the loop's step events, results summarised as in a trace
+                                  -- (§7), each with t_ms; redraws the page's timeline
+  run_id      TEXT,               -- the trace file (§7) behind this turn
+  created_at  REAL NOT NULL,
+  PRIMARY KEY (thread_id, seq)
+)
+```
+
+`notes_json` is what later questions in the thread are shown, together with `question`
+and `answer`. `steps_json` is only for redrawing, and the agent never sees it. Every
+write is one `BEGIN IMMEDIATE` transaction. A JSON column that will not parse comes back
+as its empty value rather than failing the whole thread.

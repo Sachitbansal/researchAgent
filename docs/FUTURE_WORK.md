@@ -57,12 +57,15 @@ the model via `src/prompts/system.md`. In every eval run the agent chose to abst
 *offer* to search rather than search, so `search_literature` is implemented and tested
 but has no end-to-end transcript.
 
-## No cross-session memory
+## No long-term memory (short-term, per-thread memory exists)
 
-Each `main.py ask` is an independent process; question 2 knows nothing about question 1.
-Within a question, context is fully preserved and budget-managed (`conversation.py`).
-Making it conversational means holding one `Conversation` across questions — roughly
-30–50 lines — plus deciding whether chunk dedup stays per-question or per-conversation.
+Within a thread, each question is sent with the earlier questions, answers and tool-call
+notes, inside a 9k-token budget (`docs/ARCHITECTURE.md` §7.1, `docs/DECISIONS.md` D12).
+Nothing crosses threads. There is no memory of facts or preferences across chats, no
+summarisation of turns that fall out of the budget (they are simply dropped), and no
+recall of earlier turns' chunk text, which the agent must retrieve again. Long-term memory
+would need a decision on what is remembered, how it is retrieved, and how stale memories
+are corrected. Each of those is a design question, not a missing feature.
 
 ## Flat index, no eviction
 
@@ -95,12 +98,13 @@ What keeps the constraint's intent intact:
   (`docs/DECISIONS.md`, D1, D2, D7).
 - It runs the same `AgentLoop` with the same registry and config as `python main.py
   ask`. There is no second code path to keep in sync, and no answer can appear in the
-  browser that the CLI would not also give. Each question goes to `loop.run` bare. Earlier
-  turns of a browser chat are never pasted in.
+  browser that the CLI would not also give. A browser chat is a thread. The server passes
+  the question and its `thread_id` to `loop.run`, and the loop adds the history itself,
+  exactly as `main.py ask --thread` does.
 
 What it is not: it holds one shared agent behind a lock, so it serves one question at a
-time (a second asker is told it is busy) and is not a server for more than one person. It
-stores no chats. Chat history lives in the page until a reload, because where it should be
-kept is undecided and will be designed with conversation memory. It has no
-authentication and binds to localhost by default. Neither the single-user limit nor the
+time (a second asker is told it is busy) and is not a server for more than one person.
+Chats are stored as threads in `data/threads.sqlite3`, shared with the CLI. They have no
+owner, because there is one user. It has no authentication and binds to localhost by
+default. Neither the single-user limit nor the
 missing authentication is worth fixing unless it stops being a demo.

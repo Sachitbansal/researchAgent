@@ -1,11 +1,12 @@
 """
 The agent loop: call the model, run whatever tools it asks for, repeat until it answers.
 
-In:  a question, an LLMClient, a ToolRegistry, and an optional on_event observer.
+In:  a question, an LLMClient, a ToolRegistry, an optional on_event observer, and
+     optionally a ThreadStore plus a thread_id (conversation memory, docs/DECISIONS.md D12).
 Out: {"answer", "iterations", "tool_calls", "tool_call_counts", "run_id",
-     "stopped_because", ...}, plus a live event per step to on_event if one was given.
-     Bounded by a per-tool call limit and two backstops, not an iteration cap
-     (docs/DECISIONS.md D4). Written directly against the provider SDK — no framework.
+     "stopped_because", "thread_id", "turn_seq", ...}, plus a live event per step to
+     on_event. Bounded by per-tool call limits and two backstops, not an iteration cap
+     (D4). No thread means a fresh conversation and nothing persisted. No framework.
 """
 
 from __future__ import annotations
@@ -16,9 +17,11 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from agent.conversation import Conversation
 from agent.tool_registry import ToolRegistry
-from agent.trace import TraceWriter
+from agent.trace import TraceWriter, summarise_result
+from common.tokenization import TokenCounter
 from config import CFG, Config
 from llm_client import LLMClient, LLMError, LLMResponse, attach_images
+from memory.history import build_history, build_notes
 
 # What the model is told when it repeats a call it already made verbatim.
 LOOP_NOTICE = (
@@ -82,23 +85,42 @@ class AgentLoop:
         config: Config = CFG,
         retriever: Optional[Any] = None,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
+        store: Optional[Any] = None,
     ) -> None:
         self.registry = registry
         self.config = config
         self.client = client if client is not None else LLMClient(config=config)
         self.retriever = retriever
         self.on_event = on_event
+        # A memory.threads.ThreadStore, or anything with get_thread/append_turn. Only
+        # touched by a run that names a thread_id; the eval harness never does.
+        self.store = store
+        # Summarised step events of the current thread run, stored with its turn so a
+        # past answer's timeline can be redrawn. None outside a thread run: no work.
+        self._steps: Optional[List[Dict[str, Any]]] = None
+        self._started = 0.0
 
     def _emit(self, kind: str, **fields: Any) -> None:
         """Announce what the loop is about to do, or just did. Never raises.
 
         Same rule as TraceWriter.record: an observer is for watching a run, so a broken
-        one must not be able to end it. No reporter means no work at all.
+        one must not be able to end it. No reporter and no thread means no work at all.
         """
+        event = {"kind": kind, **fields}
+        if self._steps is not None:
+            try:
+                step = dict(event)
+                if "result" in step:
+                    step["result"] = summarise_result(step["result"],
+                                                      int(self.config.agent.trace_text_chars))
+                step["t_ms"] = int((time.perf_counter() - self._started) * 1000)
+                self._steps.append(step)
+            except Exception:
+                pass
         if self.on_event is None:
             return
         try:
-            self.on_event({"kind": kind, **fields})
+            self.on_event(event)
         except Exception:
             pass
 
@@ -142,9 +164,58 @@ class AgentLoop:
                 f"{name}: {n}" for name, n in sorted(differing.items())) + ")"
         return self.config.prompt("system").replace(BUDGET_PLACEHOLDER, phrase)
 
+    def _history(self, thread_id: str) -> Dict[str, Any]:
+        """The thread's earlier turns as messages within budget, or an error dict."""
+        if self.store is None:
+            return {"error": "no_thread_store",
+                    "detail": "a thread_id was given but this loop has no ThreadStore"}
+        thread = self.store.get_thread(thread_id)
+        if "error" in thread:
+            return thread
+        return build_history(
+            thread.get("turns") or [], TokenCounter(self.config),
+            int(self.config.agent.thread_history_tokens), self.config.prompt("thread_notes"),
+            partial_marker=self.config.prompt("thread_partial"),
+        )
+
+    def _save_turn(self, thread_id: str, question: str, result: Dict[str, Any],
+                   tracer: TraceWriter, history: Dict[str, Any]) -> Dict[str, Any]:
+        """Append this run as the thread's next turn; failed runs too, with their error.
+
+        Returns the fields merged into the run's result: thread_id and turn_seq, plus
+        thread_error if the store refused the write (the answer is still returned).
+        """
+        failed = "error" in result
+        body = (result.get("partial") or {}) if failed else result
+        stats: Dict[str, Any] = {
+            "iterations": body.get("iterations"),
+            "run_id": body.get("run_id"),
+            "elapsed_ms": int((time.perf_counter() - self._started) * 1000),
+            "history_turns": history.get("turns_used", 0),
+            "history_turns_dropped": history.get("turns_dropped", 0),
+            "history_tokens": history.get("tokens", 0),
+        }
+        if failed:
+            stats.update(error=result.get("error"), detail=result.get("detail"))
+        else:
+            stats.update({key: result.get(key) for key in (
+                "tool_calls", "tool_call_counts", "context_tokens", "stopped_because")})
+        saved = self.store.append_turn(
+            thread_id, question, str(body.get("answer") or ""), stats=stats,
+            notes=build_notes(tracer.records, int(self.config.agent.thread_note_arg_chars)),
+            steps=list(self._steps or []), run_id=body.get("run_id"),
+        )
+        if "error" in saved:
+            return {"thread_id": thread_id, "turn_seq": None, "thread_error": saved}
+        return {"thread_id": thread_id, "turn_seq": saved["seq"]}
+
     def run(self, question: str, question_id: Optional[str] = None,
-            run_id: Optional[str] = None) -> Dict[str, Any]:
+            run_id: Optional[str] = None, thread_id: Optional[str] = None) -> Dict[str, Any]:
         """Answer `question`, calling tools as the model chooses.
+
+        With `thread_id`, the thread's earlier turns are prepended (memory.history) and
+        this run is appended to it afterwards, answered or failed. Without one, exactly
+        the single-question behaviour: a fresh conversation, nothing read or written.
 
         Termination, without an iteration cap: each tool is dispatched at most its limit,
         so at most sum(limits) turns make progress, and `max_no_progress_turns`
@@ -154,18 +225,54 @@ class AgentLoop:
         question = (question or "").strip()
         if not question:
             return {"error": "empty_question", "detail": "a non-empty question is required",
-                    "partial": None}
-
-        # Chunk dedup is per-conversation state, so a fresh question starts clean.
-        if self.retriever is not None:
-            self.retriever.reset()
+                    "partial": None, "thread_id": thread_id, "turn_seq": None}
 
         config = self.config
         limits = self._limits()
+        system_prompt = self._system_prompt(limits)
+        history: Dict[str, Any] = {}
+        if thread_id is not None:
+            history = self._history(thread_id)
+            if "error" in history:
+                return {"error": history["error"], "detail": history.get("detail", ""),
+                        "partial": None, "thread_id": thread_id, "turn_seq": None}
+            if history["messages"]:
+                # Only when there is history: a run outside a thread sends exactly the
+                # system prompt it always did, so the eval's prompt is unchanged.
+                system_prompt += "\n\n" + config.prompt("thread_history").strip()
+
+        tracer = TraceWriter(run_id=run_id, question_id=question_id, config=config)
+        self._started = time.perf_counter()
+        self._steps = [] if thread_id is not None else None
+        try:
+            result = self._run(question, tracer, limits, system_prompt,
+                               history.get("messages") or [])
+            if thread_id is not None:
+                result.update(self._save_turn(thread_id, question, result, tracer, history))
+            else:
+                result.update(thread_id=None, turn_seq=None)
+        finally:
+            self._steps = None
+        return result
+
+    def _run(self, question: str, tracer: TraceWriter, limits: Dict[str, int],
+             system_prompt: str, history: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """One question's tool loop over a conversation that may open with history."""
+        config = self.config
         counts: Dict[str, int] = {name: 0 for name in limits}
         max_no_progress = int(config.agent.max_no_progress_turns)
-        conversation = Conversation(self._system_prompt(limits), question, config)
-        tracer = TraceWriter(run_id=run_id, question_id=question_id, config=config)
+        conversation = Conversation(system_prompt, question, config, history=history)
+
+        # Chunk dedup follows "seen = still visible" (docs/DECISIONS.md D13): the seen set
+        # starts as the chunks whose text this conversation already shows. History is
+        # notes only, never chunk text, so in practice that is nothing; a wider history
+        # strategy that replayed results would widen it without a change here.
+        if self.retriever is not None:
+            visible = conversation.visible_chunk_ids()
+            if visible:
+                self.retriever.reset(visible)
+            else:
+                self.retriever.reset()
         seen_calls: Set[str] = set()
         repeated_calls = 0
         stopped_because = "answered"
@@ -280,6 +387,10 @@ class AgentLoop:
                 self._attach_image(conversation, image)
 
             conversation.elide_if_needed()
+            # Elided text is out of view, so its chunks must be fetchable again (D13).
+            release = getattr(self.retriever, "release", None)
+            if conversation.last_released and callable(release):
+                release(conversation.last_released)
 
             # The two backstops. Together with the per-tool limits they are what bound
             # the loop; there is deliberately no absolute iteration ceiling.

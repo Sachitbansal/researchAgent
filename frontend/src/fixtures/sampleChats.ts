@@ -2,9 +2,9 @@
    In:  nothing. Out: three hand-written chats, each labelled "Sample" in the sidebar.
    The questions and answers are written by hand, NOT produced by the agent. The chunk ids,
    excerpts, paper ids and topic tags are real, copied from data/index/chunks.jsonl by a one-off
-   script, so the citations resolve to real papers through /api/papers. Chat storage is
-   undecided (docs/DECISIONS.md, benched questions), so these and any real chats live only
-   in memory and disappear on reload.
+   script, so the citations resolve to real papers through /api/papers. They are fixtures,
+   never stored as threads and never sent to the agent; real chats are threads the server
+   stores (docs/DECISIONS.md D12).
    Topic names appear here only because this fixture describes the shipped corpus; nothing
    else under frontend/src may name a topic. Delete this file and its one import in
    App.tsx to remove the samples. */

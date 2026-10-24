@@ -48,6 +48,7 @@ REQUIRED_PATH_KEYS = (
     "cache_dir",
     "logs_dir",
     "prompts_dir",
+    "threads_db",
 )
 
 
@@ -88,6 +89,13 @@ def _validate_agent(agent: Any, config_path: Path) -> None:
             raise ConfigError(
                 f"{config_path}: agent.tool_call_limits.{name} must be a positive integer, "
                 f"got {limit!r}"
+            )
+    # Conversation memory (docs/DECISIONS.md D12). A zero or negative history budget
+    # would silently drop every earlier turn, which reads as memory that "forgets".
+    for key in ("thread_history_tokens", "thread_note_arg_chars", "thread_title_chars"):
+        if not _is_positive_int(agent.get(key)):
+            raise ConfigError(
+                f"{config_path}: agent.{key} must be a positive integer, got {agent.get(key)!r}"
             )
 
 
@@ -177,6 +185,10 @@ class Paths:
 
         # tool-call traces, one file per run
         self.traces = self.logs / "traces"
+
+        # conversation threads (docs/DECISIONS.md D12): one SQLite file, not a cache —
+        # deleting it deletes every chat's history
+        self.threads_db = root / paths_section.threads_db
 
     def paper_pdf(self, paper_id: str) -> Path:
         """Where paper `paper_id`'s PDF lives on disk."""

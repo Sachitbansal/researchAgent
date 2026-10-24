@@ -1,12 +1,15 @@
 /* The three-pane shell: chats on the left, the conversation in the centre, the agent's
    working on the right (docs/DECISIONS.md, D3).
    In:  the API in api.ts, the URL hash (#/chat/<id>, #/corpus), and the sample fixtures.
-   Out: the page. Owns all state. Chats live only in memory — storage is undecided — and
-        one run at a time, mirroring the server's single agent. */
+   Out: the page. Chats are threads stored by the server (D12): the list and each chat's
+        turns are fetched, and the first question of a new chat creates its thread. One
+        run at a time, mirroring the server's single agent. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./api";
-import type { AnswerEvent, AssistantMessage, Chat, Corpus, FailedEvent, Message, Paper, Step } from "./types";
+import type {
+  AnswerEvent, AssistantMessage, Chat, Corpus, FailedEvent, Message, Paper, Step, StoredTurn, ThreadEvent, ThreadSummary,
+} from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
 import { Inspector, type InspectorTab } from "./components/Inspector";
@@ -19,26 +22,16 @@ type Route = { view: "chat"; id: string | null } | { view: "corpus" };
 type Theme = "system" | "light" | "dark";
 
 interface Run {
-  chatId: string;
+  chatId: string | null; // null until the server's `thread` frame names the new chat
   question: string;
   steps: Step[];
   startedAt: number;
 }
 
-const TITLE_CHARS = 72;
-
-/* The first question, on one line and cut at a word boundary, as the chat's name. */
-function titleFrom(question: string): string {
-  const flat = question.split(/\s+/).join(" ").trim();
-  if (flat.length <= TITLE_CHARS) return flat;
-  const cut = flat.slice(0, TITLE_CHARS).replace(/\s+\S*$/, "") || flat.slice(0, TITLE_CHARS);
-  return `${cut.replace(/[,.;:]$/, "")}…`;
-}
-
-const newId = () => Math.random().toString(16).slice(2, 10) + Date.now().toString(16);
+const THREAD_ID = /^[0-9a-f]{32}$/;
 
 /* Samples are rebased onto "now" so the sidebar reads as recent, not as a fixed date. */
-function seedChats(): Chat[] {
+function seedSamples(): Chat[] {
   const now = Date.now() / 1000;
   const newest = Math.max(...SAMPLE_CHATS.map((c) => c.updated_at));
   const shift = now - 3600 - newest;
@@ -48,6 +41,25 @@ function seedChats(): Chat[] {
     updated_at: c.updated_at + shift,
     messages: c.messages.map((m) => ({ ...m, ts: m.ts + shift })),
   }));
+}
+
+/* A stored turn as the two messages the conversation shows. */
+function turnMessages(turn: StoredTurn): Message[] {
+  const s = turn.stats ?? {};
+  return [
+    { role: "user", content: turn.question, ts: turn.created_at },
+    {
+      role: "assistant",
+      status: s.error ? "failed" : "answered",
+      content: turn.answer,
+      steps: turn.steps ?? [],
+      stats: s,
+      error: s.error ? { error: s.error, detail: s.detail ?? "" } : undefined,
+      elapsed_ms: s.elapsed_ms,
+      notes: turn.notes ?? [],
+      ts: turn.created_at,
+    },
+  ];
 }
 
 function parseHash(): Route {
@@ -76,7 +88,13 @@ export function App() {
   const [route, setRoute] = useState<Route>(parseHash);
   const [corpus, setCorpus] = useState<Corpus | null>(null);
   const [corpusError, setCorpusError] = useState<string | null>(null);
-  const [chats, setChats] = useState<Chat[]>(seedChats);
+  const samples = useMemo(seedSamples, []);
+  const [threads, setThreads] = useState<ThreadSummary[] | null>(null);
+  const [threadsError, setThreadsError] = useState<string | null>(null);
+  // Turns of the threads opened so far, keyed by thread id. Refetched after each run.
+  const [loaded, setLoaded] = useState<Record<string, Message[]>>({});
+  // A thread id from the URL that the server does not have (deleted, or a stale link).
+  const [missing, setMissing] = useState<string | null>(null);
   const [run, setRun] = useState<Run | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -84,7 +102,8 @@ export function App() {
   const [tab, setTab] = useState<InspectorTab>("calls");
   const [highlight, setHighlight] = useState<string | null>(null);
   const [cite, setCite] = useState<CiteTarget | null>(null);
-  // Only the theme choice is stored in the browser (docs/DECISIONS.md, D8). Chats are not.
+  // Only the theme choice is kept in the browser (docs/DECISIONS.md, D8). Chats are kept
+  // by the server.
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [inspectorOpen, setInspectorOpen] = useState(() => window.innerWidth >= 1180);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -102,17 +121,46 @@ export function App() {
     }
   }, []);
 
+  const loadThreads = useCallback(async () => {
+    try {
+      setThreads(await api.listThreads());
+      setThreadsError(null);
+    } catch (e) {
+      setThreadsError(e instanceof api.ApiError ? `Chats could not be loaded: ${e.detail}` : "Chats could not be loaded.");
+    }
+  }, []);
+
+  const loadThread = useCallback(async (id: string): Promise<boolean> => {
+    try {
+      const t = await api.getThread(id);
+      setLoaded((all) => ({ ...all, [id]: t.turns.flatMap(turnMessages) }));
+      setMissing((m) => (m === id ? null : m));
+      return true;
+    } catch (e) {
+      if (e instanceof api.ApiError && (e.code === "thread_not_found" || e.code === "bad_thread_id")) setMissing(id);
+      return false;
+    }
+  }, []);
+
   useEffect(() => {
     loadCorpus();
+    loadThreads();
     const onHash = () => setRoute(parseHash());
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
-  }, [loadCorpus]);
+  }, [loadCorpus, loadThreads]);
 
+  // The view is keyed off the route, not off the loaded list: right after the first
+  // question names a new thread, the route points at it before its turns are fetched.
   const routeId = route.view === "chat" ? route.id : null;
-  const chat = chats.find((c) => c.id === routeId) ?? null;
-  // A hash naming a chat this page doesn't hold (say, after a reload) is a new chat.
-  const chatId = chat?.id ?? null;
+  const sample = samples.find((c) => c.id === routeId) ?? null;
+  const threadId = routeId && THREAD_ID.test(routeId) && missing !== routeId ? routeId : null;
+  const summary = threads?.find((t) => t.id === threadId) ?? null;
+  const chatId = sample?.id ?? threadId;
+
+  useEffect(() => {
+    if (threadId && !loaded[threadId] && runRef.current?.chatId !== threadId) loadThread(threadId);
+  }, [threadId, loaded, loadThread]);
 
   useEffect(() => {
     setSelected(null);
@@ -141,13 +189,13 @@ export function App() {
   // ------------------------------------------------------------------ messages
 
   const messages: Message[] = useMemo(() => {
-    const base = chat ? [...chat.messages] : [];
+    const base = sample ? [...sample.messages] : threadId ? [...(loaded[threadId] ?? [])] : [];
     if (run && run.chatId === chatId) {
       base.push({ role: "user", content: run.question, ts: run.startedAt });
       base.push({ role: "assistant", status: "running", content: "", steps: run.steps, ts: run.startedAt });
     }
     return base;
-  }, [chat, run, chatId]);
+  }, [sample, threadId, loaded, run, chatId]);
 
   const lastAssistant = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === "assistant") return i;
@@ -168,15 +216,9 @@ export function App() {
     setCite(null);
     setDraft("");
 
-    let id = chatId;
-    if (!id) {
-      const now = Date.now() / 1000;
-      id = newId();
-      const created: Chat = { id, title: titleFrom(question), created_at: now, updated_at: now, messages: [] };
-      setChats((cs) => [created, ...cs]);
-      go(`#/chat/${id}`);
-    }
-    const target = id;
+    // A sample is a fixture, not a thread, so asking from one starts a new chat.
+    if (!threadId) go("#/");
+    let target: string | null = threadId;
     const startedAt = Date.now() / 1000;
     const steps: Step[] = [];
     setRun({ chatId: target, question, steps: [], startedAt });
@@ -191,8 +233,20 @@ export function App() {
     };
 
     try {
-      await api.ask(question, (event, data) => {
-        if (event === "step") {
+      await api.ask(question, target, (event, data) => {
+        if (event === "thread") {
+          // Always the first frame of a run: which thread this question belongs to.
+          const t = data as ThreadEvent;
+          target = t.thread_id;
+          if (t.created) {
+            const now = Date.now() / 1000;
+            const made: ThreadSummary = { id: t.thread_id, title: t.title, created_at: now, updated_at: now, n_turns: 0 };
+            setThreads((ts) => [made, ...(ts ?? []).filter((x) => x.id !== made.id)]);
+            setLoaded((all) => ({ ...all, [made.id]: [] }));
+            go(`#/chat/${made.id}`);
+          }
+          setRun((r) => (r ? { ...r, chatId: t.thread_id } : r));
+        } else if (event === "step") {
           const step = data as Step;
           steps.push(step);
           const added = (step.result as any)?.papers_added;
@@ -224,26 +278,42 @@ export function App() {
     if (busy) {
       setDraft(question);
       setNotice("The agent is answering another question, in another tab or window. Try again once it finishes.");
-      // A chat created just for this question holds nothing; don't leave it in the list.
-      setChats((cs) => cs.filter((c) => c.id !== target || c.messages.length));
-      if (!chatId) go("#/");
+    } else if (target) {
+      // The server's copy is the record: it carries the stored notes and stats. If it
+      // cannot be read back, keep what the stream showed so the answer is not lost.
+      const id = target;
+      if (!(await loadThread(id))) {
+        const shown: AssistantMessage = final ?? {
+          role: "assistant", status: "failed", content: "", steps, ts: Date.now() / 1000,
+          error: { error: "no_answer", detail: "the stream ended without an answer" },
+        };
+        setLoaded((all) => ({ ...all, [id]: [...(all[id] ?? []), { role: "user", content: question, ts: startedAt }, shown] }));
+      }
+      loadThreads();
     } else {
-      const done: AssistantMessage = final ?? {
-        role: "assistant", status: "failed", content: "", steps, ts: Date.now() / 1000,
-        error: { error: "no_answer", detail: "the stream ended without an answer" },
-      };
-      setChats((cs) => cs.map((c) => (c.id === target
-        ? { ...c, updated_at: Date.now() / 1000, messages: [...c.messages, { role: "user", content: question, ts: startedAt }, done] }
-        : c)));
+      // No thread was named, so the server refused before the run (its store failed).
+      setDraft(question);
+      setNotice(final ? `The question was not run: ${final.error?.detail || final.error?.error}` : "The question was not run.");
     }
     setRun(null);
     if (papersAdded) loadCorpus();
-  }, [chatId, loadCorpus]);
+  }, [threadId, loadCorpus, loadThread, loadThreads]);
 
-  const removeChat = useCallback((id: string) => {
-    setChats((cs) => cs.filter((c) => c.id !== id));
-    if (chatId === id) go("#/");
-  }, [chatId]);
+  const removeThread = useCallback(async (id: string) => {
+    try {
+      await api.deleteThread(id);
+    } catch (e) {
+      setNotice(e instanceof api.ApiError ? `The chat was not deleted: ${e.detail}` : "The chat was not deleted.");
+      return;
+    }
+    setThreads((ts) => (ts ?? []).filter((t) => t.id !== id));
+    setLoaded((all) => {
+      const rest = { ...all };
+      delete rest[id];
+      return rest;
+    });
+    if (threadId === id) go("#/");
+  }, [threadId]);
 
   const openCitation = useCallback((target: CiteTarget) => {
     setCite(target);
@@ -271,13 +341,15 @@ export function App() {
 
   // ------------------------------------------------------------------ layout
 
-  const sorted = useMemo(() => [...chats].sort((a, b) => b.updated_at - a.updated_at), [chats]);
-  const title = route.view === "corpus" ? "Corpus" : chat ? chat.title : "New chat";
+  const title = route.view === "corpus" ? "Corpus" : sample ? sample.title : summary ? summary.title : "New chat";
+  const missingNotice = routeId && missing === routeId ? "That chat no longer exists. Ask a question to start a new one." : null;
 
   return (
     <div className={`shell${inspectorOpen && route.view === "chat" ? " with-inspector" : ""}${sidebarOpen ? " sidebar-open" : ""}`}>
       <Sidebar
-        chats={sorted}
+        threads={threads}
+        threadsError={threadsError}
+        samples={samples}
         activeId={route.view === "chat" ? chatId : null}
         corpusActive={route.view === "corpus"}
         corpus={corpus}
@@ -288,7 +360,7 @@ export function App() {
           setDraft("");
           go("#/");
         }}
-        onDelete={removeChat}
+        onDelete={removeThread}
         onClose={() => setSidebarOpen(false)}
       />
       <div className="scrim" onClick={() => { setSidebarOpen(false); if (window.innerWidth < 1180) setInspectorOpen(false); }} />
@@ -299,7 +371,7 @@ export function App() {
             <Icon name="menu" />
           </button>
           <h1 className="topbar-title" title={title}>{title}</h1>
-          {chat?.sample && <span className="sample-tag" title="Written by hand to show the interface, not produced by the agent">Sample</span>}
+          {sample && <span className="sample-tag" title="Written by hand to show the interface, not produced by the agent">Sample</span>}
           {route.view === "chat" && (
             <button
               className={`icon-btn${inspectorOpen ? " is-on" : ""}`}
@@ -318,7 +390,8 @@ export function App() {
         ) : (
           <ChatView
             messages={messages}
-            sample={!!chat?.sample}
+            sample={!!sample}
+            loading={!!threadId && !loaded[threadId] && run?.chatId !== threadId}
             papersById={papersById}
             corpus={corpus}
             corpusError={corpusError}
@@ -326,8 +399,11 @@ export function App() {
             draft={draft}
             setDraft={setDraft}
             onSend={send}
-            notice={notice}
-            onDismissNotice={() => setNotice(null)}
+            notice={notice ?? missingNotice}
+            onDismissNotice={() => {
+              setNotice(null);
+              if (missingNotice) go("#/");
+            }}
             selected={inspected}
             onSelect={(i) => {
               setSelected(i);
@@ -344,6 +420,7 @@ export function App() {
           open={inspectorOpen}
           message={inspectedMessage}
           isLatest={inspected === lastAssistant}
+          sample={!!sample}
           papersById={papersById}
           tab={tab}
           setTab={setTab}

@@ -125,7 +125,9 @@ Core RAG. The tool the agent should reach for by default.
 4. **relevance gate** — top scores vs. empirically tuned threshold
 5. neighbour expansion — attach `±1` adjacent chunks from the same paper
 6. truncate each chunk to ~500 tokens
-7. deduplicate against chunks already returned earlier in this conversation
+7. deduplicate against chunks already returned whose text is **still visible** in the
+   conversation. Elision releases the chunks it hides, so they can be returned again
+   (`docs/DECISIONS.md` D13)
 
 **Returns**
 

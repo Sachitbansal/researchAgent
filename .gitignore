@@ -4,6 +4,8 @@
 # data — regenerable, and PDFs should not live in git
 data/papers/
 data/cache/
+# conversation threads: local chat history, never committed (docs/DECISIONS.md D12)
+data/threads.sqlite3*
 # data/index/ IS tracked, deliberately. eval/results/*.json report numbers measured
 # against this exact corpus, and build_corpus.py searches arXiv by query rather than by
 # pinned ids — so rebuilding fetches whatever arXiv returns today and every gold_chunk_id
@@ -31,5 +33,5 @@ eval/results/_sweep_config.yaml
 data_demo/
 
 # frontend build + deps — regenerable with `npm ci && npm run build` in frontend/
-frontend/node_modules/
+frontend/node_modules
 frontend/dist/
