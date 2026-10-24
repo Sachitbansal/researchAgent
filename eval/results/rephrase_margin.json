@@ -1,0 +1,326 @@
+{
+  "cross_encoder": [
+    {
+      "question_id": "sp01",
+      "category": "single_paper",
+      "answerable": true,
+      "best_score": -0.3137,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "sp02",
+      "category": "single_paper",
+      "answerable": true,
+      "best_score": 0.212,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "sp03",
+      "category": "single_paper",
+      "answerable": true,
+      "best_score": 0.7227,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "mp01",
+      "category": "multi_paper",
+      "answerable": true,
+      "best_score": -0.3854,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "mp02",
+      "category": "multi_paper",
+      "answerable": true,
+      "best_score": 0.9631,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "mp03",
+      "category": "multi_paper",
+      "answerable": true,
+      "best_score": -5.5078,
+      "passed_gate": false,
+      "distance_below": 2.5078
+    },
+    {
+      "question_id": "cf01",
+      "category": "conflicting",
+      "answerable": true,
+      "best_score": -1.2724,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "cf02",
+      "category": "conflicting",
+      "answerable": true,
+      "best_score": 3.3947,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "ni01",
+      "category": "not_in_corpus",
+      "answerable": false,
+      "best_score": -9.5687,
+      "passed_gate": false,
+      "distance_below": 6.5687
+    },
+    {
+      "question_id": "ni02",
+      "category": "absent_fetchable",
+      "answerable": false,
+      "best_score": -3.269,
+      "passed_gate": false,
+      "distance_below": 0.269
+    },
+    {
+      "question_id": "af01",
+      "category": "absent_fetchable",
+      "answerable": false,
+      "best_score": -5.9993,
+      "passed_gate": false,
+      "distance_below": 2.9993
+    },
+    {
+      "question_id": "af02",
+      "category": "absent_fetchable",
+      "answerable": false,
+      "best_score": -4.4834,
+      "passed_gate": false,
+      "distance_below": 1.4834
+    }
+  ],
+  "bi_encoder": [
+    {
+      "question_id": "sp01",
+      "category": "single_paper",
+      "answerable": true,
+      "best_score": 0.8287,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "sp02",
+      "category": "single_paper",
+      "answerable": true,
+      "best_score": 0.7318,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "sp03",
+      "category": "single_paper",
+      "answerable": true,
+      "best_score": 0.7379,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "mp01",
+      "category": "multi_paper",
+      "answerable": true,
+      "best_score": 0.6827,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "mp02",
+      "category": "multi_paper",
+      "answerable": true,
+      "best_score": 0.677,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "mp03",
+      "category": "multi_paper",
+      "answerable": true,
+      "best_score": 0.6965,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "cf01",
+      "category": "conflicting",
+      "answerable": true,
+      "best_score": 0.706,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "cf02",
+      "category": "conflicting",
+      "answerable": true,
+      "best_score": 0.6918,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "ni01",
+      "category": "not_in_corpus",
+      "answerable": false,
+      "best_score": 0.5194,
+      "passed_gate": false,
+      "distance_below": 0.0306
+    },
+    {
+      "question_id": "ni02",
+      "category": "absent_fetchable",
+      "answerable": false,
+      "best_score": 0.7467,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "af01",
+      "category": "absent_fetchable",
+      "answerable": false,
+      "best_score": 0.7121,
+      "passed_gate": true,
+      "distance_below": null
+    },
+    {
+      "question_id": "af02",
+      "category": "absent_fetchable",
+      "answerable": false,
+      "best_score": 0.7129,
+      "passed_gate": true,
+      "distance_below": null
+    }
+  ],
+  "trace_failures": [
+    {
+      "run_id": "2843d2c5a622",
+      "question_id": null,
+      "query": "ARC AGI survey paper abstraction reasoning corpus",
+      "best_score": -4.767,
+      "threshold": -3.0,
+      "distance_below": 1.767,
+      "then": "retrieve passed: ARC benchmark AGI survey"
+    },
+    {
+      "run_id": "2843d2c5a622",
+      "question_id": null,
+      "query": "Abstraction and Reasoning Corpus ARC survey review paper",
+      "best_score": -4.939,
+      "threshold": -3.0,
+      "distance_below": 1.939,
+      "then": "retrieve passed: ARC benchmark reasoning generalization"
+    },
+    {
+      "run_id": "2843d2c5a622",
+      "question_id": null,
+      "query": "ARC AGI 1 2 3 versions phases",
+      "best_score": -6.099,
+      "threshold": -3.0,
+      "distance_below": 3.099,
+      "then": "search_literature"
+    },
+    {
+      "run_id": "316a4cf04616",
+      "question_id": null,
+      "query": "consumer wearable fitness tracker accuracy heart rate step count energy expenditure sleep SpO2 compared to clinical devices",
+      "best_score": -9.826,
+      "threshold": -3.0,
+      "distance_below": 6.826,
+      "then": "retrieve failed: wearable device accuracy skin tone motion artifact wrist placement activity type"
+    },
+    {
+      "run_id": "316a4cf04616",
+      "question_id": null,
+      "query": "wearable device accuracy skin tone motion artifact wrist placement activity type device model comparison",
+      "best_score": -8.122,
+      "threshold": -3.0,
+      "distance_below": 5.122,
+      "then": "retrieve failed: wearable fitness tracker clinical use atrial fibrillation detection chronic cond"
+    },
+    {
+      "run_id": "316a4cf04616",
+      "question_id": null,
+      "query": "wearable fitness tracker clinical use atrial fibrillation detection chronic condition monitoring physician decision",
+      "best_score": -10.952,
+      "threshold": -3.0,
+      "distance_below": 7.952,
+      "then": "search_literature"
+    },
+    {
+      "run_id": "316a4cf04616",
+      "question_id": null,
+      "query": "energy expenditure calorie burn accuracy metabolic equivalent METs validation indirect calorimetry",
+      "best_score": -5.531,
+      "threshold": -3.0,
+      "distance_below": 2.531,
+      "then": "retrieve passed: sleep tracking accuracy sleep stages REM deep sleep validation polysomnography P"
+    },
+    {
+      "run_id": "4c4ddeb2bb85",
+      "question_id": "mp03",
+      "query": "early exit dynamic inference skip layers conditional computation",
+      "best_score": -6.071,
+      "threshold": -3.0,
+      "distance_below": 3.071,
+      "then": "retrieve failed: sparse attention KV cache eviction token pruning"
+    },
+    {
+      "run_id": "4c4ddeb2bb85",
+      "question_id": "mp03",
+      "query": "sparse attention KV cache eviction token pruning",
+      "best_score": -5.229,
+      "threshold": -3.0,
+      "distance_below": 2.229,
+      "then": "retrieve passed: speculative decoding draft verify accelerate generation"
+    },
+    {
+      "run_id": "4d879783852e",
+      "question_id": "ni02",
+      "query": "ViT-Base ViT-Large quantization INT4 ImageNet benchmark results table",
+      "best_score": -4.709,
+      "threshold": -3.0,
+      "distance_below": 1.709,
+      "then": "retrieve failed: vision image classification CNN ResNet ViT transformer"
+    },
+    {
+      "run_id": "4d879783852e",
+      "question_id": "ni02",
+      "query": "vision image classification CNN ResNet ViT transformer",
+      "best_score": -7.591,
+      "threshold": -3.0,
+      "distance_below": 4.591,
+      "then": null
+    },
+    {
+      "run_id": "6ea0fa37570a",
+      "question_id": "ni01",
+      "query": "sourdough starter fermentation temperature rise flavor",
+      "best_score": -10.6,
+      "threshold": -3.0,
+      "distance_below": 7.6,
+      "then": "retrieve failed: sourdough fermentation temperature yeast bacteria flavor compounds"
+    },
+    {
+      "run_id": "6ea0fa37570a",
+      "question_id": "ni01",
+      "query": "sourdough fermentation temperature yeast bacteria flavor compounds",
+      "best_score": -10.23,
+      "threshold": -3.0,
+      "distance_below": 7.23,
+      "then": null
+    },
+    {
+      "run_id": "d3f10a7db391",
+      "question_id": null,
+      "query": "Transformer architecture Attention Is All You Need Google original paper",
+      "best_score": -5.018,
+      "threshold": -3.0,
+      "distance_below": 2.018,
+      "then": "search_literature"
+    }
+  ]
+}

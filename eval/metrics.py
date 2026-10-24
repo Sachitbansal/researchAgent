@@ -127,6 +127,30 @@ def tool_trace_match(used: Sequence[str], expected: Sequence[str]) -> Dict[str, 
     }
 
 
+def fetch_proposal_detected(run: Dict[str, Any]) -> bool:
+    """Did the run end by proposing a literature fetch for the user to approve?
+
+    The one place the eval decides what counts as a proposal. The mechanism is a
+    structured field: AgentLoop.run derives `fetch_proposal` from the run's last
+    retrieve_evidence `coverage_gap` (src/agent/fetch_proposal.py), so this only reads
+    it. A text marker in the answer was rejected because it can be forgotten or garbled
+    (docs/DECISIONS.md). Accepts a loop result, or a scored row that copied the field.
+    """
+    return isinstance(run, dict) and isinstance(run.get("fetch_proposal"), dict)
+
+
+def fetch_proposal_correct(detected: bool, expect_fetch_proposal: Optional[bool]) -> Optional[bool]:
+    """Scored only where the annotation says what should happen; None means unscored.
+
+    A question with no `expect_fetch_proposal` (ni01, the truly absent control) is not
+    scored for proposals either way: proposing a fetch there is not wrong, it is the
+    admission gate's job to find that arXiv has nothing.
+    """
+    if expect_fetch_proposal is None:
+        return None
+    return bool(detected) is bool(expect_fetch_proposal)
+
+
 def mean(values: Sequence[float]) -> float:
     """Mean over the values that are defined, ignoring NaN."""
     usable = [v for v in values if v == v]

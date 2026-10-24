@@ -47,10 +47,18 @@ Fetches new papers from arXiv and adds them to the index.
 1. LLM call translates `query` into arXiv query syntax (field prefixes, booleans,
    category filters)
 2. arXiv API call, `sort_by=relevance`
-3. dedup against manifest on `arxiv_id`
-4. download new PDFs only
-5. extract text + figures/tables, chunk, describe figures, embed, append to index
-6. update the manifest with `topic_tag` — and on a dedup hit, append that tag to the
+3. **admission gate** — every result's `title + abstract` (arXiv search results carry
+   the abstract) is scored against `query` by the retrieval cross-encoder
+   (`retrieval.reranker_model`, the same instance the retriever holds). Papers below
+   `collection.admission_threshold` are not downloaded, not indexed and not tagged; they
+   are listed in `papers_rejected`. The gate sees papers already held too, so a dedup hit
+   it rejects does not gain this topic's tag. If the cross-encoder cannot load or run,
+   every result is admitted and `admission_gate` says `"skipped: <reason>"`
+   (`src/corpus/admission.py`)
+4. dedup against manifest on `arxiv_id`
+5. download new PDFs only
+6. extract text + figures/tables, chunk, describe figures, embed, append to index
+7. update the manifest with `topic_tag` — and on a dedup hit, append that tag to the
    existing paper record *and* to every chunk record it already produced
    (`docs/DATA_SCHEMA.md`, **Topic naming**)
 
@@ -58,18 +66,30 @@ Fetches new papers from arXiv and adds them to the index.
 
 ```json
 {
-  "papers_added":   [{"arxiv_id","title","year","abstract_snippet"}],
+  "papers_added":   [{"arxiv_id","paper_id","title","year","abstract_snippet",
+                      "admission_score": "float | null — null when the gate was skipped"}],
+  "papers_rejected": [{"arxiv_id","title","score"}],
+  "admission_threshold": "float — collection.admission_threshold",
+  "admission_gate": "'applied' | 'skipped: <reason>'",
   "papers_skipped": "int — already indexed",
   "chunks_added":   "int",
   "figures_added":  "int",
   "topic_tag":      "string",
-  "total_indexed":  "int"
+  "total_indexed":  "int",
+  "arxiv_query":    "string"
 }
 ```
 
+**When every result is rejected** the tool still returns a result, not an error:
+`papers_added: []`, every paper in `papers_rejected`, `arxiv_coverage: "poor"`, and a
+`note` saying arXiv does not seem to cover the topic well. Nothing is downloaded or
+indexed, no topic entry is written to the manifest (a zero-paper topic would read as
+coverage in `analyze_corpus`), and the retriever's cache is not invalidated.
+
 **Failure modes:** arXiv unreachable, zero results, PDF download failure, PDF parse
 failure. Partial success is reported, not thrown away — three good papers out of five
-is a valid result.
+is a valid result. A skipped admission gate is reported in `admission_gate` and `note`,
+not as an error.
 
 **Rate limiting.** arXiv answers HTTP 429 per *IP*, for every query, not only the one
 that tripped it, and the block lasts minutes. Searches and PDF downloads therefore
@@ -140,9 +160,42 @@ Core RAG. The tool the agent should reach for by default.
   }],
   "sufficient_evidence": "bool",
   "note": "string — why the gate failed, when it did",
-  "n_candidates_considered": "int"
+  "n_candidates_considered": "int",
+  "coverage_gap": "object — present only when the relevance gate failed, see below"
 }
 ```
+
+**`coverage_gap`** — a structured hint, returned only when a scorer ran and every
+candidate fell below the relevance threshold. It is data, not a call: the tool still
+fetches nothing, and the agent (or, in phase 2, the user) decides what to do.
+
+```json
+"coverage_gap": {
+  "searched_for":   "string — the query as given",
+  "best_score":     "float — the top candidate's score",
+  "threshold":      "float — the threshold actually used, for the scorer that ran",
+  "scorer":         "'cross_encoder' | 'bi_encoder'",
+  "closest_topics": ["topic_tag — up to 3, in the rank order of their best candidate"],
+  "suggested_next": "'rephrase' | 'propose_fetch'",
+  "proposed_query": "string — what to hand search_literature; today the query itself,
+                     since search_literature plans its own arXiv syntax"
+}
+```
+
+- `scorer` and `threshold` follow whatever actually produced the scores, including a
+  reranker that was requested but failed and fell back to bi-encoder cosines.
+- `suggested_next` is `rephrase` when `best_score` is within the scorer's margin below
+  the threshold (`retrieval.rephrase_margin` for the cross-encoder,
+  `retrieval.bi_encoder_rephrase_margin` for cosines), else `propose_fetch`. The margins
+  are measured; see `config.yaml`.
+- Absent on every other `sufficient_evidence: false` path: a filter that matches no
+  chunk, an index with no candidates, and "every passing chunk was already returned".
+  None of those is a gap in the literature, and in the first two no scorer ran.
+
+The agent loop reads the **last** `retrieve_evidence` call of a run: if its
+`coverage_gap` says `propose_fetch` and `search_literature` was not called after it, the
+run result carries `fetch_proposal: {query, searched_for, best_score, closest_topics}`
+(else `null`), for the user to approve (`src/agent/fetch_proposal.py`).
 
 **Note on figure chunks:** these come back with the *stored description plus
 caption*, not the image. If detail is needed that the description does not carry,

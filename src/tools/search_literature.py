@@ -2,9 +2,9 @@
 `search_literature`: fetch papers from arXiv and add them to the index.
 
 In:  a natural-language topic, optional max_results and arXiv categories.
-Out: {"papers_added", "papers_skipped", "chunks_added", "figures_added", "topic_tag",
-     "total_indexed"} or an error dict. Wires M1 collection, M2 extraction and M3 indexing
-     behind one tool call; partial success is reported, never discarded.
+Out: {"papers_added", "papers_rejected", "admission_gate", "chunks_added", "topic_tag",
+     "total_indexed", ...} or an error dict. Wires M1 collection, the abstract admission
+     gate, M2 extraction and M3 indexing behind one call; partial success is reported.
 """
 
 from __future__ import annotations
@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence
 
 from config import CFG, Config
 from corpus import collect
+from corpus.admission import GATE_APPLIED, gate_results
 from corpus.manifest import Manifest
 from extraction.ingest import ingest_paper
 from llm_client import LLMClient
@@ -38,10 +39,32 @@ class LiteratureSearcher:
         config: Config = CFG,
         client: Optional[LLMClient] = None,
         on_corpus_change: Optional[Callable[[], None]] = None,
+        reranker: Optional[Any] = None,
     ) -> None:
         self.config = config
         self.client = client
         self.on_corpus_change = on_corpus_change
+        # The retriever's cross-encoder, shared so the model loads once per process.
+        # Built lazily here only when none was handed in.
+        self.reranker = reranker
+
+    def _admit(self, query: str, results: List[Any]) -> Dict[str, Any]:
+        """The admission gate, as the callable collect.search_and_fetch expects.
+
+        Scores (topic, title + abstract) with the cross-encoder before any download. A
+        missing or broken reranker admits everything and reports why; never raises.
+        """
+        threshold = float(self.config.collection.admission_threshold)
+        if self.reranker is None:
+            try:
+                from retrieval.reranker import Reranker
+
+                self.reranker = Reranker(self.config)
+            except Exception as exc:
+                return gate_results(query, results, None, threshold) | {
+                    "status": f"skipped: could not build the cross-encoder: {exc}"
+                }
+        return gate_results(query, results, self.reranker, threshold)
 
     def search(
         self,
@@ -56,7 +79,7 @@ class LiteratureSearcher:
 
         fetched = collect.search_and_fetch(
             query, max_results=max_results, categories=categories,
-            config=self.config, llm=self.client,
+            config=self.config, llm=self.client, admission=self._admit,
         )
         rate_limited: Optional[Dict[str, Any]] = None
         if "error" in fetched:
@@ -69,6 +92,9 @@ class LiteratureSearcher:
             # and sits in the corpus invisible to retrieval.
             rate_limited = fetched
             fetched = partial
+
+        if fetched.get("all_rejected"):
+            return self._nothing_admitted(fetched)
 
         added = fetched.get("papers_added", [])
         topic_tag = fetched["topic_tag"]
@@ -109,9 +135,13 @@ class LiteratureSearcher:
         result = {
             "papers_added": [
                 {"arxiv_id": p["arxiv_id"], "paper_id": p["paper_id"], "title": p["title"],
-                 "year": p["year"], "abstract_snippet": p["abstract_snippet"]}
+                 "year": p["year"], "abstract_snippet": p["abstract_snippet"],
+                 "admission_score": p.get("admission_score")}
                 for p in indexed_ok
             ],
+            "papers_rejected": fetched.get("papers_rejected", []),
+            "admission_threshold": fetched.get("admission_threshold"),
+            "admission_gate": fetched.get("admission_gate"),
             "papers_skipped": fetched.get("papers_skipped", 0),
             "chunks_added": chunks_added,
             "figures_added": figures_added,
@@ -125,11 +155,46 @@ class LiteratureSearcher:
             result["note"] = (
                 f"{len(failures)} paper(s) could not be processed; the rest were indexed"
             )
+        if result["admission_gate"] and result["admission_gate"] != GATE_APPLIED:
+            notes = [result["note"]] if result.get("note") else []
+            notes.append(f"admission gate {result['admission_gate']}; every search result "
+                         "was admitted unfiltered")
+            result["note"] = "; ".join(notes)
         if rate_limited is not None:
             # Still an error, so the agent does not read this as a complete search and
             # immediately ask for more — but it carries everything that did get indexed.
             return _error("arxiv_rate_limited", rate_limited["detail"], partial=result)
         return result
+
+    def _nothing_admitted(self, fetched: Dict[str, Any]) -> Dict[str, Any]:
+        """Every search result scored below the admission threshold.
+
+        A result, not an error: the search worked, and what it says is that arXiv's
+        best matches for this topic are about something else. Nothing was downloaded or
+        indexed, so the corpus is unchanged and the retriever's cache stays valid.
+        """
+        rejected = fetched.get("papers_rejected", [])
+        best = max((p["score"] for p in rejected), default=None)
+        return {
+            "papers_added": [],
+            "papers_rejected": rejected,
+            "admission_threshold": fetched.get("admission_threshold"),
+            "admission_gate": fetched.get("admission_gate"),
+            "papers_skipped": 0,
+            "chunks_added": 0,
+            "figures_added": 0,
+            "topic_tag": fetched["topic_tag"],
+            "total_indexed": fetched.get("total_indexed", 0),
+            "arxiv_query": fetched.get("arxiv_query", ""),
+            "arxiv_coverage": "poor",
+            "note": (
+                f"arXiv returned {len(rejected)} paper(s) for this query, but none scored "
+                f"above the admission threshold {fetched.get('admission_threshold')} "
+                f"(best {best}). arXiv does not seem to cover this topic well; nothing was "
+                "downloaded or indexed. Tell the user so, rather than searching again with "
+                "similar wording."
+            ),
+        }
 
 
 SEARCH_LITERATURE_PARAMETERS: Dict[str, Any] = {

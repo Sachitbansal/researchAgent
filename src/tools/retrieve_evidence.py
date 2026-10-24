@@ -2,12 +2,14 @@
 `retrieve_evidence`: the core RAG tool — bi-encoder, rerank, gate, expand, truncate.
 
 In:  a query, optional k, topic_filter and chunk_types.
-Out: {"chunks", "sufficient_evidence", "note", "n_candidates_considered"} or an error
-     dict. Never raises, never fetches literature — the agent decides what to do next.
+Out: {"chunks", "sufficient_evidence", "note", "n_candidates_considered"}, plus a
+     "coverage_gap" hint when the relevance gate fails, or an error dict. Never raises,
+     never fetches literature — the hint is data, and the agent decides what to do next.
 """
 
 from __future__ import annotations
 
+import math
 import time
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Set
 
@@ -20,6 +22,7 @@ from retrieval.reranker import RerankError, Reranker
 from retrieval.vector_index import IndexError_, VectorIndex
 
 VALID_CHUNK_TYPES = ("text", "figure", "table")
+MAX_CLOSEST_TOPICS = 3
 
 
 def _error(code: str, detail: str, partial: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
@@ -207,6 +210,43 @@ class EvidenceRetriever:
             record["figure_id"] = chunk["figure_id"]
         return record
 
+    def _coverage_gap(
+        self, query: str, ranked: Sequence[Dict[str, Any]], best: float,
+        threshold: float, cross_encoder_ran: bool,
+    ) -> Dict[str, Any]:
+        """The structured hint returned when the relevance gate fails. Data, not a call.
+
+        `suggested_next` is "rephrase" only when the best score sits within the scorer's
+        rephrase margin below its threshold, else "propose_fetch". The margin is chosen
+        by which scorer actually ran, for the same reason the threshold is: a logit
+        margin applied to cosines would label every bi-encoder miss a near miss.
+        """
+        margin = float(
+            self.config.retrieval.rephrase_margin if cross_encoder_ran
+            else self.config.retrieval.bi_encoder_rephrase_margin
+        )
+        closest: List[str] = []
+        for item in ranked:  # best first, so a topic's position is its best chunk's rank
+            for tag in item.get("topic_tags") or []:
+                if tag not in closest:
+                    closest.append(tag)
+            if len(closest) >= MAX_CLOSEST_TOPICS:
+                break
+        finite = math.isfinite(best)
+        return {
+            "searched_for": query,
+            "best_score": round(float(best), 4) if finite else None,
+            "threshold": threshold,
+            "scorer": "cross_encoder" if cross_encoder_ran else "bi_encoder",
+            "closest_topics": closest[:MAX_CLOSEST_TOPICS],
+            "suggested_next": (
+                "rephrase" if finite and best >= threshold - margin else "propose_fetch"
+            ),
+            # search_literature plans its own arXiv syntax from natural language, so the
+            # query the agent already wrote is the right thing to hand it.
+            "proposed_query": query,
+        }
+
     # ---- the tool --------------------------------------------------------------
 
     def retrieve(
@@ -317,6 +357,9 @@ class EvidenceRetriever:
                         f"{threshold:.3f}; the index has nothing good for this query"
                         + rerank_note,
                 "n_candidates_considered": len(candidates),
+                "coverage_gap": self._coverage_gap(
+                    query, ranked, top_score, threshold, rerank_enabled
+                ),
             }
 
         selected: List[Dict[str, Any]] = []

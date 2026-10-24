@@ -16,6 +16,7 @@ import time
 from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from agent.conversation import Conversation
+from agent.fetch_proposal import derive_fetch_proposal
 from agent.tool_registry import ToolRegistry
 from agent.trace import TraceWriter, summarise_result
 from common.tokenization import TokenCounter
@@ -427,5 +428,6 @@ class AgentLoop:
             "run_id": tracer.run_id,
             "trace": str(tracer.path),
             "trace_records": tracer.records,
+            "fetch_proposal": derive_fetch_proposal(tracer.records),
             "conversation": conversation,
         }

@@ -23,6 +23,8 @@ from eval.metrics import (  # noqa: E402
     abstention_correct,
     any_gold_paper_hit,
     fact_coverage,
+    fetch_proposal_correct,
+    fetch_proposal_detected,
     looks_like_abstention,
     mean,
     recall_at_k,
@@ -82,6 +84,7 @@ def run_split(
 
         coverage = fact_coverage(answer, question["expected_facts"], embedder)
         abstained = looks_like_abstention(answer)
+        proposed = fetch_proposal_detected(result)
         row = {
             "question_id": question["question_id"],
             "category": question["category"],
@@ -96,6 +99,12 @@ def run_split(
             "fact_coverage": coverage["ratio"],
             "facts_covered": f"{coverage['covered']}/{coverage['total']}",
             "citations": count_citations(answer, retrieved),
+            "expect_fetch_proposal": question.get("expect_fetch_proposal"),
+            "fetch_proposal": result.get("fetch_proposal"),
+            "fetch_proposed": proposed,
+            "fetch_proposal_correct": fetch_proposal_correct(
+                proposed, question.get("expect_fetch_proposal")
+            ),
             "tools": tool_trace_match(
                 [r["tool_name"] for r in result["trace_records"]], question["expected_tools"]
             ),
@@ -136,6 +145,8 @@ def aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
     scored = [r for r in rows if "error" not in r]
     answerable = [r for r in scored if not r["expect_abstention"]]
     abstaining = [r for r in scored if r["expect_abstention"]]
+    # absent_fetchable: the questions annotated with a proposal expectation.
+    fetchable = [r for r in scored if r.get("expect_fetch_proposal")]
 
     return {
         "errors": len(rows) - len(scored),
@@ -151,6 +162,13 @@ def aggregate(rows: List[Dict[str, Any]]) -> Dict[str, Any]:
              for r in answerable if r["citations"]["total"]]
         ),
         "tool_trace_matched": mean([float(r["tools"]["matched"]) for r in scored]),
+        # Proposing on an absent-but-fetchable question is the target; proposing on an
+        # answerable one is a false alarm that puts a needless fetch button in front of
+        # the user. ni01-style controls (no expectation) are in neither.
+        "fetch_proposal_on_fetchable": mean([float(r["fetch_proposed"]) for r in fetchable]),
+        "fetch_proposal_on_answerable": mean(
+            [float(r.get("fetch_proposed", False)) for r in answerable]
+        ),
         "mean_iterations": mean([float(r["iterations"]) for r in scored]),
         "median_elapsed_ms": (
             sorted(r["elapsed_ms"] for r in scored)[len(scored) // 2] if scored else 0
