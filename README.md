@@ -89,7 +89,7 @@ Full detail, including rejected alternatives, is in
 
 ## Setup
 
-Tested on **Python 3.10.12**, Linux.
+Python 3.10+. Developed and tested on **Python 3.10.12**, Linux.
 
 ```bash
 python3 -m venv .venv

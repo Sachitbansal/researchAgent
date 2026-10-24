@@ -31,7 +31,7 @@ reason.
 - `scikit-learn`, `pandas`, `numpy` — clustering, metrics, metadata analysis
 - OpenRouter via a thin `llm_client` wrapper — all LLM calls
 
-Python 3.11+.
+Python 3.10+ (developed and tested on 3.10.12).
 
 ## Hard constraints
 
@@ -39,7 +39,8 @@ Python 3.11+.
   written directly against the provider SDK. How the agentic system is structured is
   itself being evaluated — a framework hides that.
 - **No multi-agent orchestration.** One agent, five tools.
-- **No UI.** CLI only.
+- **No UI.** CLI only. `web/` is a demo shim outside `src/` that imports it, like
+  `eval/`; nothing in `src/` may depend on it (`docs/FUTURE_WORK.md`).
 - **Tools return structured dicts, never raw strings.** Every tool result is
   JSON-serialisable with explicit fields.
 - **Tools never raise.** Errors come back as `{"error": ..., "detail": ...}`.

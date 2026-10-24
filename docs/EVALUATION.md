@@ -42,8 +42,10 @@ nothing to do with the system.
 ## Question set and splits
 
 15 questions in `eval/questions.json`, hand-annotated with gold chunks, gold papers,
-required facts, and the tools a reasonable agent should reach for. Five categories:
-single-paper, multi-paper, conflicting, figure-dependent, and not-in-corpus.
+required facts, and the tools a reasonable agent should reach for. Four categories:
+single-paper (5), multi-paper (4), conflicting (3), and not-in-corpus (3). There are no
+figure-dependent questions; the multimodal path is demonstrated in
+`examples/cold_start.md` but not scored.
 
 **Ten questions tune, five are held out.** The threshold sweep and every other tuning
 decision touched only the first ten. The held-out five were run once, at the end, and
