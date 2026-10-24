@@ -169,6 +169,19 @@ python main.py ask "..." --show-tools     # after the answer, one line per tool 
 python main.py ask "..." --quiet          # no live progress
 ```
 
+Questions are independent unless you put them in a **thread**, where each new question is
+sent with the earlier questions, answers and a one-line note per tool call
+(`docs/ARCHITECTURE.md` §7.1):
+
+```bash
+python main.py ask "What load-balancing losses do these papers use?" --new-thread   # prints the thread id
+python main.py ask "Which of those also report downstream results?" --thread <id>
+python main.py threads                    # id, turns, last updated, title
+```
+
+Threads live in `data/threads.sqlite3`, shared with the browser UI, so a chat started in
+one can be continued in the other. The eval never uses them.
+
 While it runs, each step is printed to **stderr** as it happens — the model thinking,
 every tool call with its arguments, what came back and how long it took:
 
@@ -238,19 +251,20 @@ runs, and the page tells you to run the build command.
 `SCIAGENT_BACKEND=http://127.0.0.1:PORT` if the server listens on another port.
 `npm run typecheck` runs `tsc` alone.
 
-**Left: chats and corpus.** *New chat*, the chats of this page session (newest first, each
-one deletable), and *Corpus*: every indexed paper grouped by the topic it was collected
-under, with the arXiv query the LLM planned for that topic. Per paper it lists title,
-authors, year, PDF filename, chunk and figure counts, and an arXiv link. Chats live only in
-the page's memory and are gone on reload, because where chat history should be stored is
-an open question (`docs/DECISIONS.md`, benched questions). The three chats tagged
-**Sample** are hand-written fixtures that show the layout populated. Their citations point
-at real passages, but the agent did not write them.
+**Left: chats and corpus.** *New chat*; *Chats*, the stored threads, newest first, each
+one deletable; *Samples*; and *Corpus*: every indexed paper grouped by the topic it was
+collected under, with the arXiv query the LLM planned for that topic. Per paper it lists
+title, authors, year, PDF filename, chunk and figure counts, and an arXiv link. A chat is
+created by its first question and named after it. Opening one redraws its answers,
+citations and per-answer timeline from the server. The three **Sample** chats are
+hand-written fixtures, not stored threads, so asking from one starts a new chat. Their
+citations point at real passages, but the agent did not write them.
 
 **Centre: the conversation.** Each question goes to the same agent as `python main.py
-ask`, through the same config. There is no second code path, and no answer can appear here
-that the CLI would not also give. **Each question is answered independently**, because the
-agent is never shown earlier turns of the chat, and the page says so under the composer.
+ask --thread`, through the same config. There is no second code path, and no answer can
+appear here that the CLI would not also give. **The agent sees the earlier questions and
+answers in this chat**, and a note of the tools each one used, but not the passages. It
+retrieves those again, and the page says so under the composer.
 While the agent works, a status line shows what it is doing: thinking, which tool it is
 calling, or writing the answer. The answer arrives as formatted text. Every citation is
 numbered like a paper's references, and clicking it opens the cited passage with an arXiv
@@ -262,8 +276,9 @@ answer, live while it runs. For each call it shows the tool, its arguments, what
 (expandable to the summarised result) and how long it took, plus skipped calls and stops.
 It ends with the run's stats: turns, tool calls, context tokens, why it stopped, and the
 trace's run id. *Sources* lists the cited passages per paper, as retrieval returned them.
-*Memory* is a labelled placeholder, because the agent has no cross-session memory yet. On
-narrow screens the panel becomes a drawer.
+It also shows how many earlier turns were sent with the question. *Memory* shows what a later
+question in the chat will be shown from the selected answer: its tool-call notes. Nothing
+carries over between chats. On narrow screens the panel becomes a drawer.
 
 It needs Python, the models and an index, so it cannot be hosted as a static site. Run it
 on the machine that has the corpus. It holds one agent and answers one question at a time.
@@ -278,9 +293,11 @@ inside that one tool call. For a demo, index the topic beforehand.
 `web/` and `frontend/` sit outside `src/`. `web/` imports `src/`, exactly as `eval/` does.
 Nothing in `src/` knows either exists: the system being evaluated is still the CLI.
 
-API, for reference: `GET /api/papers` (the corpus), `POST /api/ask` with
-`{"question": ...}` (SSE: `step`… then `answer` or `failed`, then `done`, or else `busy`),
-`GET /api/figures/<paper_id>/<file>`, and `GET /api/status`.
+API, for reference: `GET /api/papers` (the corpus); `POST /api/ask` with
+`{"question": ..., "thread_id"?: ...}` (SSE: `thread` first, naming the chat, which is new if
+no `thread_id` was sent; then `step`…, then `answer` or `failed`, then `done`; or else
+`busy`, `done`); `GET`/`POST /api/threads`; `GET`/`DELETE /api/threads/<id>`;
+`GET /api/figures/<paper_id>/<file>`; and `GET /api/status`.
 
 ## Results in brief
 
@@ -315,7 +332,7 @@ what it leaves open, is in
 ## Layout
 
 ```
-main.py                CLI: index / ask / eval
+main.py                CLI: index / ask (--thread) / threads / eval
 config.yaml            every tunable, with the measurement behind each value
 src/
   config.py            config + secrets loading
@@ -326,8 +343,9 @@ src/
   retrieval/           embedder, FAISS index, indexer, cross-encoder reranker
   tools/               the five agent-facing tools
   agent/               tool registry, conversation, trace, the loop
+  memory/              threads in SQLite, and history building for a thread's next question
   analysis/            NLI
-  prompts/             system prompt and tool descriptions, as files
+  prompts/             system prompt, thread-history prompts and tool descriptions, as files
 eval/                  question set, annotation, metrics, tuning, ablation
 web/                   the browser UI's server — FastAPI, streams agent steps as SSE
 frontend/              the browser UI — Vite + React + TypeScript, built into frontend/dist/
@@ -356,6 +374,8 @@ produced it. The ones most worth knowing:
 | `agent.tool_call_limits` | `search_literature: 5` | it downloads papers: slow, and trips arXiv's per-IP 429 |
 | `agent.max_no_progress_turns` | 3 | consecutive turns with every call refused → forced final answer |
 | `agent.max_context_tokens` | 60000 | past this the oldest tool results are elided |
+| `agent.thread_history_tokens` | 9000 | budget for a thread's earlier turns; the oldest go first, whole, so history cannot crowd out new evidence |
+| `paths.threads_db` | `data/threads.sqlite3` | conversation threads, shared by the CLI and the browser UI |
 | `nli.min_pair_similarity` | 0.75 | below it, NLI scores unrelated sentences as confident contradictions |
 
 Models are set per role (`agent_model`, `vision_model`, `utility_model`). The agent
@@ -365,7 +385,7 @@ agent's own conversation on a follow-up turn, so a text-only model breaks that p
 ## Tests
 
 ```bash
-python -m pytest tests/ -q          # 191 tests
+python -m pytest tests/ -q          # 311 tests
 python scripts/m5_gate.py           # one milestone's verification gate
 ```
 

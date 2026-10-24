@@ -266,6 +266,32 @@ iteration cap, plus loop detection on repeated `(tool, args)` pairs. It forces a
 answer when every tool is exhausted, or after `agent.max_no_progress_turns` (3)
 consecutive turns in which nothing was dispatched (`docs/DECISIONS.md` D4).
 
+### 7.1 Short-term memory (threads)
+
+A question can belong to a **thread** (`docs/DECISIONS.md` D12). The loop owns this:
+`AgentLoop.run(question, thread_id=...)` reads the thread's earlier turns from
+`memory.threads.ThreadStore` (SQLite, `paths.threads_db`), and afterwards appends the run
+as a new turn, whether it answered or failed. Without a `thread_id` nothing is read or
+written, and the request is byte-for-byte what it was before. The eval always runs this way.
+
+**What is sent.** Between the system prompt and the current question, each prior turn
+becomes plain text messages: `user` (the question, verbatim), `assistant` (one note line
+per tool call, e.g. `retrieve_evidence(query="…") → 5 chunks [id, …]`), and `assistant`
+(the answer, verbatim, citations included). Tool messages are never replayed, so no
+`tool_call` can be left unpaired. When there is history, `src/prompts/thread_history.md`
+is appended to the system prompt. It tells the model that earlier turns are history,
+not evidence, and that it should retrieve again before citing.
+
+**Budget.** History is capped at `agent.thread_history_tokens` (9000), counted with the
+same tokenizer as the context budget. Walking from newest to oldest, the first turn that
+does not fit ends the walk, so the oldest turns are dropped whole. The current question is
+never dropped. Its own tool results go in full, under the 60k elision as before.
+
+**Dedup: "seen = still visible"** (D13). The retriever suppresses a chunk only while
+its text is in context. Elision releases the chunks it hides, and a run starts from the
+chunks visible in its conversation. History carries no chunk text, so that set is
+empty and dedup spans the current question in practice.
+
 ## 8. ML / data-analysis components
 
 **1. NLI-based evidence checking** (`check_evidence_consistency`), in two modes:

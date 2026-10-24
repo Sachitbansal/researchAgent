@@ -1,7 +1,7 @@
 /* Centre pane: the conversation, the empty state, and the composer.
-   In:  the displayed messages (persisted plus the live run), the corpus, callbacks.
-   Out: rendered turns. Answers are rendered markdown with numbered citations; a running
-        answer shows what the agent is doing right now. Each question stands alone. */
+   In:  the displayed messages (the thread's stored turns plus the live run), the corpus,
+        callbacks. Out: rendered turns. Answers are rendered markdown with numbered
+        citations; a running answer shows what the agent is doing right now. */
 
 import { useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from "react";
 import type { AssistantMessage, Corpus, Message, Paper } from "../types";
@@ -13,6 +13,7 @@ import { Icon } from "../icons";
 interface Props {
   messages: Message[];
   sample: boolean;
+  loading: boolean;
   papersById: Map<string, Paper>;
   corpus: Corpus | null;
   corpusError: string | null;
@@ -55,7 +56,9 @@ export function ChatView(p: Props) {
               agent, but its citations point at real passages in the corpus. Ask your own question in a new chat.
             </p>
           )}
-          {p.messages.length === 0 ? (
+          {p.loading ? (
+            <p className="quiet thread-loading">Loading this chat…</p>
+          ) : p.messages.length === 0 ? (
             <EmptyState corpus={p.corpus} error={p.corpusError} onPick={(q) => p.setDraft(q)} />
           ) : (
             p.messages.map((m, i) =>
@@ -86,7 +89,9 @@ export function ChatView(p: Props) {
         )}
         <Composer draft={p.draft} setDraft={p.setDraft} onSend={p.onSend} running={p.running} />
         <p className="independence">
-          Each question is answered on its own. The agent does not see earlier messages in this chat, so name what you mean each time.
+          {p.sample
+            ? "Asking here starts a new chat. Samples are not sent to the agent."
+            : "The agent sees earlier questions and answers in this chat, and looks the passages up again."}
         </p>
       </div>
     </div>

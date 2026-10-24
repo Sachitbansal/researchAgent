@@ -1,5 +1,6 @@
 """
-The command-line entry point: index a topic, ask a question, run the eval.
+The command-line entry point: index a topic, ask a question (optionally in a thread),
+list threads, run the eval.
 
 In:  argv. Out: printed results and a process exit code.
 Lives at the repo root rather than in src/ because `eval` is a subcommand, and
@@ -114,10 +115,25 @@ def cmd_ask(args: argparse.Namespace) -> int:
     from agent.progress import ConsoleReporter
     from agent.tool_registry import build_full_registry
     from config import CFG
+    from memory.threads import ThreadStore, title_from
     from retrieval.embedder import Embedder
     from tools.retrieve_evidence import EvidenceRetriever
 
     CFG.paths.ensure()
+    # Threads only when asked for: a plain `ask` stays a single, unpersisted question.
+    store = ThreadStore(CFG.paths.threads_db) if (args.thread or args.new_thread) else None
+    thread_id = args.thread
+    if store is not None and thread_id:
+        found = store.get_thread(thread_id)
+        if _failed(found):
+            return _report_error("the thread", found)
+    if store is not None and args.new_thread:
+        made = store.create_thread(title_from(args.question, int(CFG.agent.thread_title_chars)))
+        if _failed(made):
+            return _report_error("creating the thread", made)
+        thread_id = made["id"]
+        print(f"new thread {thread_id}", file=sys.stderr, flush=True)
+
     # Progress goes to stderr, so `ask ... > answer.txt` still captures the answer alone.
     reporter = None if args.quiet else ConsoleReporter(stream=sys.stderr, config=CFG)
     if reporter is not None:
@@ -126,13 +142,15 @@ def cmd_ask(args: argparse.Namespace) -> int:
         print("loading models and the index ...", file=sys.stderr, flush=True)
     retriever = EvidenceRetriever(CFG, embedder=Embedder(CFG))
     loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG),
-                     config=CFG, retriever=retriever, on_event=reporter)
+                     config=CFG, retriever=retriever, on_event=reporter, store=store)
 
-    result = loop.run(args.question)
+    result = loop.run(args.question, thread_id=thread_id)
     if _failed(result):
         partial = result.get("partial") or {}
         if partial.get("answer"):
             print(partial["answer"])
+        if thread_id:
+            print(f"--- thread: {thread_id}, turn {result.get('turn_seq')}")
         return _report_error("the agent loop", result)
 
     print(result["answer"])
@@ -142,6 +160,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
     )
     print(f"--- tool calls per tool: {result['tool_call_counts']}")
     print(f"--- trace: {result['trace']}")
+    if thread_id:
+        print(f"--- thread: {thread_id}, turn {result.get('turn_seq')}")
+        if result.get("thread_error"):
+            error = result["thread_error"]
+            print(f"--- the turn was not saved: {error.get('error')}: {error.get('detail')}",
+                  file=sys.stderr)
 
     if args.show_tools:
         for record in result["trace_records"]:
@@ -149,6 +173,29 @@ def cmd_ask(args: argparse.Namespace) -> int:
             print(f"    [{record['iteration']}] {record['tool_name']}"
                   f"({json.dumps(record.get('args'))[:80]}) "
                   f"-> {record.get('error') or summary}, {record['latency_ms']}ms")
+    return 0
+
+
+# ---- threads ---------------------------------------------------------------------
+
+
+def cmd_threads(args: argparse.Namespace) -> int:
+    """List conversation threads, most recently updated first."""
+    from datetime import datetime
+
+    from config import CFG
+    from memory.threads import ThreadStore
+
+    listed = ThreadStore(CFG.paths.threads_db).list_threads()
+    if _failed(listed):
+        return _report_error("listing threads", listed)
+    if not listed["threads"]:
+        print("no threads yet; start one with: main.py ask \"...\" --new-thread")
+        return 0
+    print(f"{'id':<32}  {'turns':>5}  {'updated':<16}  title")
+    for thread in listed["threads"]:
+        updated = datetime.fromtimestamp(thread["updated_at"]).strftime("%Y-%m-%d %H:%M")
+        print(f"{thread['id']:<32}  {thread['n_turns']:>5}  {updated:<16}  {thread['title']}")
     return 0
 
 
@@ -196,7 +243,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    """The three things the system does, as three subcommands."""
+    """What the system does, as subcommands."""
     parser = argparse.ArgumentParser(
         prog="main.py", description="Agentic research assistant over scientific papers."
     )
@@ -227,7 +274,15 @@ def build_parser() -> argparse.ArgumentParser:
                      help="after the answer, print a one-line summary of every tool call")
     ask.add_argument("--quiet", action="store_true",
                      help="suppress the live progress lines printed to stderr")
+    thread = ask.add_mutually_exclusive_group()
+    thread.add_argument("--thread", metavar="ID", default=None,
+                        help="continue this thread: earlier questions and answers are sent too")
+    thread.add_argument("--new-thread", action="store_true",
+                        help="start a new thread with this question and print its id")
     ask.set_defaults(handler=cmd_ask)
+
+    threads = subparsers.add_parser("threads", help="list conversation threads")
+    threads.set_defaults(handler=cmd_threads)
 
     evaluate = subparsers.add_parser("eval", help="run the eval harness")
     evaluate.add_argument("--held-out", action="store_true",

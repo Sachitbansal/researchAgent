@@ -1,9 +1,9 @@
-/* The client for web/api.py: the corpus, plus one streamed question.
-   In:  a question and a callback per SSE frame.
+/* The client for web/api.py: the corpus, chat threads, and one streamed question.
+   In:  a question, the thread it belongs to (or none, to start one), a callback per frame.
    Out: parsed JSON, or an ApiError carrying the server's {error, detail}. Asking is a POST
         read as a stream, not an EventSource, which would silently re-run on reconnect. */
 
-import type { Corpus } from "./types";
+import type { Corpus, ThreadDetail, ThreadSummary } from "./types";
 
 export class ApiError extends Error {
   constructor(public code: string, public detail: string) {
@@ -27,16 +27,27 @@ async function json<T>(res: Response): Promise<T> {
 
 export const getCorpus = () => fetch("/api/papers").then((r) => json<Corpus>(r));
 
-/** Ask, calling `onFrame` for every frame until the server sends `done`. */
+export const listThreads = () =>
+  fetch("/api/threads").then((r) => json<{ threads: ThreadSummary[] }>(r)).then((b) => b.threads);
+
+export const getThread = (id: string) =>
+  fetch(`/api/threads/${encodeURIComponent(id)}`).then((r) => json<ThreadDetail>(r));
+
+export const deleteThread = (id: string) =>
+  fetch(`/api/threads/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => json<{ deleted: string }>(r));
+
+/** Ask, calling `onFrame` for every frame until the server sends `done`. With no
+    threadId the server starts a thread, and its first frame (`thread`) names it. */
 export async function ask(
   question: string,
+  threadId: string | null,
   onFrame: (event: string, data: unknown) => void,
   signal?: AbortSignal,
 ): Promise<void> {
   const res = await fetch("/api/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify(threadId ? { question, thread_id: threadId } : { question }),
     signal,
   });
   if (!res.ok || !res.body) {

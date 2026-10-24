@@ -1,10 +1,11 @@
 """
-The browser UI's HTTP API: the corpus, figure images, and one streamed question.
+The browser UI's HTTP API: the corpus, figure images, chat threads, one streamed question.
 
-In:  a builder returning (AgentLoop, Config), called once at startup, and HTTP requests.
-Out: a FastAPI app. POST /api/ask streams the loop's own events as SSE, then the answer.
-     Stateless: no chat is stored. Lives outside src/ and imports it, as eval/ does; the
-     question goes to loop.run bare, exactly as `python main.py ask` sends it.
+In:  a builder returning (AgentLoop, Config), called once at startup; the loop's
+     ThreadStore (`loop.store`) holds the threads. Then HTTP requests.
+Out: a FastAPI app. POST /api/ask streams a `thread` frame, the loop's own events as SSE,
+     then the answer; the loop appends the turn to the thread (docs/DECISIONS.md D12).
+     Lives outside src/ and imports it, as eval/ does.
 """
 
 from __future__ import annotations
@@ -37,7 +38,8 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 
 # Only these leave the server. loop.run also returns the Conversation object, which is
 # not JSON-serialisable, and trace_records, which the steps already cover.
-ANSWER_FIELDS = ("answer", "iterations", "tool_calls", "context_tokens", "stopped_because", "run_id")
+ANSWER_FIELDS = ("answer", "iterations", "tool_calls", "context_tokens", "stopped_because",
+                 "run_id", "thread_id", "turn_seq")
 
 MISSING_BUILD = """<!doctype html><meta charset="utf-8"><title>sciagent</title>
 <body style="font:16px/1.6 system-ui,sans-serif;max-width:38rem;margin:4rem auto;padding:0 1rem">
@@ -53,6 +55,11 @@ class AskBody(BaseModel):
     the model by name, and a local class would turn the body into a query parameter."""
 
     question: str
+    thread_id: Optional[str] = None
+
+
+class NewThreadBody(BaseModel):
+    title: Optional[str] = None
 
 
 Builder = Callable[[], Tuple[Any, Any]]
@@ -129,8 +136,31 @@ def final_event(result: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
             "detail": result.get("detail", ""),
             "answer": partial.get("answer", "") or "",
             "run_id": partial.get("run_id"),
+            "thread_id": result.get("thread_id"),
+            "turn_seq": result.get("turn_seq"),
         }
     return "answer", {field: result.get(field) for field in ANSWER_FIELDS}
+
+
+def thread_payload(thread: Dict[str, Any], figures_root: Path) -> Dict[str, Any]:
+    """A stored thread as the page redraws it: image steps get their URL back.
+
+    Steps are stored without URLs (src/ knows nothing of this server), so figure_url is
+    applied here, on the way out, with the same rule as a live stream.
+    """
+    turns = []
+    for turn in thread.get("turns") or []:
+        steps = []
+        for step in turn.get("steps") or []:
+            if isinstance(step, dict) and step.get("kind") == "image":
+                step = {**step, "image_url": figure_url(step.get("image_path"), figures_root)}
+            steps.append(step)
+        turns.append({**turn, "steps": steps})
+    return {**thread, "turns": turns}
+
+
+def _store_status(result: Dict[str, Any]) -> int:
+    return {"bad_thread_id": 400, "thread_not_found": 404}.get(result.get("error"), 503)
 
 
 def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
@@ -143,6 +173,8 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
         loop, config = builder()
         app.state.loop = loop
         app.state.config = config
+        # One store, owned by the loop: the loop appends turns, these routes read them.
+        app.state.store = getattr(loop, "store", None)
         yield
 
     app = FastAPI(title="sciagent", lifespan=lifespan)
@@ -151,6 +183,8 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
     # into each other's streams. Acquired without blocking: a second asker is told the
     # agent is busy straight away rather than left staring at a stalled stream.
     app.state.lock = threading.Lock()
+    # The thread the current run is appending to, so it cannot be deleted mid-run.
+    app.state.running_thread = None
     dist = Path(dist_dir)
 
     # ---------------------------------------------------------------- corpus, status
@@ -170,9 +204,58 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             return _err(404, "not_found", "no such figure")
         return FileResponse(path)
 
+    # ---------------------------------------------------------------- threads
+
+    def _store(request: Request) -> Any:
+        return request.app.state.store
+
+    def _no_store() -> JSONResponse:
+        return _err(503, "no_thread_store", "this server was started without a thread store")
+
+    @app.get("/api/threads")
+    def list_threads(request: Request) -> Any:
+        store = _store(request)
+        if store is None:
+            return _no_store()
+        result = store.list_threads()
+        return _err(503, result["error"], result.get("detail", "")) if "error" in result else result
+
+    @app.post("/api/threads")
+    def create_thread(request: Request, body: Optional[NewThreadBody] = None) -> Any:
+        store = _store(request)
+        if store is None:
+            return _no_store()
+        result = store.create_thread((body.title if body else None) or "")
+        if "error" in result:
+            return _err(503, result["error"], result.get("detail", ""))
+        return JSONResponse(result, status_code=201)
+
+    @app.get("/api/threads/{thread_id}")
+    def get_thread(request: Request, thread_id: str) -> Any:
+        store = _store(request)
+        if store is None:
+            return _no_store()
+        result = store.get_thread(thread_id)
+        if "error" in result:
+            return _err(_store_status(result), result["error"], result.get("detail", ""))
+        return thread_payload(result, Path(request.app.state.config.paths.figures))
+
+    @app.delete("/api/threads/{thread_id}")
+    def delete_thread(request: Request, thread_id: str) -> Any:
+        store = _store(request)
+        if store is None:
+            return _no_store()
+        state = request.app.state
+        if state.lock.locked() and state.running_thread == thread_id:
+            return _err(409, "thread_busy", "the agent is answering in this chat; wait for it to finish")
+        result = store.delete_thread(thread_id)
+        if "error" in result:
+            return _err(_store_status(result), result["error"], result.get("detail", ""))
+        return result
+
     # ---------------------------------------------------------------- ask
 
-    def run_question(state: Any, question: str,
+    def run_question(state: Any, question: str, thread_id: str,
                      push: Callable[[Optional[str], Dict[str, Any]], None]) -> None:
         """The whole run, on a worker thread that owns the lock until it is over.
 
@@ -193,15 +276,18 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
         try:
             loop.on_event = on_event
             try:
-                # The bare question, exactly as `python main.py ask` passes it. Nothing
-                # from earlier in the browser's chat is ever pasted in (docs/DECISIONS.md, D3).
-                result = loop.run(question)
+                # The question as typed, plus the thread it belongs to. Earlier turns are
+                # added by the loop itself from the store (memory.history), never pasted
+                # in here, so the browser and `main.py ask --thread` send the same thing.
+                result = loop.run(question, thread_id=thread_id)
             except Exception as exc:  # the loop is meant not to raise; a page must not hang
-                result = {"error": "loop_crashed", "detail": f"{type(exc).__name__}: {exc}"}
+                result = {"error": "loop_crashed", "detail": f"{type(exc).__name__}: {exc}",
+                          "thread_id": thread_id}
             finally:
                 loop.on_event = None
             kind, payload = final_event(result)
         finally:
+            state.running_thread = None
             state.lock.release()
             push(kind, payload)
             push("done", {})
@@ -212,24 +298,56 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
         """POST, not GET + EventSource: EventSource reconnects on its own when a stream
         ends, which would silently re-run the whole question.
 
-        Stateless on purpose. Where chat history lives is undecided (docs/DECISIONS.md,
-        benched questions) — it will be designed with conversation memory — so the
-        server keeps nothing between questions beyond the trace every run writes.
+        Every question belongs to a thread (docs/DECISIONS.md D12). Without a thread_id a
+        new one is created, named after the question, and the first frame says which.
+        Frames: `thread`, `step`*, `answer` | `failed`, `done`; or `busy`, `done`.
         """
         question = body.question.strip()
         if not question:
             return _err(400, "empty_question", "type a question first")
 
         state = request.app.state
+        if state.store is None:
+            return _no_store()
+        thread_id, title = body.thread_id, ""
+        if thread_id is not None:
+            # Checked before the stream opens, so a bad id is a plain 400/404, not a frame.
+            found = state.store.get_thread(thread_id)
+            if "error" in found:
+                return _err(_store_status(found), found["error"], found.get("detail", ""))
+            title = found["title"]
 
         async def stream() -> Any:
             if not state.lock.acquire(blocking=False):
+                # Before any thread is created: a refused question leaves nothing behind.
                 yield sse("busy", {"detail": "the agent is answering another question"})
                 yield sse("done", {})
                 return
 
+            target, created, name = thread_id, False, title
+            if target is None:
+                try:
+                    from memory.threads import title_from
+
+                    made = state.store.create_thread(
+                        title_from(question, int(state.config.agent.thread_title_chars)))
+                except BaseException:
+                    state.lock.release()
+                    raise
+                if "error" in made:
+                    state.lock.release()
+                    yield sse("failed", {"error": made["error"], "detail": made.get("detail", ""),
+                                         "answer": "", "run_id": None})
+                    yield sse("done", {})
+                    return
+                target, created, name = made["id"], True, made["title"]
+            state.running_thread = target
+
             aloop = asyncio.get_running_loop()
             queue: asyncio.Queue = asyncio.Queue()
+            # Queued, not yielded: a yield here would be a point where a disconnect could
+            # close the stream with the lock held and no worker to release it.
+            queue.put_nowait(("thread", {"thread_id": target, "created": created, "title": name}))
 
             def push(event: Optional[str], payload: Dict[str, Any]) -> None:
                 try:
@@ -240,9 +358,10 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             # No await between acquiring and starting, so nothing can cancel us in the
             # gap and leave the lock held with no thread to release it.
             try:
-                threading.Thread(target=run_question, args=(state, question, push),
+                threading.Thread(target=run_question, args=(state, question, target, push),
                                  name="agent-run", daemon=True).start()
             except BaseException:
+                state.running_thread = None
                 state.lock.release()
                 raise
 
