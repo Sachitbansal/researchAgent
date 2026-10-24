@@ -54,6 +54,8 @@ that was itself chosen from data.
 
 ## Results
 
+These results were measured under the old global 8-iteration cap (`agent.max_iterations: 8`), before per-tool call limits replaced it (`docs/DECISIONS.md` D4).
+
 | metric | tuning (10 q) | held out (5 q) |
 |---|---|---|
 | fact coverage | **1.000** | **0.917** |

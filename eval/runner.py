@@ -101,6 +101,7 @@ def run_split(
             ),
             "iterations": result["iterations"],
             "tool_calls": result["tool_calls"],
+            "tool_call_counts": result["tool_call_counts"],
             "stopped_because": result["stopped_because"],
             "elapsed_ms": elapsed_ms,
             "answer": answer,

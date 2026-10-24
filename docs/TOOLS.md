@@ -356,6 +356,13 @@ anticipates — they are what the eval's tool-trace check looks for, not a scrip
 | Numeric detail in a plot | `retrieve_evidence` → `inspect_figure` → answer |
 | "What's in this corpus?" | `analyze_corpus` → answer |
 
-**Loop control:** max 6–8 iterations, plus loop detection on repeated
-`(tool_name, args)` pairs. On cap, the agent answers with what it has and says the
-evidence is partial.
+**Loop control:** each tool may be dispatched at most `agent.max_calls_per_tool` (10)
+times per question, `search_literature` 5 (`agent.tool_call_limits`). There is no
+iteration cap (`docs/DECISIONS.md` D4). Counting is per dispatch, not per turn: a call
+past the limit gets `{"error": "tool_limit_reached", ...}` without running, and an
+exhausted tool is dropped from the tools offered. Refused calls (repeated, bad JSON,
+unknown tool, over the limit) cost nothing. Loop detection on repeated
+`(tool_name, args)` pairs stays. The agent is forced to answer with what it has, and to
+say the evidence is partial, when every tool is exhausted (`stopped_because:
+"tools_exhausted"`) or after `agent.max_no_progress_turns` (3) consecutive turns in which
+nothing was dispatched (`"no_progress"`).

@@ -1,97 +1,36 @@
 # Decision log
 
-Every decision about how the project is built, who made it, and why. Where a decision had
-no real reasoning behind it — a default taken, a coin flip, nobody asked — that is written
-down too, so a later reader does not mistake an accident for a constraint and defend it.
-
-`docs/ARCHITECTURE.md` holds the design of the agent itself. This file covers everything
-around it — the serving layer, the frontend, tooling — plus any later change to the
-agent's design, with a pointer to the section it changed.
-
-Each entry: **Decision · Decided by · Why · Rejected · Consequences.**
+Every build decision: what, who decided, why, what was rejected. If a decision had no real
+reason (a default, nobody answered), it says so. Agent design lives in
+`docs/ARCHITECTURE.md`; changes to it are logged here with a pointer.
 
 ---
 
-## D1 — Backend for the browser UI: FastAPI
-
-*2026-10-24 · `web/server.py`*
-
-**Decided by:** Claude (agent), recommending. The user asked which backend fits agentic /
-LLM work, offering Express, FastAPI or Django, and did not pick. Earlier the user said
-"whichever you think best" about the frontend. So this is the agent's call, not the
-user's, and it carries no user rationale.
-
-**Why:**
-- The agent, its three local models (bi-encoder, cross-encoder, NLI) and the FAISS index
-  are Python. The server has to run in that process, or else proxy to one.
-- Streaming each agent step (Server-Sent Events) is a first-class pattern: an async
-  generator plus `StreamingResponse`.
-- Pydantic request/response models match the project rule that tools return structured
-  dicts, and `/docs` gives an OpenAPI page for free.
-- It is the default choice in the LLM-serving ecosystem, so examples and help are easy to
-  find.
-
-**Rejected:**
-- **Express (Node).** Python would still have to run somewhere, so this means two servers
-  and IPC between them for no gain.
-- **Django.** Its value is the ORM, admin and auth. This project has no database. It would
-  be weight with nothing to carry.
-- **Litestar / bare Starlette.** Technically comparable. Smaller ecosystem (Litestar) or
-  more hand-rolling (Starlette). No reason to prefer them.
-- **Keep stdlib `http.server`.** It worked for a one-page demo. A multi-pane app with
-  chats, figure serving and typed APIs would mean re-writing a framework by hand.
-
-**Consequences:**
-- New dependencies `fastapi`, `uvicorn`, and `httpx` (test client only). They are pinned
-  in `web/requirements.txt`, not the core `requirements.txt`, because the core file pins
-  the system under evaluation and the web layer is not part of it.
-- `docs/FUTURE_WORK.md` previously said `web/` "adds no dependency". That is no longer
-  true, and the doc is updated.
+## D1 — Web backend: FastAPI
+*2026-10-24 · `web/`*
+- **By:** Claude, recommended. User asked which of Express / FastAPI / Django suits LLM work and later accepted FastAPI.
+- **Why:** agent, local models and FAISS are Python, so the server must be too. Native SSE streaming of agent steps. Pydantic shapes. Auto `/docs`.
+- **Rejected:** Express (would need a second Python server); Django (ORM/admin, and there is no DB); Litestar/Starlette (no advantage); stdlib `http.server` (outgrown).
+- **Consequence:** `fastapi`, `uvicorn`, `httpx` pinned in `web/requirements.txt`, kept apart from the core `requirements.txt`.
 
 ## D2 — Frontend: Vite + React + TypeScript
-
 *2026-10-24 · `frontend/`*
-
-**Decided by:** Claude (agent). The user offered "Next.js / React, whichever you think is
-best".
-
-**Why:**
-- The page talks to a local Python backend. Nothing benefits from server-side rendering.
-- Vite builds to static files that FastAPI serves itself. The demo stays one process,
-  started with one command.
-- TypeScript, so the event and answer shapes coming off the SSE stream are typed once and
-  checked everywhere.
-
-**Rejected:**
-- **Next.js.** Its strengths are SSR, routing conventions and Vercel deployment, and none
-  of them apply. It would mean a second (Node) server alongside Python, or a static export
-  that discards most of what Next adds. Worth revisiting only if the app is ever hosted
-  publicly, or if Next.js experience is wanted for its own sake. That second reason is
-  legitimate, but it is not a technical one.
+- **By:** Claude. User said "Next.js / React, whichever is best" and accepted.
+- **Why:** local app with a Python backend, so no SSR needed. Static build that FastAPI serves: one process, one command.
+- **Rejected:** Next.js (SSR/Vercel strengths unused; adds a Node server). Revisit if it is ever hosted publicly.
 
 ## D3 — Three-pane conversational layout
-
 *2026-10-24 · `frontend/src/`*
+- **By:** user. Why: should feel like an agentic chat UI (Claude Desktop). Chats on the left, conversation in the middle, tool calls and memory on the right.
+- **Consequence:** Memory pane is a placeholder. Each question is still answered independently; the UI says so.
 
-**Decided by:** user.
-
-**Why (user's):** it should look and feel like an agentic conversational UI, as Claude
-Code does in Claude Desktop:
-- left: chats and chat history
-- centre: the conversation
-- right: tool calls, memory and similar
-
-The user noted that not all of it is backed by features yet ("later we will do that").
-The layout should exist now so the app looks finished and has places for those features
-to land.
-
-**Consequences:**
-- The **memory** pane is a labelled placeholder. The agent has no cross-session memory
-  (`docs/FUTURE_WORK.md`, "No cross-session memory").
-- **Each question is still answered independently.** A chat groups questions for the
-  user. It does not give the agent the earlier turns, and the UI says so. Feeding history
-  into the agent would change the system under evaluation, and would let the browser
-  produce answers the CLI cannot. That is a separate decision, not a UI detail.
+## D4 — Per-tool call limits replace the global iteration cap
+*2026-10-24 · `src/agent/loop.py`, `config.yaml` agent · changes ARCHITECTURE §7, TOOLS.md "Loop control"*
+- **Decision:** no `max_iterations`. Each tool may run 10 times per question; `search_literature` 5. No absolute ceiling.
+- **By:** user. Why: a new topic needs 2–3 retrieves, an overview, a literature search, then more retrieves, and one global budget of 8 gets eaten up. Each tool gets its own headroom. `search_literature` gets 5 because it downloads papers (slow, rate-limited), never below 5. No ceiling, because the per-tool limits already bound the loop.
+- **Fact noted:** the old cap counted model turns, not tool calls (one turn can make several calls).
+- **Backstops:** force the answer when every tool is exhausted, or after 3 consecutive turns with nothing run (refused calls cost no budget, so a stuck model would otherwise loop forever). Proposed by Claude; N=3 confirmed by user.
+- **Consequence:** worst case 45 tool calls in one question. Repeated searches trip arXiv's 429, and the cooldown makes them fail fast.
 
 ## D5 — Asking is `POST /api/ask`, read as a fetch stream
 
@@ -164,4 +103,6 @@ to land.
 
 ## Benched questions
 
-- **Chat history storage:** undecided. It will be designed together with conversation memory. Until then, chats live in the page's memory and are lost on reload, alongside the sample fixtures (D10). The server stores nothing (D5). The earlier D4 proposal of JSON files in `logs/web_chats/` was withdrawn by the user.
+- **Chat history storage:** undecided. Design it together with conversation memory. Until then, chats live only in page memory, seeded with the samples (D10). The server stores nothing (D5).
+- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts.
+- **`@types/react`, `@types/react-dom`:** dev-only TypeScript type definitions that `tsc` needs to check JSX. Installed; awaiting the user's approval.

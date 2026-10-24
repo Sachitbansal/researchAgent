@@ -26,7 +26,7 @@ takes. See [Show it in a browser](#show-it-in-a-browser).
 | **Collection** | Plans an arXiv query with an LLM, fetches PDFs, dedups against what is already held |
 | **Extraction** | PyMuPDF text + caption-driven figure rendering; a vision model describes each figure, and the description is embedded *with* its caption |
 | **Retrieval** | Two stage — bi-encoder over the full index (k=40), cross-encoder rerank on that shortlist only, a per-chunk relevance gate, then ±1 neighbour expansion |
-| **Agent** | One hand-written loop, five tools, an iteration cap and a forced final answer |
+| **Agent** | One hand-written loop, five tools, a call limit per tool (10; `search_literature` 5), two termination backstops and a forced final answer |
 | **Verification** | An NLI model checks drafted claims against retrieved text, and flags contradictions between sources |
 
 The five tools are `retrieve_evidence`, `search_literature`, `analyze_corpus`,
@@ -47,7 +47,7 @@ index "<topic>"
   → BGE embeddings → FAISS IndexFlatIP + a positional chunk_id map
 
 ask "<question>"
-  agent loop ── chooses among five tools, up to 8 iterations
+  agent loop ── chooses among five tools, up to 10 calls each (search_literature 5)
        │
        ├─ retrieve_evidence          bi-encoder top-40 → cross-encoder rerank
        │                             → relevance gate → top-5 + neighbours
@@ -181,8 +181,8 @@ every tool call with its arguments, what came back and how long it took:
 ```
 
 The answer itself goes to stdout, so `ask "..." > answer.txt` still captures the answer
-alone. Afterwards it prints the iteration count, tool-call count, context size, and the
-path to a full JSONL trace of every tool call under `logs/traces/`.
+alone. Afterwards it prints the iteration count, tool-call count, context size, why the
+loop stopped, the calls made per tool, and the path to a full JSONL trace of every tool call under `logs/traces/`.
 
 ### Run the eval
 
@@ -352,7 +352,9 @@ produced it. The ones most worth knowing:
 | `retrieval.k_retrieve` / `k_final` | 40 / 5 | wide cheap pool, narrow expensive context |
 | `retrieval.relevance_threshold` | −3.0 | swept −8..+2 on the tuning split only |
 | `retrieval.bi_encoder_relevance_threshold` | 0.55 | the gate when the cross-encoder did not run; a degraded fallback, not an alternative |
-| `agent.max_iterations` | 8 | with a forced final answer when the cap is hit |
+| `agent.max_calls_per_tool` | 10 | per tool, per question; an exhausted tool is no longer offered |
+| `agent.tool_call_limits` | `search_literature: 5` | it downloads papers: slow, and trips arXiv's per-IP 429 |
+| `agent.max_no_progress_turns` | 3 | consecutive turns with every call refused → forced final answer |
 | `agent.max_context_tokens` | 60000 | past this the oldest tool results are elided |
 | `nli.min_pair_similarity` | 0.75 | below it, NLI scores unrelated sentences as confident contradictions |
 

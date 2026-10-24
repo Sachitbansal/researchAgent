@@ -47,7 +47,7 @@ user question
       |
       v
   agent loop  <---------------------------------+
-      |  (model picks tools, max N iterations)   |
+      |  (model picks tools, max N calls/tool)   |
       +--> search_literature      arXiv -> PDF -> index
       +--> retrieve_evidence      bi-encoder -> rerank -> gate -> expand
       +--> inspect_figure         raw image to a vision model
@@ -260,8 +260,11 @@ increasing `k`.
 
 **Context discipline.** Tool results are truncated (~500 tokens/chunk), returned as
 structured records rather than raw text blobs, and deduplicated across iterations so
-repeated queries do not stack duplicate chunks into context. The loop has an
-iteration cap (6–8) plus loop detection on repeated `(tool, args)` pairs.
+repeated queries do not stack duplicate chunks into context. The loop has a per-tool
+call limit (`agent.max_calls_per_tool`, 10; `search_literature` 5) instead of an
+iteration cap, plus loop detection on repeated `(tool, args)` pairs. It forces a final
+answer when every tool is exhausted, or after `agent.max_no_progress_turns` (3)
+consecutive turns in which nothing was dispatched (`docs/DECISIONS.md` D4).
 
 ## 8. ML / data-analysis components
 
