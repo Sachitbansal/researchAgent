@@ -35,9 +35,11 @@ Python 3.10+ (developed and tested on 3.10.12).
 
 ## Hard constraints
 
-- **No agent framework.** No LangChain, no LlamaIndex, no CrewAI. The tool loop is
-  written directly against the provider SDK. How the agentic system is structured is
-  itself being evaluated — a framework hides that.
+- **No agent framework without the user's decision.** The tool loop was written
+  directly against the provider SDK for an interview where hand-rolling was the point.
+  It is now a personal project: a framework (LangGraph etc.) is allowed where it
+  genuinely helps, but only after comparing options with the user. Log it in
+  `docs/DECISIONS.md`. Never adopt one by default.
 - **No multi-agent orchestration.** One agent, five tools.
 - **No UI.** CLI only. `web/` is a demo shim outside `src/` that imports it, like
   `eval/`; nothing in `src/` may depend on it (`docs/FUTURE_WORK.md`).
@@ -124,6 +126,6 @@ Python 3.10+ (developed and tested on 3.10.12).
 ## Testing
 
 - Each tool gets a smoke test that runs it in isolation and asserts the return shape.
-- The agent loop gets a test with a stubbed LLM that asserts tool dispatch and the
-  iteration cap.
+- The agent loop gets a test with a stubbed LLM that asserts tool dispatch, per-tool
+  call limits and termination backstops.
 - Eval harness is separate from `src/` and imports it — never the reverse.

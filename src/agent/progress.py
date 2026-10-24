@@ -15,6 +15,13 @@ from typing import Any, Dict, Optional, TextIO
 from config import CFG, Config
 
 
+# What a `cap` event's `reason` (the loop's stopped_because) means, for one line.
+CAP_REASONS = {
+    "tools_exhausted": "every tool's call budget is used",
+    "no_progress": "several turns without a tool actually running",
+}
+
+
 def _plural(count: int, noun: str) -> str:
     return f"{count} {noun}" + ("" if count == 1 else "s")
 
@@ -121,4 +128,5 @@ class ConsoleReporter:
             self._write(f"{tag} answering")
         elif kind == "cap":
             self._close_line()
-            self._write(f"{tag} iteration cap reached — forcing an answer from what is held")
+            why = CAP_REASONS.get(event.get("reason"), "loop stopped")
+            self._write(f"{tag} {why} — forcing an answer from what is held")

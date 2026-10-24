@@ -140,6 +140,7 @@ def cmd_ask(args: argparse.Namespace) -> int:
         f"\n--- {result['iterations']} iteration(s), {result['tool_calls']} tool call(s), "
         f"{result['context_tokens']} context tokens, stopped: {result['stopped_because']}"
     )
+    print(f"--- tool calls per tool: {result['tool_call_counts']}")
     print(f"--- trace: {result['trace']}")
 
     if args.show_tools:
