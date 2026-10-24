@@ -85,14 +85,22 @@ who is not going to read a terminal.
 
 What keeps the constraint's intent intact:
 
-- It lives outside `src/` and imports it, the same direction as `eval/`. Nothing in
-  `src/` references it, so removing the directory changes nothing about the agent.
-- It adds no dependency: `http.server` from the standard library, and a hand-written
-  markdown renderer rather than a JS library.
+- It lives outside `src/`: `web/` (the server) imports it, the same direction as
+  `eval/`, and `frontend/` (the page) only talks to `web/` over HTTP. Nothing in `src/`
+  references either, so removing both directories changes nothing about the agent.
+- Its dependencies are its own. FastAPI, uvicorn and httpx (for tests) are pinned in
+  `web/requirements.txt`, and React, Vite and TypeScript in `frontend/package.json`. The
+  root `requirements.txt`, which pins the system under evaluation, is unchanged. The
+  answer renderer is still hand-written rather than a markdown library
+  (`docs/DECISIONS.md`, D1, D2, D7).
 - It runs the same `AgentLoop` with the same registry and config as `python main.py
   ask`. There is no second code path to keep in sync, and no answer can appear in the
-  browser that the CLI would not also give.
+  browser that the CLI would not also give. Each question goes to `loop.run` bare. Earlier
+  turns of a browser chat are never pasted in.
 
 What it is not: it holds one shared agent behind a lock, so it serves one question at a
-time and is not a server for more than one person. It has no authentication and binds
-to localhost by default. Neither is worth fixing unless it stops being a demo.
+time (a second asker is told it is busy) and is not a server for more than one person. It
+stores no chats. Chat history lives in the page until a reload, because where it should be
+kept is undecided and will be designed with conversation memory. It has no
+authentication and binds to localhost by default. Neither the single-user limit nor the
+missing authentication is worth fixing unless it stops being a demo.

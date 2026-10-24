@@ -1,0 +1,77 @@
+/* The client for web/api.py: the corpus, plus one streamed question.
+   In:  a question and a callback per SSE frame.
+   Out: parsed JSON, or an ApiError carrying the server's {error, detail}. Asking is a POST
+        read as a stream, not an EventSource, which would silently re-run on reconnect. */
+
+import type { Corpus } from "./types";
+
+export class ApiError extends Error {
+  constructor(public code: string, public detail: string) {
+    super(`${code}: ${detail}`);
+  }
+}
+
+async function json<T>(res: Response): Promise<T> {
+  let body: unknown = null;
+  try {
+    body = await res.json();
+  } catch {
+    /* fall through to the status check */
+  }
+  if (!res.ok) {
+    const b = (body ?? {}) as { error?: string; detail?: string };
+    throw new ApiError(b.error ?? `http_${res.status}`, b.detail ?? res.statusText);
+  }
+  return body as T;
+}
+
+export const getCorpus = () => fetch("/api/papers").then((r) => json<Corpus>(r));
+
+/** Ask, calling `onFrame` for every frame until the server sends `done`. */
+export async function ask(
+  question: string,
+  onFrame: (event: string, data: unknown) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch("/api/ask", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+    body: JSON.stringify({ question }),
+    signal,
+  });
+  if (!res.ok || !res.body) {
+    await json(res);
+    throw new ApiError("no_stream", "the server returned no stream");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  const dispatch = (block: string) => {
+    let event = "message";
+    const data: string[] = [];
+    for (const line of block.split("\n")) {
+      if (line.startsWith("event:")) event = line.slice(6).trim();
+      else if (line.startsWith("data:")) data.push(line.slice(5).replace(/^ /, ""));
+    }
+    if (!data.length) return;
+    try {
+      onFrame(event, JSON.parse(data.join("\n")));
+    } catch {
+      /* one malformed frame should not end the run on screen */
+    }
+  };
+
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+    let cut: number;
+    while ((cut = buffer.indexOf("\n\n")) >= 0) {
+      dispatch(buffer.slice(0, cut));
+      buffer = buffer.slice(cut + 2);
+    }
+  }
+  if (buffer.trim()) dispatch(buffer);
+}

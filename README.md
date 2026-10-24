@@ -15,8 +15,9 @@ OpenAI-compatible API, because how the agentic system is structured is itself pa
 what this project set out to evaluate.
 
 **Just want to see it work?** After [Setup](#setup), run `python web/server.py` and open
-<http://127.0.0.1:8000> — the same agent with a page to look at, including a live view of
-the steps it takes. See [Show it in a browser](#show-it-in-a-browser).
+<http://127.0.0.1:8000> (after a one-time `pip install -r web/requirements.txt` and frontend
+build). It is the same agent with a page to look at, including a live view of the steps it
+takes. See [Show it in a browser](#show-it-in-a-browser).
 
 ## What it does
 
@@ -197,23 +198,32 @@ Results land in `eval/results/`. Full write-up in
 
 ### Show it in a browser
 
-A one-page demo of the same agent, for showing the system to someone rather than driving
-it from a terminal.
+A three-pane chat UI over the same agent, for showing the system to someone rather than
+driving it from a terminal. You set it up once:
 
 ```bash
 source .venv/bin/activate
+pip install -r web/requirements.txt          # fastapi, uvicorn, httpx — web/ only
+cd frontend && npm install && npm run build  # Node 20.19+ or 22.12+ (Vite 8); writes frontend/dist/
+cd ..
+```
+
+Then run:
+
+```bash
 python web/server.py
 ```
 
-It loads the models first — about ten seconds — then prints:
+It loads the models first, which takes about ten seconds, then prints:
 
 ```
 loading models and the index ...
-ready — 22 paper(s) indexed
+ready — 11 paper(s) indexed
 open http://127.0.0.1:8000
 ```
 
-Open that address. Stop it with `Ctrl-C`.
+Open that address. Stop it with `Ctrl-C`. If `frontend/dist/` is missing, the API still
+runs, and the page tells you to run the build command.
 
 ```
 --port N        listen on a different port (default: 8000)
@@ -222,28 +232,55 @@ Open that address. Stop it with `Ctrl-C`.
 --config PATH   is NOT a flag here; use SCIAGENT_CONFIG=... python web/server.py instead
 ```
 
-**The Ask tab** takes a question and answers it with the same agent as `python main.py
-ask`, through the same config — there is no second code path, and no answer can appear
-here that the CLI would not also give. The answer arrives as formatted text; every
-citation is numbered like a paper's references, clickable, and listed with its title and
-an arXiv link underneath. While it works, each step streams into the margin: what the
-agent is thinking about, which tool it called with which arguments, what came back, and
-how long it took.
+**Frontend development.** Keep `python web/server.py` running, then
+`cd frontend && npm run dev` and open the address Vite prints (default
+<http://127.0.0.1:5173>). Vite proxies `/api` to `127.0.0.1:8000`. Set
+`SCIAGENT_BACKEND=http://127.0.0.1:PORT` if the server listens on another port.
+`npm run typecheck` runs `tsc` alone.
 
-**The Corpus tab** lists every paper currently indexed, grouped by the topic it was
-collected under, with the arXiv query the LLM planned for that topic. Per paper: title,
-authors, year, PDF filename, and how many chunks and figures it produced.
+**Left: chats and corpus.** *New chat*, the chats of this page session (newest first, each
+one deletable), and *Corpus*: every indexed paper grouped by the topic it was collected
+under, with the arXiv query the LLM planned for that topic. Per paper it lists title,
+authors, year, PDF filename, chunk and figure counts, and an arXiv link. Chats live only in
+the page's memory and are gone on reload, because where chat history should be stored is
+an open question (`docs/DECISIONS.md`, benched questions). The three chats tagged
+**Sample** are hand-written fixtures that show the layout populated. Their citations point
+at real passages, but the agent did not write them.
 
-It needs Python, the models and an index, so it cannot be hosted as a static site — run
-it on the machine that has the corpus. It holds one agent behind a lock, so it answers
-one question at a time and is not built for several people at once.
+**Centre: the conversation.** Each question goes to the same agent as `python main.py
+ask`, through the same config. There is no second code path, and no answer can appear here
+that the CLI would not also give. **Each question is answered independently**, because the
+agent is never shown earlier turns of the chat, and the page says so under the composer.
+While the agent works, a status line shows what it is doing: thinking, which tool it is
+calling, or writing the answer. The answer arrives as formatted text. Every citation is
+numbered like a paper's references, and clicking it opens the cited passage with an arXiv
+link. A reference list sits under the answer. Figures the agent looked at with
+`inspect_figure` appear inline.
 
-If a question makes the agent call `search_literature`, that step can sit in the margin
+**Right: the agent's working.** *Tool calls* is a turn-by-turn timeline of the selected
+answer, live while it runs. For each call it shows the tool, its arguments, what came back
+(expandable to the summarised result) and how long it took, plus skipped calls and stops.
+It ends with the run's stats: turns, tool calls, context tokens, why it stopped, and the
+trace's run id. *Sources* lists the cited passages per paper, as retrieval returned them.
+*Memory* is a labelled placeholder, because the agent has no cross-session memory yet. On
+narrow screens the panel becomes a drawer.
+
+It needs Python, the models and an index, so it cannot be hosted as a static site. Run it
+on the machine that has the corpus. It holds one agent and answers one question at a time.
+A second question asked meanwhile is told straight away that the agent is busy. Closing
+the tab does not cancel a run. The question finishes, and its trace is written, before the
+agent takes another.
+
+If a question makes the agent call `search_literature`, that step can sit in the timeline
 for minutes: fetching PDFs, extracting them, describing figures and embedding all happen
 inside that one tool call. For a demo, index the topic beforehand.
 
-`web/` sits outside `src/` and imports it, exactly as `eval/` does. Nothing in `src/`
-knows it exists: the system being evaluated is still the CLI.
+`web/` and `frontend/` sit outside `src/`. `web/` imports `src/`, exactly as `eval/` does.
+Nothing in `src/` knows either exists: the system being evaluated is still the CLI.
+
+API, for reference: `GET /api/papers` (the corpus), `POST /api/ask` with
+`{"question": ...}` (SSE: `step`… then `answer` or `failed`, then `done`, or else `busy`),
+`GET /api/figures/<paper_id>/<file>`, and `GET /api/status`.
 
 ## Results in brief
 
@@ -292,15 +329,16 @@ src/
   analysis/            NLI
   prompts/             system prompt and tool descriptions, as files
 eval/                  question set, annotation, metrics, tuning, ablation
-web/                   the browser demo — server.py plus three static files
+web/                   the browser UI's server — FastAPI, streams agent steps as SSE
+frontend/              the browser UI — Vite + React + TypeScript, built into frontend/dist/
 scripts/               one verification gate per milestone, m0..m8, plus the M9 demos
 tests/                 unit and smoke tests
 docs/                  the specs — these are authority, not background reading
 ```
 
 `eval/` imports `src/`, never the reverse. That is why `main.py` sits at the repo root:
-`eval` is one of its subcommands. `web/` sits outside `src/` for the same reason and
-follows the same rule — see
+`eval` is one of its subcommands. `web/` and `frontend/` sit outside `src/` for the same
+reason and follow the same rule — see
 [`docs/FUTURE_WORK.md`](docs/FUTURE_WORK.md#web-is-a-demo-shim-outside-the-system-under-evaluation).
 
 ## Configuration
