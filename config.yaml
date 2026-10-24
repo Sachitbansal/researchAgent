@@ -292,7 +292,23 @@ analysis:
   tfidf_top_terms: 8        # terms used to label each cluster
 
 agent:
-  max_iterations: 8
+  max_calls_per_tool: 10    # Each tool may be DISPATCHED at most this many times per
+                            # question. Replaces the old global max_iterations: 8, which a
+                            # new topic ate up (2-3 retrieve_evidence, analyze_corpus,
+                            # search_literature, then more retrieve_evidence on the new
+                            # papers). Per-tool limits give each tool its own headroom.
+                            # Only real dispatches count; refused calls (repeated, bad
+                            # JSON, unknown tool, over the limit) are free. An exhausted
+                            # tool is dropped from the tools offered to the model.
+                            # Worst case: 4 x 10 + 5 = 45 calls in one question.
+  tool_call_limits:         # Per-tool overrides of max_calls_per_tool.
+    search_literature: 5    # User's call: it downloads papers, which is slow and trips
+                            # arXiv's per-IP 429, so it gets fewer calls. Not below 5.
+  max_no_progress_turns: 3  # Force the final answer after this many CONSECUTIVE turns in
+                            # which every call was refused and nothing was dispatched.
+                            # With the hard cap gone, this plus "every tool exhausted" is
+                            # what keeps the loop bounded. Not measured; 3 confirmed by
+                            # the user (docs/DECISIONS.md D4).
   loop_detection: true      # break on repeated (tool_name, args)
   dedup_chunks_across_calls: true
   max_context_tokens: 60000 # Past this, the oldest tool results have their CONTENT
@@ -300,8 +316,9 @@ agent:
                             # deleting a tool message orphans its assistant tool_call and
                             # the API rejects the whole request.
   elision_placeholder_chars: 200
-  final_answer_nudge: true  # on hitting max_iterations, make one more call with
-                            # tool_choice=none so the model must answer with what it has
+  final_answer_nudge: true  # on a backstop (all tools exhausted, or no progress), make
+                            # one more call with no tools so the model must answer with
+                            # what it has
   trace_text_chars: 200     # per-chunk text kept in a trace record. Full chunk text in
                             # every record makes the log unusable (DATA_SCHEMA section 7)
   progress_text_chars: 60   # width of the args/result phrase on a live progress line.

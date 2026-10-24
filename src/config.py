@@ -55,6 +55,42 @@ class ConfigError(RuntimeError):
     """config.yaml is missing, malformed, or a requested key does not exist."""
 
 
+def _is_positive_int(value: Any) -> bool:
+    # bool is an int subclass, and `true` is not a call limit.
+    return isinstance(value, int) and not isinstance(value, bool) and value > 0
+
+
+def _validate_agent(agent: Any, config_path: Path) -> None:
+    """Fail at load if the loop's termination settings are missing or nonsensical.
+
+    These values are the loop's only bounds now that the global iteration cap is gone
+    (docs/DECISIONS.md, D4), so a typo here must not surface as a loop that never stops.
+    """
+    if not isinstance(agent, dict):
+        raise ConfigError(f"{config_path} agent section must be a mapping")
+    if "max_iterations" in agent:
+        raise ConfigError(
+            f"{config_path}: agent.max_iterations was removed; per-tool limits replace it. "
+            "Set agent.max_calls_per_tool (and agent.max_no_progress_turns) instead."
+        )
+    for key in ("max_calls_per_tool", "max_no_progress_turns"):
+        if not _is_positive_int(agent.get(key)):
+            raise ConfigError(
+                f"{config_path}: agent.{key} must be a positive integer, got {agent.get(key)!r}"
+            )
+    overrides = agent.get("tool_call_limits", {})
+    if overrides is None:
+        overrides = {}
+    if not isinstance(overrides, dict):
+        raise ConfigError(f"{config_path}: agent.tool_call_limits must be a mapping of tool -> int")
+    for name, limit in overrides.items():
+        if not _is_positive_int(limit):
+            raise ConfigError(
+                f"{config_path}: agent.tool_call_limits.{name} must be a positive integer, "
+                f"got {limit!r}"
+            )
+
+
 class Section:
     """Read-only attribute view over one mapping in config.yaml.
 
@@ -195,6 +231,8 @@ class Config:
         missing_paths = [key for key in REQUIRED_PATH_KEYS if key not in raw["paths"]]
         if missing_paths:
             raise ConfigError(f"{config_path} paths section is missing: {', '.join(missing_paths)}")
+
+        _validate_agent(raw["agent"], config_path)
 
         self.source_path = config_path
         self._raw = raw

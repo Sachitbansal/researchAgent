@@ -67,7 +67,8 @@ def main() -> int:
         print("No chunks indexed. Run scripts/m3_gate.py first.")
         return 1
 
-    print(f"model: {CFG.llm.agent_model}   max_iterations: {CFG.agent.max_iterations}")
+    print(f"model: {CFG.llm.agent_model}   max_calls_per_tool: {CFG.agent.max_calls_per_tool}"
+          f"   max_no_progress_turns: {CFG.agent.max_no_progress_turns}")
     print(f"question: {QUESTION}\n", flush=True)
 
     retriever = EvidenceRetriever(CFG)
@@ -80,7 +81,8 @@ def main() -> int:
         check("the loop completes", False, f"{result['error']}: {result['detail']}")
         return 1
     check("the loop completes", True,
-          f"{result['iterations']} iteration(s), stopped_because={result['stopped_because']}")
+          f"{result['iterations']} iteration(s), stopped_because={result['stopped_because']}, "
+          f"tool_call_counts={result['tool_call_counts']}")
 
     # The conversation is the whole memory. Print it so the re-send is visible.
     conversation = result["conversation"]

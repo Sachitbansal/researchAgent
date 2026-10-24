@@ -9,7 +9,7 @@ Out: the OpenAI `tools=[...]` payload, and `dispatch(name, args)` returning the 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Callable, Dict, List, Optional, Sequence
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence
 
 from config import CFG, Config
 
@@ -65,9 +65,26 @@ class ToolRegistry:
     def names(self) -> List[str]:
         return sorted(self._tools)
 
-    def schemas(self) -> List[Dict[str, Any]]:
-        """The `tools` payload for a completion request."""
-        return [self._tools[name].schema() for name in sorted(self._tools)]
+    def __contains__(self, name: object) -> bool:
+        return name in self._tools
+
+    def schemas(self, names: Optional[Iterable[str]] = None) -> List[Dict[str, Any]]:
+        """The `tools` payload for a completion request.
+
+        `names` restricts it to those tools — the loop passes the ones still under their
+        per-tool call limit, so an exhausted tool stops being offered. Unknown names are
+        ignored. None means every registered tool.
+        """
+        wanted = set(self._tools) if names is None else set(names) & set(self._tools)
+        return [self._tools[name].schema() for name in sorted(wanted)]
+
+    def unknown_tool_error(self, name: str) -> Dict[str, Any]:
+        """The result for a call to a tool that does not exist: what does exist instead."""
+        return {
+            "error": "unknown_tool",
+            "detail": f"no tool named {name!r}. Available tools: {', '.join(self.names)}",
+            "partial": None,
+        }
 
     def dispatch(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Run a tool by name. Always returns a dict, never raises.
@@ -78,11 +95,7 @@ class ToolRegistry:
         """
         spec = self._tools.get(name)
         if spec is None:
-            return {
-                "error": "unknown_tool",
-                "detail": f"no tool named {name!r}. Available tools: {', '.join(self.names)}",
-                "partial": None,
-            }
+            return self.unknown_tool_error(name)
         try:
             result = spec.handler(**arguments)
         except TypeError as exc:

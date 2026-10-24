@@ -1,5 +1,6 @@
 """
-Offline tests for M5: dispatch, the message-array contract, cap, loop detection, traces.
+Offline tests for M5: dispatch, the message-array contract, per-tool call limits and
+termination backstops, loop detection, traces.
 
 In:  a stubbed LLM that replays scripted responses — no network, no models.
 Out: assertions that the conversation the loop re-sends is one the API would accept, and
@@ -11,7 +12,7 @@ import json
 import pytest
 
 from agent.conversation import Conversation, ConversationError
-from agent.loop import AgentLoop, _canonical
+from agent.loop import NO_PROGRESS_NUDGE, TOOLS_EXHAUSTED_NUDGE, AgentLoop, _canonical
 from agent.tool_registry import RETRIEVE_EVIDENCE_PARAMETERS, ToolRegistry
 from agent.trace import TraceWriter, chunk_ids_of, summarise_result
 from config import load_config
@@ -243,24 +244,272 @@ def test_loop_stops_when_the_model_answers(cfg):
     assert result["answer"] == "Immediate answer."
     assert result["iterations"] == 1
     assert result["tool_calls"] == 0
+    assert result["tool_call_counts"] == {"retrieve_evidence": 0}
     assert result["stopped_because"] == "answered"
 
 
-def test_iteration_cap_is_enforced_and_forces_a_final_answer(cfg):
-    """On the cap the model must answer with what it has, and must not be offered tools
-    on that last call — otherwise it can keep asking forever."""
-    cap = int(cfg.agent.max_iterations)
-    client = ScriptedClient(*[
-        tool_response([(f"c{i}", "retrieve_evidence", {"query": f"q{i}"})]) for i in range(cap)
-    ], text_response("Partial answer from what I have."))
+class EndlessClient:
+    """Answers every request with a fresh tool-call turn built by `make(turn)`, forever.
 
+    The guard turns a regression in the termination backstops into a failure instead of
+    a hung test run. The forced final call (no tools offered) gets a text answer.
+    """
+
+    GUARD = 200
+
+    def __init__(self, make, final="Partial answer from what I have."):
+        self.make = make
+        self.final = final
+        self.requests = []
+
+    def complete(self, messages, tools=None, role="agent", **kwargs):
+        self.requests.append({"messages": messages, "tools": tools, "kwargs": kwargs})
+        if len(self.requests) > self.GUARD:
+            raise AssertionError("the loop did not terminate")
+        if tools is None:
+            return text_response(self.final)
+        return self.make(len(self.requests) - 1)
+
+
+def offered(request):
+    return sorted(t["function"]["name"] for t in (request["tools"] or []))
+
+
+def tool_messages(messages):
+    return [m for m in messages if m["role"] == "tool"]
+
+
+def assert_every_call_answered(messages):
+    requested = [c["id"] for m in messages for c in (m.get("tool_calls") or [])]
+    answered = [m["tool_call_id"] for m in tool_messages(messages)]
+    assert sorted(requested) == sorted(answered)
+
+
+def two_tool_registry(cfg, handler):
+    registry = ToolRegistry(cfg)
+    registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, handler)
+    registry.register("analyze_corpus", RETRIEVE_EVIDENCE_PARAMETERS, handler)
+    return registry
+
+
+def test_eleventh_call_to_one_tool_is_refused(cfg):
+    """Ten distinct calls run; the eleventh is answered with tool_limit_reached."""
+    limit = int(cfg.agent.max_calls_per_tool)
+    calls = []
+    client = ScriptedClient(*[
+        tool_response([(f"c{i}", "retrieve_evidence", {"query": f"q{i}"})])
+        for i in range(limit + 1)
+    ], text_response("answer"))
+    registry = two_tool_registry(cfg, lambda **kw: calls.append(kw) or ok_result())
+    result = AgentLoop(registry, client=client, config=cfg).run("q")
+
+    assert len(calls) == limit
+    assert result["tool_call_counts"] == {"retrieve_evidence": limit, "analyze_corpus": 0}
+    last = tool_messages(client.requests[-1]["messages"])[-1]
+    assert last["tool_call_id"] == f"c{limit}"
+    assert json.loads(last["content"])["error"] == "tool_limit_reached"
+    assert "retrieve_evidence" in last["content"] and str(limit) in last["content"]
+
+
+def test_parallel_calls_past_the_limit_in_one_turn_are_each_refused(cfg):
+    """Calls 10, 11 and 12 arrive in one turn: 10 runs, 11 and 12 are refused, and
+    every tool_call id still gets a result, or the next request would be invalid."""
+    limit = int(cfg.agent.max_calls_per_tool)
+    calls = []
+    client = ScriptedClient(
+        *[tool_response([(f"c{i}", "retrieve_evidence", {"query": f"q{i}"})])
+          for i in range(limit - 1)],
+        tool_response([(f"c{i}", "retrieve_evidence", {"query": f"q{i}"})
+                       for i in range(limit - 1, limit + 2)]),
+        text_response("answer"),
+    )
+    events = []
+    registry = two_tool_registry(cfg, lambda **kw: calls.append(kw) or ok_result())
+    result = AgentLoop(registry, client=client, config=cfg, on_event=events.append).run("q")
+
+    assert len(calls) == limit
+    assert result["tool_call_counts"]["retrieve_evidence"] == limit
+    assert result["tool_calls"] == limit
+    messages = client.requests[-1]["messages"]
+    assert_every_call_answered(messages)
+    by_id = {m["tool_call_id"]: json.loads(m["content"]) for m in tool_messages(messages)}
+    assert "error" not in by_id[f"c{limit - 1}"]
+    assert by_id[f"c{limit}"]["error"] == by_id[f"c{limit + 1}"]["error"] == "tool_limit_reached"
+    skipped = [e for e in events if e["kind"] == "skipped"]
+    assert len(skipped) == 2 and all("limit" in e["reason"] for e in skipped)
+
+
+def test_an_exhausted_tool_is_not_offered_on_the_next_call(tmp_path, monkeypatch):
+    cfg = _config_at(tmp_path, monkeypatch, max_calls_per_tool=2)
+    client = ScriptedClient(
+        tool_response([("c0", "retrieve_evidence", {"query": "a"})]),
+        tool_response([("c1", "retrieve_evidence", {"query": "b"})]),
+        text_response("answer"),
+    )
+    AgentLoop(two_tool_registry(cfg, lambda **kw: ok_result()), client=client,
+              config=cfg).run("q")
+
+    assert offered(client.requests[0]) == ["analyze_corpus", "retrieve_evidence"]
+    assert offered(client.requests[1]) == ["analyze_corpus", "retrieve_evidence"]
+    assert offered(client.requests[2]) == ["analyze_corpus"]
+
+
+def test_per_tool_override_changes_one_tools_limit(tmp_path, monkeypatch):
+    cfg = _config_at(tmp_path, monkeypatch, max_calls_per_tool=3,
+                     tool_call_limits={"analyze_corpus": 1})
+    client = ScriptedClient(
+        tool_response([("c0", "analyze_corpus", {"query": "a"})]),
+        text_response("answer"),
+    )
+    loop = AgentLoop(two_tool_registry(cfg, lambda **kw: ok_result()), client=client, config=cfg)
+    loop.run("q")
+    assert offered(client.requests[1]) == ["retrieve_evidence"]
+    system = client.requests[0]["messages"][0]["content"]
+    assert "{tool_call_budget}" not in system
+    assert "3 calls per tool (except analyze_corpus: 1)" in system
+
+
+def test_shipped_config_gives_search_literature_five_calls(cfg):
+    """The user's override: search_literature is slow and rate-limited, so 5, not 10."""
+    assert int(cfg.agent.max_calls_per_tool) == 10
+    assert int(cfg.agent.tool_call_limits.search_literature) == 5
+
+    calls = []
+    registry = ToolRegistry(cfg)
+    registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, lambda **kw: ok_result())
+    registry.register("search_literature", RETRIEVE_EVIDENCE_PARAMETERS,
+                      lambda **kw: calls.append(kw) or {"papers_added": []})
+    client = ScriptedClient(*[
+        tool_response([(f"s{i}", "search_literature", {"query": f"q{i}"})]) for i in range(6)
+    ], text_response("answer"))
+    result = AgentLoop(registry, client=client, config=cfg).run("q")
+
+    assert len(calls) == 5
+    assert result["tool_call_counts"] == {"retrieve_evidence": 0, "search_literature": 5}
+    assert offered(client.requests[5]) == ["retrieve_evidence"]
+    last = json.loads(tool_messages(client.requests[-1]["messages"])[-1]["content"])
+    assert last["error"] == "tool_limit_reached" and "5" in last["detail"]
+    system = client.requests[0]["messages"][0]["content"]
+    assert "10 calls per tool (except search_literature: 5)" in system
+
+
+def test_repeating_one_call_forever_stops_on_no_progress(cfg):
+    """The first call runs; every repeat is refused, so after N refused turns the loop
+    forces an answer instead of running until some cap that no longer exists."""
+    n = int(cfg.agent.max_no_progress_turns)
+    calls = []
+    client = EndlessClient(
+        lambda t: tool_response([(f"c{t}", "retrieve_evidence", {"query": "same"})]))
+    events = []
+    result = AgentLoop(registry_with(cfg, lambda **kw: calls.append(kw) or ok_result()),
+                       client=client, config=cfg, on_event=events.append).run("q")
+
+    assert len(calls) == 1
+    assert result["stopped_because"] == "no_progress"
+    assert result["iterations"] == 1 + n
+    assert result["tool_call_counts"] == {"retrieve_evidence": 1}
+    assert result["repeated_calls"] == n
+    assert result["answer"] == "Partial answer from what I have."
+    final = client.requests[-1]
+    assert final["tools"] is None, "no tools offered on the forced final call"
+    assert final["messages"][-1] == {"role": "user", "content": NO_PROGRESS_NUDGE}
+    cap = [e for e in events if e["kind"] == "cap"]
+    assert len(cap) == 1 and cap[0]["reason"] == "no_progress"
+
+
+def test_calling_a_nonexistent_tool_forever_stops_on_no_progress(cfg):
+    n = int(cfg.agent.max_no_progress_turns)
+    client = EndlessClient(lambda t: tool_response([(f"c{t}", "made_up_tool", {"x": t})]))
     result = AgentLoop(registry_with(cfg, lambda **kw: ok_result()), client=client,
                        config=cfg).run("q")
 
-    assert result["iterations"] == cap
-    assert result["stopped_because"] == "iteration_cap"
+    assert result["stopped_because"] == "no_progress"
+    assert result["iterations"] == n
+    assert result["tool_calls"] == 0
+    assert result["tool_call_counts"] == {"retrieve_evidence": 0}
+    assert result["trace_records"] == []
+    assert client.requests[-1]["tools"] is None
+    assert_every_call_answered(client.requests[-1]["messages"])
+
+
+def test_exhausting_every_tool_stops_with_tools_exhausted(tmp_path, monkeypatch):
+    cfg = _config_at(tmp_path, monkeypatch, max_calls_per_tool=3)
+    client = EndlessClient(lambda t: tool_response([
+        (f"r{t}", "retrieve_evidence", {"query": f"q{t}"}),
+        (f"a{t}", "analyze_corpus", {"query": f"q{t}"}),
+    ]))
+    events = []
+    result = AgentLoop(two_tool_registry(cfg, lambda **kw: ok_result()), client=client,
+                       config=cfg, on_event=events.append).run("q")
+
+    assert result["stopped_because"] == "tools_exhausted"
+    assert result["iterations"] == 3
+    assert result["tool_call_counts"] == {"retrieve_evidence": 3, "analyze_corpus": 3}
+    assert result["tool_calls"] == 6 == len(result["trace_records"])
+    final = client.requests[-1]
+    assert final["tools"] is None
+    assert final["messages"][-1] == {"role": "user", "content": TOOLS_EXHAUSTED_NUDGE}
     assert result["answer"] == "Partial answer from what I have."
-    assert client.requests[-1]["tools"] is None, "no tools offered on the forced final call"
+    assert [e["reason"] for e in events if e["kind"] == "cap"] == ["tools_exhausted"]
+
+
+def test_refused_calls_do_not_consume_a_tools_budget(tmp_path, monkeypatch):
+    """Repeated, malformed, unknown and over-limit calls are all free."""
+    from llm_client import _parse_response
+
+    cfg = _config_at(tmp_path, monkeypatch, max_calls_per_tool=2)
+    bad = _parse_response({
+        "model": "stub",
+        "choices": [{"message": {"role": "assistant", "content": None, "tool_calls": [
+            {"id": "bad", "type": "function",
+             "function": {"name": "retrieve_evidence", "arguments": "{not json"}}]},
+            "finish_reason": "tool_calls"}],
+    })
+    client = ScriptedClient(
+        tool_response([("c0", "retrieve_evidence", {"query": "a"})]),
+        tool_response([("c1", "retrieve_evidence", {"query": "a"}),     # repeat
+                       ("c2", "ghost_tool", {"query": "a"})]),          # unknown
+        bad,                                                             # bad JSON
+        tool_response([("c3", "retrieve_evidence", {"query": "b"}),     # 2nd real call
+                       ("c4", "retrieve_evidence", {"query": "c"})]),   # over the limit
+        text_response("answer"),
+    )
+    result = AgentLoop(two_tool_registry(cfg, lambda **kw: ok_result()), client=client,
+                       config=cfg).run("q")
+
+    assert result["stopped_because"] == "answered"
+    assert result["tool_call_counts"] == {"retrieve_evidence": 2, "analyze_corpus": 0}
+    assert result["tool_calls"] == 2 == len(result["trace_records"])
+    assert_every_call_answered(client.requests[-1]["messages"])
+
+
+def test_a_dispatched_call_that_errors_still_counts(cfg):
+    """An error from inside the tool is a real dispatch: it ran, so it is budgeted."""
+    def explode(**kwargs):
+        raise RuntimeError("boom")
+
+    client = ScriptedClient(
+        tool_response([("c1", "retrieve_evidence", {"query": "x"})]), text_response("a"))
+    result = AgentLoop(registry_with(cfg, explode), client=client, config=cfg).run("q")
+    assert result["tool_call_counts"] == {"retrieve_evidence": 1}
+
+
+def test_stale_max_iterations_is_rejected_at_load(tmp_path, monkeypatch):
+    from config import ConfigError
+
+    with pytest.raises(ConfigError, match="max_calls_per_tool"):
+        _config_at(tmp_path, monkeypatch, max_iterations=8)
+
+
+@pytest.mark.parametrize("key, value", [
+    ("max_calls_per_tool", 0), ("max_calls_per_tool", True), ("max_no_progress_turns", -1),
+    ("max_no_progress_turns", "3"), ("tool_call_limits", {"search_literature": 0}),
+])
+def test_bad_termination_settings_fail_at_load(tmp_path, monkeypatch, key, value):
+    from config import ConfigError
+
+    with pytest.raises(ConfigError, match=key):
+        _config_at(tmp_path, monkeypatch, **{key: value})
 
 
 def test_loop_detection_injects_a_notice_instead_of_re_executing(cfg):
@@ -500,3 +749,17 @@ def test_progress_lines_are_one_per_event(cfg):
     assert lines[1].startswith("[1] → retrieve_evidence(query='protein folding') ... ")
     assert lines[1].endswith("1 chunk, 840ms")
     assert lines[2] == "[2] answering"
+
+
+@pytest.mark.parametrize("reason, phrase", [
+    ("tools_exhausted", "budget is used"), ("no_progress", "without a tool actually running"),
+])
+def test_progress_names_why_the_loop_stopped(cfg, reason, phrase):
+    import io
+
+    from agent.progress import ConsoleReporter
+
+    stream = io.StringIO()
+    ConsoleReporter(stream=stream, config=cfg)({"kind": "cap", "iteration": 4, "reason": reason})
+    line = stream.getvalue().strip()
+    assert line.startswith("[5] ") and phrase in line and "forcing an answer" in line

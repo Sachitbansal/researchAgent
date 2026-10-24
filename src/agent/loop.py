@@ -2,10 +2,10 @@
 The agent loop: call the model, run whatever tools it asks for, repeat until it answers.
 
 In:  a question, an LLMClient, a ToolRegistry, and an optional on_event observer.
-Out: {"answer", "iterations", "tool_calls", "run_id", "stopped_because", ...}, plus a
-     live event per step to on_event if one was given. Written directly against the
-     provider SDK — no framework — because how this loop is shaped is itself part of
-     what the project is evaluating (ARCHITECTURE section 14).
+Out: {"answer", "iterations", "tool_calls", "tool_call_counts", "run_id",
+     "stopped_because", ...}, plus a live event per step to on_event if one was given.
+     Bounded by a per-tool call limit and two backstops, not an iteration cap
+     (docs/DECISIONS.md D4). Written directly against the provider SDK — no framework.
 """
 
 from __future__ import annotations
@@ -27,11 +27,32 @@ LOOP_NOTICE = (
     "different tool, or answer from the evidence you already have."
 )
 
-CAP_NUDGE = (
-    "You have used all available tool calls for this question. Answer now using only the "
-    "evidence already retrieved above. State explicitly that the evidence is partial, and "
-    "do not claim anything the retrieved chunks do not support."
+# What the model is told when it calls a tool whose per-question budget is spent.
+# Formatted with the tool name and its limit.
+LIMIT_NOTICE = (
+    "You have used all {limit} calls to {tool} allowed for this question, so this call was "
+    "not run. {tool} is no longer offered. Use a different tool, or answer from the "
+    "evidence you already have."
 )
+
+# The forced final answer, one message per reason the loop stopped asking for tools.
+TOOLS_EXHAUSTED_NUDGE = (
+    "All tool budgets for this question are used up, so no more tool calls are possible. "
+    "Answer now using only the evidence already retrieved above. State explicitly that "
+    "the evidence is partial, and do not claim anything the retrieved chunks do not support."
+)
+
+NO_PROGRESS_NUDGE = (
+    "Several turns have passed without any new evidence: every recent tool call was "
+    "refused. Stop calling tools and answer now using only the evidence already retrieved "
+    "above. State explicitly that the evidence is partial, and do not claim anything the "
+    "retrieved chunks do not support."
+)
+
+STOP_NUDGES = {"tools_exhausted": TOOLS_EXHAUSTED_NUDGE, "no_progress": NO_PROGRESS_NUDGE}
+
+# Filled into the system prompt's {tool_call_budget} placeholder.
+BUDGET_PLACEHOLDER = "{tool_call_budget}"
 
 
 def _canonical(name: str, arguments: Dict[str, Any]) -> str:
@@ -101,9 +122,35 @@ class AgentLoop:
         attached = attach_images(conversation.messages(), [resolved["image_path"]])
         conversation._messages[-1] = attached[-1]
 
+    def _limits(self) -> Dict[str, int]:
+        """Per-question dispatch limit for every registered tool.
+
+        agent.max_calls_per_tool, unless agent.tool_call_limits names the tool.
+        """
+        agent = self.config.agent
+        default = int(agent.max_calls_per_tool)
+        overrides = agent.get("tool_call_limits") or {}
+        return {name: int(overrides.get(name, default)) for name in self.registry.names}
+
+    def _system_prompt(self, limits: Dict[str, int]) -> str:
+        """The system prompt with the tool budget filled in from config, not hardcoded."""
+        default = int(self.config.agent.max_calls_per_tool)
+        phrase = f"{default} calls per tool"
+        differing = {name: n for name, n in limits.items() if n != default}
+        if differing:
+            phrase += " (except " + ", ".join(
+                f"{name}: {n}" for name, n in sorted(differing.items())) + ")"
+        return self.config.prompt("system").replace(BUDGET_PLACEHOLDER, phrase)
+
     def run(self, question: str, question_id: Optional[str] = None,
             run_id: Optional[str] = None) -> Dict[str, Any]:
-        """Answer `question`, calling tools as the model chooses."""
+        """Answer `question`, calling tools as the model chooses.
+
+        Termination, without an iteration cap: each tool is dispatched at most its limit,
+        so at most sum(limits) turns make progress, and `max_no_progress_turns`
+        consecutive turns that dispatch nothing end the run: at most sum(limits)*(N+1)+N
+        turns. With the shipped config (4 tools x 10, search_literature 5, N=3), 183.
+        """
         question = (question or "").strip()
         if not question:
             return {"error": "empty_question", "detail": "a non-empty question is required",
@@ -114,32 +161,48 @@ class AgentLoop:
             self.retriever.reset()
 
         config = self.config
-        conversation = Conversation(config.prompt("system"), question, config)
+        limits = self._limits()
+        counts: Dict[str, int] = {name: 0 for name in limits}
+        max_no_progress = int(config.agent.max_no_progress_turns)
+        conversation = Conversation(self._system_prompt(limits), question, config)
         tracer = TraceWriter(run_id=run_id, question_id=question_id, config=config)
         seen_calls: Set[str] = set()
-        tool_calls_made = 0
         repeated_calls = 0
         stopped_because = "answered"
-        max_iterations = int(config.agent.max_iterations)
-        iteration = 0
+        no_progress_turns = 0
+        turns = 0
 
-        for iteration in range(max_iterations):
+        def failure(exc: LLMError) -> Dict[str, Any]:
+            return {
+                "error": exc.code,
+                "detail": exc.detail,
+                "partial": {
+                    "answer": conversation.final_text(),
+                    "iterations": turns,
+                    "run_id": tracer.run_id,
+                    "trace": str(tracer.path),
+                },
+            }
+
+        def refuse(call_id: str, iteration: int, tool_name: str, error: Dict[str, Any],
+                   reason: str) -> None:
+            # Every tool_call id must get a result, refused or not, or the next request
+            # is invalid. A refusal never consumes the tool's budget.
+            conversation.add_tool_result(call_id, error)
+            self._emit("skipped", iteration=iteration, tool_name=tool_name, reason=reason)
+
+        while True:
+            iteration = turns
+            available = [name for name in limits if counts[name] < limits[name]]
             self._emit("thinking", iteration=iteration)
             try:
                 response = self.client.complete(
-                    conversation.messages(), tools=self.registry.schemas(), role="agent"
+                    conversation.messages(), tools=self.registry.schemas(available),
+                    role="agent",
                 )
             except LLMError as exc:
-                return {
-                    "error": exc.code,
-                    "detail": exc.detail,
-                    "partial": {
-                        "answer": conversation.final_text(),
-                        "iterations": iteration,
-                        "run_id": tracer.run_id,
-                        "trace": str(tracer.path),
-                    },
-                }
+                return failure(exc)
+            turns += 1
 
             if not response.has_tool_calls:
                 conversation.add_assistant(response)
@@ -152,16 +215,22 @@ class AgentLoop:
             conversation.add_assistant(response)
 
             pending_images: List[Dict[str, Any]] = []
+            dispatched_this_turn = 0
 
             for call in response.tool_calls:
                 if not call.ok:
-                    conversation.add_tool_result(call.id, {
+                    refuse(call.id, iteration, call.name, {
                         "error": "bad_arguments",
                         "detail": f"arguments were not valid JSON: {call.parse_error}",
                         "partial": None,
-                    })
-                    self._emit("skipped", iteration=iteration, tool_name=call.name,
-                               reason="arguments were not valid JSON")
+                    }, "arguments were not valid JSON")
+                    continue
+
+                if call.name not in self.registry:
+                    # Caught before dispatch so a hallucinated name is a refusal like any
+                    # other: no budget, no loop-detection key, no trace record.
+                    refuse(call.id, iteration, call.name,
+                           self.registry.unknown_tool_error(call.name), "no such tool")
                     continue
 
                 key = _canonical(call.name, call.arguments)
@@ -169,20 +238,30 @@ class AgentLoop:
                     # A synthetic result rather than a hard break: the situation is
                     # recoverable, and the model can change tack on the next turn.
                     repeated_calls += 1
-                    conversation.add_tool_result(call.id, {
+                    refuse(call.id, iteration, call.name, {
                         "error": "repeated_call", "detail": LOOP_NOTICE, "partial": None,
-                    })
-                    self._emit("skipped", iteration=iteration, tool_name=call.name,
-                               reason="already called with these arguments")
+                    }, "already called with these arguments")
+                    continue
+
+                if counts[call.name] >= limits[call.name]:
+                    # Checked per call, not per turn: one turn can ask for more parallel
+                    # calls than the tool has budget left.
+                    refuse(call.id, iteration, call.name, {
+                        "error": "tool_limit_reached",
+                        "detail": LIMIT_NOTICE.format(tool=call.name,
+                                                      limit=limits[call.name]),
+                        "partial": None,
+                    }, f"{call.name} call limit ({limits[call.name]}) reached")
                     continue
 
                 seen_calls.add(key)
+                counts[call.name] += 1
+                dispatched_this_turn += 1
                 self._emit("tool_start", iteration=iteration, tool_name=call.name,
                            args=call.arguments)
                 started = time.perf_counter()
                 result = self.registry.dispatch(call.name, call.arguments)
                 latency_ms = int((time.perf_counter() - started) * 1000)
-                tool_calls_made += 1
                 self._emit("tool_end", iteration=iteration, tool_name=call.name,
                            result=result, latency_ms=latency_ms)
 
@@ -201,33 +280,34 @@ class AgentLoop:
                 self._attach_image(conversation, image)
 
             conversation.elide_if_needed()
-        else:
-            # Cap reached with tools still being requested.
-            stopped_because = "iteration_cap"
-            self._emit("cap", iteration=max_iterations - 1)
+
+            # The two backstops. Together with the per-tool limits they are what bound
+            # the loop; there is deliberately no absolute iteration ceiling.
+            no_progress_turns = 0 if dispatched_this_turn else no_progress_turns + 1
+            if all(counts[name] >= limits[name] for name in limits):
+                stopped_because = "tools_exhausted"
+            elif no_progress_turns >= max_no_progress:
+                stopped_because = "no_progress"
+            else:
+                continue
+
+            self._emit("cap", iteration=iteration, reason=stopped_because)
             if bool(config.agent.final_answer_nudge):
-                conversation.add_user(CAP_NUDGE)
+                conversation.add_user(STOP_NUDGES[stopped_because])
                 try:
                     # No tools offered, so the model cannot ask for another call.
                     forced = self.client.complete(conversation.messages(), role="agent")
                     conversation.add_assistant(forced)
                 except LLMError as exc:
-                    return {
-                        "error": exc.code,
-                        "detail": exc.detail,
-                        "partial": {
-                            "answer": conversation.final_text(),
-                            "iterations": max_iterations,
-                            "run_id": tracer.run_id,
-                            "trace": str(tracer.path),
-                        },
-                    }
+                    return failure(exc)
+            break
 
         return {
             "answer": conversation.final_text(),
             "question": question,
-            "iterations": iteration + 1,
-            "tool_calls": tool_calls_made,
+            "iterations": turns,
+            "tool_calls": sum(counts.values()),
+            "tool_call_counts": dict(counts),
             "repeated_calls": repeated_calls,
             "stopped_because": stopped_because,
             "messages_in_context": len(conversation),

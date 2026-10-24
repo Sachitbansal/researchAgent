@@ -118,12 +118,13 @@ The core of the system. One tool wired in (`retrieve_evidence`), nothing else.
 
 - tool registry: schema generation, dispatch by name
 - loop: call model → if tool_use, execute → append result → repeat
-- iteration cap
+- iteration cap (later replaced by per-tool call limits, `docs/DECISIONS.md` D4)
 - loop detection on repeated `(tool_name, args)`
 - trace logging per `docs/DATA_SCHEMA.md` §7
 - system prompt loaded from `src/prompts/system.md`
 
-**Gate:** a test with a stubbed LLM asserting dispatch, cap enforcement, and loop
+**Gate:** a test with a stubbed LLM asserting dispatch, cap enforcement (now: per-tool
+call limits and termination backstops), and loop
 detection — no network. Then one real question end to end, with the trace file
 inspected by hand.
 
