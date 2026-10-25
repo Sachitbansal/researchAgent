@@ -65,6 +65,10 @@ _ABSTAIN_MARKERS = (
     "does not contain", "do not contain", "doesn't contain", "no information",
     "not covered", "unable to answer", "insufficient evidence", "nothing in the",
     "not present in", "no relevant", "does not appear",
+    # Added 2026-10-25, before the final eval run: the fetch-proposal answers (D25) say
+    # the corpus "does not cover" a subject, and af01 was a correct refusal scored as an
+    # answer for want of this phrase (docs/EVALUATION.md, retrieval upgrade section).
+    "does not cover", "doesn't cover", "do not cover",
 )
 
 

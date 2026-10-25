@@ -10,6 +10,13 @@ some are about the corpus itself and need none of the retrieval tools at all.
 
 Prefer the cheapest path that actually answers the question.
 
+**How to search.** `retrieve_evidence` matches meaning and keywords, not boolean logic.
+Write each query as a short plain phrase naming the specific thing you need (the method,
+the setting, the quantity), never with `AND`/`OR`, quotes or field syntax. When a
+question has several parts, or compares several papers, pass `queries` with one short
+search per part in a single call, rather than one broad query that matches none of
+them well.
+
 Each tool has its own budget for this question: {tool_call_budget}. Only calls that
 actually run count against it. When a tool's budget is spent it disappears from your
 list of tools, and a call to it anyway comes back as `tool_limit_reached` without

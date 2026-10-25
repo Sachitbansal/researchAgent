@@ -503,3 +503,11 @@ def test_fetch_check_refuses_while_an_arxiv_cooldown_is_live(tmp_path, monkeypat
     monkeypatch.setattr(script, "ROOT", tmp_path)
     report = script.run_check("anything", 3)
     assert report["status"] == "refused" and "cooldown" in report["reason"]
+
+
+def test_fetch_proposal_wording_counts_as_abstention():
+    """A proposal answer says the corpus "does not cover" the subject: a refusal (af01)."""
+    from eval.metrics import looks_like_abstention
+    assert looks_like_abstention("The indexed corpus does not cover this topic.")
+    assert looks_like_abstention("The corpus doesn't cover few-step diffusion.")
+    assert not looks_like_abstention("The papers cover three routing schemes [a__c0001].")
