@@ -28,6 +28,9 @@ A failed `retrieve_evidence` carries a `coverage_gap`. Act on its `suggested_nex
 - If `coverage_gap.filtered` is true, the search was narrowed by `topic_filter` or
   `chunk_types`. Retry once without the filter before saying the corpus lacks anything.
   An empty index (`empty_index`) lacks every subject: say so, and mention the button.
+- The button appears only when your **last unfiltered** `retrieve_evidence` returned
+  `propose_fetch` (or `empty_index`). In any other case it does not appear, so do not
+  mention it: if you decline to answer for another reason, just say why.
 
 **Call `search_literature` only when the user has approved a fetch.** The approval
 message says so explicitly. After fetching, retrieve again and answer the original

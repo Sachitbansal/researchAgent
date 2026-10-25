@@ -6,6 +6,8 @@ Out: assertions that weak chunks are withheld, filters are membership tests, nei
      attach within budget, and repeated queries do not restack the context window.
 """
 
+import zlib
+
 import numpy as np
 import pytest
 
@@ -55,7 +57,7 @@ class StubEmbedder(Embedder):
     def _encode(self, texts):
         out = np.zeros((len(texts), self.dim), dtype=np.float32)
         for row, text in enumerate(texts):
-            out[row, abs(hash(text)) % self.dim] = 1.0
+            out[row, zlib.crc32(text.encode("utf-8")) % self.dim] = 1.0
         return out
 
 

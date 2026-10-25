@@ -11,6 +11,7 @@ Out: assertions on the coverage_gap shape and its per-scorer margin, admission b
 import importlib.util
 import json
 import time
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,7 +69,9 @@ class StubEmbedder(Embedder):
     def _encode(self, texts):
         out = np.zeros((len(texts), self.dim), dtype=np.float32)
         for row, text in enumerate(texts):
-            out[row, abs(hash(text)) % self.dim] = 1.0
+            # crc32, not hash(): hash() is salted per process, so a query and a chunk
+            # would land in the same bucket (cosine 1.0, gate passes) on random runs.
+            out[row, zlib.crc32(text.encode("utf-8")) % self.dim] = 1.0
         return out
 
 
