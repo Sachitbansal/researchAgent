@@ -61,7 +61,7 @@ ask "<question>"
 
 **No agent framework.** The loop is written directly against the provider's API. How the
 agentic system is structured is part of what is being evaluated, and a framework hides
-it. The whole loop is ~200 lines.
+it. The loop itself (`src/agent/loop.py`) is about 500 lines, most of it comments explaining why.
 
 **The agent chooses its tools.** There is no routing logic — the model gets five schemas
 and decides. Most questions need only `retrieve_evidence`; some need none of them.
@@ -208,7 +208,7 @@ loop stopped, the calls made per tool, and the path to a full JSONL trace of eve
 **When the corpus lacks the subject**, the agent does not fetch on its own. It says what
 it searched for and which held topics came closest, and the run ends with a line like
 `--- fetch proposal: "<query>"  (re-ask with --approve-fetch)`. To approve, continue the
-same thread (`docs/DECISIONS.md` D30–D33):
+same thread (`docs/DECISIONS.md` D24–D27):
 
 ```bash
 python main.py ask --thread <id> --approve-fetch "<query>"   # fetch, then answer the previous question
@@ -465,3 +465,4 @@ gate's output, not by an assertion; `docs/ARCHITECTURE.md` §15 lists them.
 | [`docs/DATA_SCHEMA.md`](docs/DATA_SCHEMA.md) | records, ids, hashes, on-disk layout |
 | [`docs/EVALUATION.md`](docs/EVALUATION.md) | what was measured and what the numbers do not say |
 | [`docs/BUILD_PLAN.md`](docs/BUILD_PLAN.md) | the milestones and their verification gates |
+| [`docs/research/`](docs/research/) | the 2026 agentic-engineering landscape (memory, frameworks, agentic RAG), mapped to what was built, and a one-page framework comparison |

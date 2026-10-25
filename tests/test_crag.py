@@ -434,9 +434,11 @@ def test_the_loop_result_carries_the_derived_proposal(cfg):
     registry = ToolRegistry(cfg)
     registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, lambda **kw: dict(gap))
     client = Scripted(_tool_call("c1", "retrieve_evidence", {"query": "an absent subject"}),
-                      _text("The corpus cannot answer this."))
+                      _text("The corpus cannot answer this."),
+                      _text("absent subject keywords"))  # the fetch-query rewrite (D28)
     result = AgentLoop(registry, client=client, config=cfg).run("question?")
-    assert result["fetch_proposal"]["query"] == "an absent subject"
+    assert result["fetch_proposal"]["query"] == "absent subject keywords"
+    assert result["fetch_proposal"]["agent_query"] == "an absent subject"
     assert fetch_proposal_detected(result) is True
 
 

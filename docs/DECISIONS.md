@@ -133,7 +133,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 
 - **Decision:** when the gate fails, `retrieve_evidence` returns `coverage_gap` with the query, best score, the threshold and scorer that actually ran, up to 3 closest topics, `suggested_next` (`rephrase` | `propose_fetch`) and `proposed_query`. It is data, not a call, so tools still never call tools.
 - **By:** user. The prompt rule that tells the agent how to act on the hint is phase 2 (`src/prompts/system.md` is untouched here).
-- **Margins (by Claude, measured, need user confirmation):** `rephrase_margin` is 0.25 logits and `bi_encoder_rephrase_margin` is 0.0. They are per scorer for the same reason the thresholds are.
+- **Margins (by Claude, measured; confirmed by user 2026-10-25):** `rephrase_margin` is 0.25 logits and `bi_encoder_rephrase_margin` is 0.0. They are per scorer for the same reason the thresholds are.
 - **Why so small:** no failed retrieval, at any distance, was recovered by rewording the same request. The one answerable miss (mp03) sits 2.51 below, further than four absent topics. A wrong `rephrase` silently suppresses the proposal; a wrong `propose_fetch` is a button the user can ignore.
 - **Resolved by Claude:** the hint is absent on non-gate paths (empty filter, no candidates, all already returned). `proposed_query` is the retrieve query itself, because `search_literature` plans its own arXiv syntax.
 
@@ -143,7 +143,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 
 - **Decision:** `search_literature` scores `(query, title + abstract)` for every arXiv result with the retriever's cross-encoder (no new model) and never downloads, indexes or tags papers below `collection.admission_threshold`. They are reported in `papers_rejected`. If every result is rejected, the tool says arXiv does not cover the topic well, and this is a result, not an error. A broken cross-encoder admits everything with `admission_gate: "skipped: <reason>"`.
 - **By:** user. The threshold is measured offline (`eval/tune_admission.py`, no arXiv calls): -3.0, the permissive end of the perfect separation on topic-shaped pairs.
-- **Trade-off:** question-shaped queries score far lower against whole abstracts, so only 61.5% of those positives are admitted at -3.0. The pooled sweep's -7.0 would let 3 of 11 adjacent cross-topic papers in instead. Needs user confirmation.
+- **Trade-off:** question-shaped queries score far lower against whole abstracts, so only 61.5% of those positives are admitted at -3.0. The pooled sweep's -7.0 would let 3 of 11 adjacent cross-topic papers in instead. -3.0 confirmed by user 2026-10-25.
 - **Resolved by Claude:** the gate also covers dedup hits, so a rejected paper already held is not tagged with the new topic. `main.py index` calls `collect` directly and stays ungated, because it is an explicit user command, not the agent. `eval/build_corpus.py` goes through `LiteratureSearcher`, so it is now gated. The selection rule (topic-shaped pairs first) was adopted after the pooled sweep had recommended -7.0, and both numbers are recorded.
 
 ## D17 — Eval: an `absent_fetchable` category, plus a manual check on a throwaway copy
@@ -162,7 +162,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Decision:** `AgentLoop.run` returns `fetch_proposal: {query, searched_for, best_score, closest_topics} | null`. It is derived from the run's last `retrieve_evidence` call when that call's `coverage_gap` says `propose_fetch` and `search_literature` was not called afterwards. A later passing retrieval clears it. `eval.metrics.fetch_proposal_detected` only reads this field.
 - **By:** user.
 - **Rejected:** a text marker the agent writes, because it can be forgotten or garbled.
-- **Consequence:** the `loop.py` change is one import and one return field, kept small because the memory branch edits the same file.
+- **Consequence:** the `loop.py` change is one import and one return field, kept small because the memory branch edits the same file. (D28 adds a rewrite of the proposal's query after this derivation; the derivation itself stays pure.)
 
 ## D19 — Long-term memory: grounded findings across chats
 
@@ -252,11 +252,22 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Resolved by Claude:** the card is actionable only on the **latest** answer of a real (non-sample) chat while nothing runs, since the approval asks the agent to answer "my previous question". On an older answer it says a later question followed. While another run is going, the button is disabled with a reason. If the approval run failed, the card says so and to ask again, rather than claiming success. The stored turn still carries `approved_fetch`, so the button stays gone.
 - **Admission verdict in the step summary:** `search_literature`'s outcome line now shows how many papers the gate rejected and "arXiv covers this poorly" when `arxiv_coverage` is `poor`.
 
+## D28 — Fetch query rewritten from the user's question
+
+*2026-10-25 · `src/agent/fetch_query.py`, `src/prompts/fetch_query.md`, `src/agent/loop.py`, `config.yaml` agent*
+
+- **By:** user, option (a). When a run ends with a proposal, one `utility` call rewrites the user's question into a short keyword phrase. That phrase becomes `fetch_proposal.query`. The agent's last unfiltered retrieve query is kept as `agent_query`, and `searched_for` is unchanged. `query_source` is `"rewritten"`, or `"agent"` on a fallback.
+- **Why:** the agent's queries drift. In the phase-2 check, "4-bit post-training quantization of ViTs" proposed `vision image classification transformer ViT`. The admission gate scores against the fetched query, so it would have admitted generic ViT papers.
+- **Rejected:** the first failed query, because it is still the agent's wording, not the user's. The verbatim question, because at -3.0 the gate admits only 61.5% of relevant papers for question-shaped queries (D16). Keeping the query as it was.
+- **Guards:** no call without a proposal, and the call is made once, with no retry. An LLM error, an empty reply, more than one line, a sentence or question shape (a `?`, closing `.`/`!`, an opening question word, more than `agent.fetch_query_max_words` (12) words), or more than `agent.fetch_query_max_chars` all fall back to the agent query with `rewrite_error`. Nothing raises. The derivation stays pure, and the rewrite is a separate helper that tests drive with a stub client.
+- **Threads (resolved by Claude):** the prompt always gets the current turn's question, plus the thread's previous stored question as context, so "what about 2-bit?" and approval turns resolve their subject. The prompt tells the model to ignore the earlier question when the current one names its own subject. An approval run that re-derives a proposal also pays for one rewrite, which nothing shows (D26).
+- **Card:** still editable. Its label reads "Search arXiv for (suggested from your question)" when `query_source` is `"rewritten"`.
+
 ---
 
 ## Benched questions
 
-- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts. (v1 in D12 is hand-rolled.)
+- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. The comparison now exists at `docs/research/framework-comparison.md`, with the triggers for switching. Adoption stays benched: threads (D12), long-term memory (D19) and fetch approval (D26) are hand-rolled.
 - **Record/replay of arXiv responses** for an automated CRAG end-to-end test (D17). Until then the live path is checked by hand on a throwaway copy.
-- **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, the framework comparison, and a tracing UI. (Long-term research memory: D19–D22.)
-- **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; Tailwind and KaTeX (waiting on the user's `npm install`); saving the research report under `docs/research/`; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).
+- **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, and a tracing UI. (Long-term research memory: D19–D22. The framework comparison is written up in `docs/research/framework-comparison.md`; adopting one stays benched.)
+- **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).

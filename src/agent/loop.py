@@ -7,7 +7,7 @@ In:  a question, an LLMClient, a ToolRegistry, an optional on_event observer, an
 Out: {"answer", "iterations", "tool_calls", "tool_call_counts", "run_id",
      "stopped_because", "thread_id", "turn_seq", "memory_injected", "fetch_proposal",
      ...}, plus a live event per step to on_event; remember(result) writes memory after
-     the answer. Bounded by per-tool limits and two backstops (D4). No thread: nothing
+     the answer. A fetch proposal's query is rewritten from the question (D28). Bounded by per-tool limits and two backstops (D4). No thread: nothing
      read or persisted.
 """
 
@@ -19,6 +19,7 @@ from typing import Any, Callable, Dict, List, Optional, Sequence, Set, Tuple
 
 from agent.conversation import Conversation
 from agent.fetch_proposal import derive_fetch_proposal
+from agent.fetch_query import rewrite_fetch_query
 from agent.tool_registry import ToolRegistry
 from agent.trace import TraceWriter, summarise_result
 from common.tokenization import TokenCounter
@@ -224,6 +225,22 @@ class AgentLoop:
             return {"thread_id": thread_id, "turn_seq": None, "thread_error": saved}
         return {"thread_id": thread_id, "turn_seq": saved["seq"]}
 
+    def _previous_question(self, thread_id: Optional[str]) -> Optional[str]:
+        """The thread's last stored question, as context for the fetch-query rewrite.
+
+        None outside a thread, on the first turn, or if the store cannot be read: the
+        rewrite then works from the current question alone. Read only when a proposal
+        exists, so a run without one pays nothing. Never raises.
+        """
+        if thread_id is None or self.store is None:
+            return None
+        try:
+            turns = (self.store.get_thread(thread_id) or {}).get("turns") or []
+            question = turns[-1].get("question") if turns else None
+        except Exception:
+            return None
+        return question if isinstance(question, str) and question.strip() else None
+
     def _recall(self, question: str) -> Optional[Dict[str, Any]]:
         """Long-term memories to inject into this thread run, or None. Never raises.
 
@@ -329,6 +346,13 @@ class AgentLoop:
             injected = self._recall(question) if thread_id is not None else None
             result = self._run(question, tracer, limits, system_prompt,
                                history.get("messages") or [], injected or {})
+            if "error" not in result and result.get("fetch_proposal") and approval is None:
+                # Before the turn is saved, so its stats carry the rewritten query (D28).
+                # Skipped on approval runs: no card or CLI line shows their proposal, so
+                # the call would cost a round-trip for nothing.
+                result["fetch_proposal"] = rewrite_fetch_query(
+                    result["fetch_proposal"], question, self._previous_question(thread_id),
+                    client=self.client, config=config)
             if injected is not None and "error" not in result:
                 result["memory_injected"] = {
                     key: injected.get(key) for key in

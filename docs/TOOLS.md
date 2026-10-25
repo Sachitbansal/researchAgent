@@ -198,10 +198,14 @@ fetches nothing; the agent describes the gap and the user decides whether to fet
 The agent loop reads the **last unfiltered** `retrieve_evidence` call of a run (no
 `topic_filter`, no `chunk_types`; filtered calls neither propose nor clear, D24). If its
 `coverage_gap` says `propose_fetch`, or it hit an `empty_index`, and `search_literature`
-was not called after it, the run result carries `fetch_proposal: {query, searched_for,
-best_score, closest_topics}` (else `null`) for the user to approve
-(`src/agent/fetch_proposal.py`). It rides in the web `answer` frame and the turn's
-stats. The approval is `POST /api/ask` with `approve_fetch: {query}` and a `thread_id`,
+was not called after it, the run result carries `fetch_proposal: {query, agent_query,
+query_source, searched_for, best_score, closest_topics}` (else `null`) for the user to
+approve (`src/agent/fetch_proposal.py`). `query` is the user's question rewritten into a
+keyword phrase by one `utility` call (`src/agent/fetch_query.py`, prompt
+`src/prompts/fetch_query.md`; `query_source: "rewritten"`). On an LLM failure or a junk
+reply it falls back to the agent's retrieve query (`query_source: "agent"`, with
+`rewrite_error`). `agent_query` always keeps the agent's query (D28). It rides in the web
+`answer` frame and the turn's stats. The approval is `POST /api/ask` with `approve_fetch: {query}` and a `thread_id`,
 or `main.py ask --thread ID --approve-fetch "<query>"`. Either way the agent's message
 comes from `src/prompts/fetch_approval.md` (D26).
 

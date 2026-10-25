@@ -163,7 +163,7 @@ collection:
                             # gate that keeps adjacent papers out also rejects some useful
                             # ones when the query is a long question; they are listed in
                             # papers_rejected with their scores, never silently dropped.
-                            # NEEDS USER CONFIRMATION.
+                            # confirmed by user 2026-10-25.
   page_size: 25             # -> arxiv.Client(page_size=...). The library default is 100, which
                             # asks arXiv for 100 records however few we intend to keep —
                             # max_papers_per_topic is 10. Sized above that cap, not at it: the
@@ -307,14 +307,15 @@ retrieval:
                             # "rephrase" silently suppresses the fetch proposal; a wrong
                             # "propose_fetch" is a button the user can ignore. So the margin
                             # is kept under the nearest absent miss (0.27): a band for scores
-                            # that scrape the line, and nothing wider. NEEDS USER CONFIRMATION.
+                            # that scrape the line, and nothing wider. confirmed by user
+                            # 2026-10-25.
   bi_encoder_rephrase_margin: 0.0  # Same rule on the fallback path, in cosine units — a
                             # logit margin applied to cosines would call every miss a near
                             # miss. 0.0 means a bi-encoder gate failure always proposes a
                             # fetch. The only tuning-split bi-encoder failure is ni01 (truly
                             # absent) at 0.031 below 0.55, no answerable question fails, and
                             # cosine ranges overlap (absent 0.57 vs answerable 0.55-0.65), so
-                            # nearness carries no signal here. NEEDS USER CONFIRMATION.
+                            # nearness carries no signal here. confirmed by user 2026-10-25.
   neighbour_expansion: 1    # attach position ±1 from the same paper
   max_chunk_chars: 2000     # truncation before the chunk enters context
 
@@ -456,8 +457,13 @@ agent:
                             # cap on the query a user approves for fetching ("Fetch
                             # papers" button, `ask --approve-fetch`; D26). It is pasted
                             # into the approval prompt and planned into an arXiv query, so
-                            # a pasted essay is refused, not sent. Not measured: the
-                            # proposed query is the agent's retrieve query, well under it.
+                            # a pasted essay is refused, not sent. Also caps the proposed
+                            # query, which is rewritten from the user's question (D28): a
+                            # longer rewrite is junk and falls back to the agent's query.
+                            # Not measured.
+  fetch_query_max_words: 12 # a rewritten fetch query with more words than this is a
+                            # sentence, not a keyword phrase, and falls back to the agent's
+                            # query (D28). The prompt asks for 3-10. Not measured.
 
 paths:
   data_dir: data

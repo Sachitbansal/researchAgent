@@ -116,6 +116,8 @@ export interface MemoryAddResult {
 /* What an answer proposes to fetch when the corpus lacks its subject (D18, D24). */
 export interface FetchProposal {
   query: string;
+  agent_query?: string | null; // the agent's last retrieve query, before the rewrite (D28)
+  query_source?: "rewritten" | "agent"; // "rewritten": suggested from the user's question
   searched_for?: string | null;
   best_score?: number | null;
   closest_topics: string[]; // topic tags; the page shows their labels
