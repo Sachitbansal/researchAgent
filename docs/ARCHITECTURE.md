@@ -349,6 +349,15 @@ The UI's delete is a manual override. Everything is soft (a timestamp plus a rea
 never injected again, and hard-purged after `purge_after_days`. Preferences are exempt
 from decay and the cap.
 
+**The Memories page (D23).** `#/memories` in the browser UI lists every memory
+(`LongTermMemory.catalogue`), and lets the user edit text, add preferences, delete, and
+restore. An edit re-embeds the text on the passage side. For a finding, it re-runs
+`ground()` with the edited text as the hypothesis. An unsupported edit is kept, with
+`verified=false` and `user_edited=true`, and the memory block marks it "(edited by user,
+unverified)". Findings can't be added by hand. Restore resets recency, and is refused for
+a finding whose evidence is still stale. None of this is a tool, and none of it runs
+inside an agent run.
+
 ## 8. ML / data-analysis components
 
 **1. NLI-based evidence checking** (`check_evidence_consistency`), in two modes:

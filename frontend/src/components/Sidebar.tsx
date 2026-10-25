@@ -1,5 +1,5 @@
 /* Left pane: new chat, the stored chats (newest first), the samples, the corpus entry,
-   the theme switch.
+   and at the foot the user menu (Memories, theme).
    In:  the server's thread list, the sample fixtures, the active route, the corpus (for
         its paper count), callbacks. Out: navigation only; it never fetches. Delete asks
         once, inline, before it deletes. Samples sit in their own group, tagged as such. */
@@ -8,11 +8,7 @@ import { useState } from "react";
 import type { Chat, Corpus, ThreadSummary } from "../types";
 import { plural, relTime } from "../format";
 import { Icon } from "../icons";
-
-type Theme = "system" | "light" | "dark";
-const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
-const THEME_LABEL: Record<Theme, string> = { system: "Theme follows the system", light: "Light theme", dark: "Dark theme" };
-const THEME_ICON: Record<Theme, string> = { system: "auto", light: "sun", dark: "moon" };
+import { UserMenu, type Theme } from "./UserMenu";
 
 interface Props {
   threads: ThreadSummary[] | null;
@@ -20,6 +16,7 @@ interface Props {
   samples: Chat[];
   activeId: string | null;
   corpusActive: boolean;
+  memoriesActive: boolean;
   corpus: Corpus | null;
   runningChatId: string | null;
   theme: Theme;
@@ -112,10 +109,7 @@ export function Sidebar(p: Props) {
       </div>
 
       <div className="sidebar-foot">
-        <button className="theme-btn" onClick={() => p.onTheme(NEXT[p.theme])} title="Change theme">
-          <Icon name={THEME_ICON[p.theme]} size={16} />
-          {THEME_LABEL[p.theme]}
-        </button>
+        <UserMenu theme={p.theme} onTheme={p.onTheme} memoriesActive={p.memoriesActive} />
       </div>
     </nav>
   );

@@ -3,8 +3,9 @@ Automatic forgetting for long-term memory (docs/DECISIONS.md D20): pure function
 
 In:  memory rows (use_count, last_used_at, kind, content_hashes), the current time, the
      current chunk_id -> content_hash map, and the `memory` config numbers.
-Out: each memory's strength, the ids decay or the cap evicts, and the ids whose evidence
-     changed under them (stale). The store applies the verdicts; nothing here writes.
+Out: each memory's strength and days left before it fades, the ids decay or the cap
+     evicts, and the ids whose evidence changed under them (stale). The store applies the
+     verdicts; nothing here writes.
 """
 
 from __future__ import annotations
@@ -85,3 +86,17 @@ def min_strength_for(days: float, half_life_days: float, use_count: int = 1) -> 
     How config's min_strength is chosen: used once and untouched for ~90 days.
     """
     return use_weight(use_count) * 0.5 ** (float(days) / float(half_life_days))
+
+
+def days_until_forgotten(memory: Mapping[str, Any], now: float, half_life_days: float,
+                         min_strength: float) -> float:
+    """Days from `now` until decay takes this memory, if it goes unused: the d where
+    strength x 0.5 ** (d / half_life) = min_strength. 0 when it is already below.
+
+    What the Memories page shows instead of a raw strength, which has no upper bound
+    (1 + ln uses) and so cannot be read as a fraction.
+    """
+    s = strength(memory, now, half_life_days)
+    if s <= float(min_strength) or float(min_strength) <= 0:
+        return 0.0 if s <= float(min_strength) else math.inf
+    return float(half_life_days) * math.log2(s / float(min_strength))

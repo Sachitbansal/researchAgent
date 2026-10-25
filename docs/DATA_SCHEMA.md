@@ -383,9 +383,22 @@ memories(
   invalidated_at      REAL,              -- superseded or stale
   superseded_by       TEXT,              -- the newer memory that contradicted it
   forgotten_at        REAL,              -- decay or user
-  forget_reason       TEXT               -- 'superseded' | 'stale' | 'decay' | 'user'
+  forget_reason       TEXT,              -- 'superseded' | 'stale' | 'decay' | 'user'
+  -- added for the Memories page (D23), by ALTER TABLE ... ADD COLUMN when missing:
+  forget_detail       TEXT,              -- why a decay: 'below_min_strength' | 'over_cap';
+                                         -- NULL for every other reason and older rows
+  origin              TEXT NOT NULL DEFAULT 'agent',  -- 'agent' (the writer) | 'user' (typed)
+  user_edited         INTEGER NOT NULL DEFAULT 0,     -- 1 once the user has edited the text
+  verified            INTEGER NOT NULL DEFAULT 1,     -- findings: NLI found the text in its
+                                         -- passages. 0 only after an unsupported user edit
+  edited_at           REAL               -- the last user edit; editing is not a use
 )
 ```
+
+Older files gain the five columns on first open. Their defaults describe rows that were
+already there: written by the agent, unedited, and (findings) NLI-verified when written.
+Restore (D23) clears `invalidated_at`, `forgotten_at`, `forget_reason`, `forget_detail`
+and `superseded_by`, and sets `last_used_at` to now.
 
 A memory is active when both `invalidated_at` and `forgotten_at` are NULL. Only active rows
 are matched or injected. A row is hard-deleted `memory.purge_after_days` after it stops

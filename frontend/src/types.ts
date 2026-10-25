@@ -29,6 +29,8 @@ export interface InjectedMemory {
   chunk_ids: string[];
   score: number;
   use_count?: number;
+  user_edited?: boolean;
+  verified?: boolean;
 }
 
 /* What the writer did after an answer: the `memory` frame, also kept in the turn's stats. */
@@ -45,7 +47,8 @@ export interface MemoryReport {
   recall_error?: string;
 }
 
-/* A row of GET /api/memories. */
+/* A row of GET /api/memories. The fields after `strength` come from the server's
+   catalogue (D23) and are absent when it runs without one, hence optional. */
 export interface MemoryRecord {
   id: string;
   kind: "finding" | "preference";
@@ -62,6 +65,52 @@ export interface MemoryRecord {
   source_thread_id: string | null;
   source_question: string;
   strength: number | null;
+  forget_detail?: string | null; // why it decayed: below_min_strength | over_cap
+  origin?: "agent" | "user";
+  user_edited?: boolean;
+  verified?: boolean | null; // findings only: NLI found the text in its passages
+  edited_at?: number | null;
+  fades_in_days?: number | null;
+  strength_fraction?: number | null; // fades_in_days over a fresh single-use finding's
+  passages?: MemoryPassage[];
+  source_thread_exists?: boolean | null;
+  superseded_by_text?: string | null;
+  purge_in_days?: number;
+  restorable?: boolean;
+  restore_blocked?: string | null;
+}
+
+export interface MemoryPassage {
+  chunk_id: string;
+  paper_id: string;
+  paper_title?: string | null;
+  page?: number | null;
+  text: string | null;
+  present: boolean; // still in the index
+  changed: boolean; // its text changed since the memory was checked against it
+}
+
+/* The forgetting numbers the page explains itself with (config.yaml memory). */
+export interface MemorySettings {
+  half_life_days: number;
+  min_strength: number;
+  max_active: number;
+  purge_after_days: number;
+  fading_soon_days: number;
+  max_text_chars: number;
+  fresh_days: number;
+}
+
+export interface MemoryEditResult {
+  memory: MemoryRecord;
+  changed: boolean;
+  verification: { verified: boolean; label: string; confidence: number } | null;
+}
+
+export interface MemoryAddResult {
+  outcome: "added" | "refreshed";
+  memory: MemoryRecord | null;
+  replaced: { id: string; text: string }[];
 }
 
 export interface Stats {
