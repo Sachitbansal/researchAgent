@@ -1,6 +1,7 @@
 /* The three-pane shell: chats on the left, the conversation in the centre, the agent's
    working on the right (docs/DECISIONS.md, D3).
-   In:  the API in api.ts, the URL hash (#/chat/<id>, #/corpus), and the sample fixtures.
+   In:  the API in api.ts, the URL hash (#/chat/<id>, #/corpus, #/memories), and the
+        sample fixtures.
    Out: the page. Chats are threads stored by the server (D12): the list and each chat's
         turns are fetched, and the first question of a new chat creates its thread. One
         run at a time, mirroring the server's single agent. */
@@ -15,11 +16,12 @@ import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
 import { Inspector, type InspectorTab } from "./components/Inspector";
 import { CorpusView } from "./components/CorpusView";
+import { MemoriesView } from "./components/MemoriesView";
 import { CitationCard, type CiteTarget } from "./components/CitationCard";
 import { SAMPLE_CHATS } from "./fixtures/sampleChats";
 import { Icon } from "./icons";
 
-type Route = { view: "chat"; id: string | null } | { view: "corpus" };
+type Route = { view: "chat"; id: string | null } | { view: "corpus" } | { view: "memories" };
 type Theme = "system" | "light" | "dark";
 
 interface Run {
@@ -67,6 +69,7 @@ function turnMessages(turn: StoredTurn): Message[] {
 function parseHash(): Route {
   const h = window.location.hash.replace(/^#\/?/, "");
   if (h === "corpus") return { view: "corpus" };
+  if (h === "memories") return { view: "memories" };
   const m = h.match(/^chat\/([a-z0-9-]{1,64})$/);
   return { view: "chat", id: m ? m[1] : null };
 }
@@ -349,7 +352,7 @@ export function App() {
 
   // ------------------------------------------------------------------ layout
 
-  const title = route.view === "corpus" ? "Corpus" : sample ? sample.title : summary ? summary.title : "New chat";
+  const title = route.view === "corpus" ? "Corpus" : route.view === "memories" ? "Memories" : sample ? sample.title : summary ? summary.title : "New chat";
   const missingNotice = routeId && missing === routeId ? "That chat no longer exists. Ask a question to start a new one." : null;
 
   return (
@@ -360,6 +363,7 @@ export function App() {
         samples={samples}
         activeId={route.view === "chat" ? chatId : null}
         corpusActive={route.view === "corpus"}
+        memoriesActive={route.view === "memories"}
         corpus={corpus}
         runningChatId={run?.chatId ?? null}
         theme={theme}
@@ -395,6 +399,8 @@ export function App() {
 
         {route.view === "corpus" ? (
           <CorpusView corpus={corpus} error={corpusError} />
+        ) : route.view === "memories" ? (
+          <MemoriesView papersById={papersById} threads={threads} version={memoryVersion} />
         ) : (
           <ChatView
             messages={messages}

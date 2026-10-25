@@ -179,7 +179,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **By:** user: "otherwise it keeps adding to memory and never forgets old memories, and the user has to go through the pain of deleting what they don't care about. It should be handled automatically by the new context and new results the agent produces."
 - **Paths:** superseded (a confident contradiction from a newer finding); stale (a cited chunk's hash changed or the chunk is gone; checked at read time and in the sweep); decay plus cap (`strength = (1 + ln use_count) × 0.5^(days/half_life)`, below `min_strength` or past `max_active`, weakest first, swept after each write); refresh (a re-finding resets recency); and a manual delete as override. Everything is soft-deleted with a reason and hard-purged after `purge_after_days`.
 - **A use** is injected **and** cited. Injected but uncited does not count. Being found counts as the first use.
-- **Tentative (Claude, pending the user):** `half_life_days` 30, `max_active` 500, `min_strength` 0.125 (= 0.5^(90/30): used once and untouched for 90 days), `purge_after_days` 180.
+- **Confirmed by the user (2026-10-25):** `half_life_days` 30, `max_active` 500, `min_strength` 0.125 (= 0.5^(90/30): used once and untouched for 90 days), `purge_after_days` 180.
 
 ## D21 — Grounding checks the passage-worded claim; the stored claim names its paper
 
@@ -199,6 +199,18 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Preferences:** injected on every thread run (a cosine gate would rarely surface "only 2024 onward"). They are exempt from decay and the cap, because they are never cited, so the use rule would decay every one. They go by contradiction, by restatement (refresh) or by hand.
 - **Write trigger:** "the gate passed" means some `retrieve_evidence` call returned `sufficient_evidence: true` with chunks. An answer that cites only injected chunks still counts its uses but writes nothing new.
 - **Deleting a chat keeps its memories** (`source_thread_id` has no foreign key). Memory is meant to outlive the chat.
+
+## D23 — A Memories page: the user sees, edits, adds, deletes and restores memories
+
+*2026-10-25 · `frontend/src/components/MemoriesView.tsx`, `UserMenu.tsx`, `web/api.py`, `src/memory/longterm.py`, `memory_store.py` · DATA_SCHEMA §10*
+
+- **By:** user: "Like Claude, I should be able to edit and see my memories … have a memories option where the person can see all memories and edit or delete them himself." It is reached from a user menu at the bottom left (one user, no auth), which also holds the theme.
+- **Edit:** the text is re-embedded on the passage side (no query prefix). Editing is not a use. A finding is re-grounded with the writer's own `ground()`, with the edited text as the hypothesis. Entailed → `verified`, and the chunk hashes it was checked against are stored. Not entailed → **saved anyway**, with `verified=false` and `user_edited=true`. It is still injected, and the memory block marks it "(edited by user, unverified)" (`memory_block.md` says what that means). **Tentative (Claude), user to confirm.** Measured on the smoke run: an edit that keeps the paper's name but copies the passage's wording was entailed (0.98), while "0.01" for the passage's "1e-2" was not (0.0006). So attributed or paraphrased edits often come back unverified (D21).
+- **Add:** preferences only (`POST /api/memories`). They are settled like extracted ones: a restatement refreshes, a contradiction supersedes. Findings can't be added by hand, because they need cited chunk evidence.
+- **Restore:** clears `forgotten_at`/`invalidated_at`, the reason and `superseded_by`, and resets `last_used_at` to now. Refused (409) for a finding whose passage hash still differs, because the next recall would only invalidate it again. Restoring a superseded finding leaves both sides of the contradiction active; that is the user's call. Hard-purged rows are gone.
+- **Schema:** `origin`, `user_edited`, `verified`, `edited_at` and `forget_detail` (`below_min_strength` | `over_cap`, so the page can say "over the cap"). Each is added by `ALTER TABLE ADD COLUMN` when missing, tolerating a concurrent opener. Old rows read as agent-made, unedited and verified.
+- **Concurrency:** an edit or an add is refused (409 `agent_busy`) while a question runs, because it would share the run's embedder and NLI model (the fast tokenizer is not thread-safe). Delete and restore touch no model and stay open.
+- **Rejected:** blocking unverified edits (the user owns their memory); re-running reconciliation on an edit (it would let an edit silently supersede other memories).
 
 ---
 

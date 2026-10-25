@@ -5,8 +5,9 @@ In:  a MemoryStore, the bi-encoder, the NLI model, an LLM client (role `utility`
      chunk table. recall() takes the question at a thread run's start; after_run() takes
      the finished run (question, answer, trace records, what recall injected).
 Out: recall -> the memory block to inject plus the memories and chunks behind it;
-     after_run -> {written, refreshed, invalidated, used, forgotten, dropped}. Not a tool,
-     calls no tool, and never raises: failures come back as {"error", "detail"}.
+     after_run -> {written, refreshed, invalidated, used, forgotten, dropped}; and for the
+     Memories page (D23) catalogue / edit / add_preference / restore. Not a tool, calls
+     no tool, and never raises: failures come back as {"error", "detail"}.
 """
 
 from __future__ import annotations
@@ -22,6 +23,7 @@ import numpy as np
 from common.tokenization import TokenCounter, split_sentences
 from config import CFG, Config
 from memory import forgetting
+from memory.memory_store import clean_text, valid_memory_id
 
 log = logging.getLogger("sciagent.memory")
 
@@ -82,6 +84,15 @@ def _sentences(text: str, cap: int) -> List[str]:
 
 def _clip(text: str, width: int) -> str:
     return text if len(text) <= width else text[: max(0, width - 1)].rstrip() + "…"
+
+
+# How the memory block flags a finding the user reworded that NLI does not find in its
+# passages (D23). memory_block.md says what the agent should make of it.
+UNVERIFIED_MARK = " (edited by user, unverified)"
+
+
+def unverified_mark(memory: Dict[str, Any]) -> str:
+    return UNVERIFIED_MARK if memory.get("user_edited") and memory.get("verified") is False else ""
 
 
 class LongTermMemory:
@@ -207,7 +218,9 @@ class LongTermMemory:
         return {
             "memories": [{"id": m["id"], "label": label, "text": m["text"],
                           "chunk_ids": list(m["chunk_ids"]), "score": round(score, 4),
-                          "use_count": m["use_count"]}
+                          "use_count": m["use_count"],
+                          "user_edited": bool(m.get("user_edited")),
+                          "verified": m.get("verified") is not False}
                          for label, score, m in picked],
             "preferences": [{"id": m["id"], "text": m["text"]} for m in preferences],
             "chunks": passages,
@@ -257,7 +270,7 @@ class LongTermMemory:
                 new_blocks.append(f"[{chunk_id}] {chunk.get('paper_title') or ''}, "
                                   f"p. {chunk.get('page')}:\n{text}")
             cites = "".join(f"[{c}]" for c in ids)
-            line = f"- {label}: {memory['text']} (rests on {cites})"
+            line = f"- {label}{unverified_mark(memory)}: {memory['text']} (rests on {cites})"
             candidate = fill(lines + [line], blocks + new_blocks)
             if self.counter.count(candidate) > budget:
                 continue
@@ -503,7 +516,7 @@ class LongTermMemory:
         confident = all(hits) if bool(self.memory.contradiction_both_directions) else any(hits)
         return confident, min(c for _, c in verdicts)
 
-    def _reconcile(self, item: Dict[str, Any], vector: np.ndarray, thread_id: str,
+    def _reconcile(self, item: Dict[str, Any], vector: np.ndarray, thread_id: Optional[str],
                    question: str, report: Dict[str, Any]) -> None:
         """Duplicate -> refresh; contradiction -> supersede the old; otherwise add.
 
@@ -542,7 +555,7 @@ class LongTermMemory:
             return
 
         added = self.store.add(item["kind"], item["text"], item["chunk_ids"], item["hashes"],
-                               vector, thread_id, question)
+                               vector, thread_id, question, origin=item.get("origin", "agent"))
         if "error" in added:
             raise RuntimeError(f"add: {added['error']}: {added.get('detail')}")
         memory = added["memory"]
@@ -584,7 +597,8 @@ class LongTermMemory:
             rows, now, float(self.memory.half_life_days), float(self.memory.min_strength),
             int(self.memory.max_active))
         if victims:
-            result = self.store.forget([v["id"] for v in victims], "decay")
+            result = self.store.forget([v["id"] for v in victims], "decay",
+                                       detail={v["id"]: v["why"] for v in victims})
             if "error" in result:
                 raise RuntimeError(f"forget: {result['error']}")
             done = set(result["forgotten"])
@@ -601,6 +615,211 @@ class LongTermMemory:
         now = float(self.now())
         half = float(self.memory.half_life_days)
         return {m["id"]: round(forgetting.strength(m, now, half), 4) for m in memories}
+
+
+    # ================================================================ the Memories page
+
+    def _settings(self) -> Dict[str, Any]:
+        half = float(self.memory.half_life_days)
+        floor = float(self.memory.min_strength)
+        return {
+            "half_life_days": half,
+            "min_strength": floor,
+            "max_active": int(self.memory.max_active),
+            "purge_after_days": float(self.memory.purge_after_days),
+            "fading_soon_days": float(self.memory.fading_soon_days),
+            "max_text_chars": int(self.memory.max_text_chars),
+            # How long a finding found once lasts unused: the meter's full scale.
+            "fresh_days": forgetting.days_until_forgotten(
+                {"use_count": 1, "last_used_at": 0.0}, 0.0, half, floor),
+        }
+
+    def catalogue(self, thread_ids: Optional[Set[str]] = None) -> Dict[str, Any]:
+        """Every memory, active or not, with what the Memories page shows. Never raises.
+
+        Per row, on top of the store's fields: `strength`, `fades_in_days` and
+        `strength_fraction` (fades_in_days over `fresh_days`, capped at 1) for active
+        findings; `passages` (each cited chunk's paper, page, clipped text, and whether it
+        is still there unchanged); `source_thread_exists` when `thread_ids` is given;
+        `superseded_by_text`; and for inactive rows `purge_in_days` and `restorable`.
+        """
+        try:
+            return self._catalogue(thread_ids)
+        except Exception as exc:  # noqa: BLE001
+            return _error("memory_catalogue_failed", f"{type(exc).__name__}: {exc}")
+
+    def _catalogue(self, thread_ids: Optional[Set[str]]) -> Dict[str, Any]:
+        listed = self.store.list(include_inactive=True)
+        if "error" in listed:
+            return listed
+        rows = listed["memories"]
+        settings = self._settings()
+        table = self.chunks() if any(m["kind"] == "finding" for m in rows) else {}
+        current = {cid: str(c.get("content_hash")) for cid, c in table.items()}
+        texts = {m["id"]: m["text"] for m in rows}
+        now = float(self.now())
+        width = int(self.memory.passage_chars)
+        out = []
+        for m in rows:
+            row = {k: v for k, v in m.items() if k != "content_hashes"}
+            finding = m["kind"] == "finding"
+            row["strength"] = row["fades_in_days"] = row["strength_fraction"] = None
+            if m["active"] and finding:
+                row["strength"] = round(forgetting.strength(m, now, settings["half_life_days"]), 4)
+                days = forgetting.days_until_forgotten(m, now, settings["half_life_days"],
+                                                       settings["min_strength"])
+                row["fades_in_days"] = round(days, 1)
+                full = settings["fresh_days"]
+                row["strength_fraction"] = round(min(1.0, days / full), 4) if full > 0 else 1.0
+            passages = []
+            for cid in m["chunk_ids"]:
+                c = table.get(cid)
+                passages.append({
+                    "chunk_id": cid,
+                    "paper_id": (c or {}).get("paper_id") or cid.split("__")[0],
+                    "paper_title": (c or {}).get("paper_title"),
+                    "page": (c or {}).get("page"),
+                    "text": _clip(str(c.get("text") or ""), width) if c else None,
+                    "present": c is not None,
+                    "changed": c is not None and current.get(cid) != m["content_hashes"].get(cid),
+                })
+            row["passages"] = passages
+            sid = m.get("source_thread_id")
+            row["source_thread_exists"] = (None if thread_ids is None or not sid
+                                           else sid in thread_ids)
+            row["superseded_by_text"] = texts.get(m["superseded_by"]) if m["superseded_by"] else None
+            if not m["active"]:
+                ended = m["forgotten_at"] if m["forgotten_at"] is not None else m["invalidated_at"]
+                left = settings["purge_after_days"] - (now - float(ended or now)) / forgetting.DAY_S
+                row["purge_in_days"] = round(max(0.0, left), 1)
+                blocked = finding and forgetting.is_stale(m, current)
+                row["restorable"] = not blocked
+                row["restore_blocked"] = ("its passages changed or left the index since it was "
+                                          "checked" if blocked else None)
+            out.append(row)
+        return {"memories": out, "settings": settings}
+
+    def _clean(self, text: Any) -> Any:
+        body = clean_text(text)
+        if not body:
+            return _error("empty_text", "a memory needs some text")
+        cap = int(self.memory.max_text_chars)
+        if len(body) > cap:
+            return _error("text_too_long", f"{len(body)} characters; at most {cap}")
+        return body
+
+    def verify(self, text: str, chunk_ids: Sequence[str],
+               table: Dict[str, Dict[str, Any]]) -> Dict[str, Any]:
+        """The writer's grounding check (ground()) on `text` as the hypothesis, against
+        the cited chunks still in the index. No chunk left: not verified ("no_premise")."""
+        present = [c for c in chunk_ids if c in table]
+        if not present:
+            return {"verified": False, "label": "no_premise", "confidence": 0.0,
+                    "premise": None, "checked": []}
+        graded = self.ground([{"text": text, "check": text, "chunk_ids": present}], table)[0]
+        return {"verified": graded["label"] == "entailed", "label": graded["label"],
+                "confidence": graded["confidence"], "premise": graded["premise"],
+                "checked": present}
+
+    def edit(self, memory_id: str, text: Any) -> Dict[str, Any]:
+        """The user rewords an active memory (D23). Never raises.
+
+        The new text is embedded on the passage side (no query prefix). A finding is
+        re-grounded with the new text as the hypothesis: entailed -> verified, and the
+        chunk hashes it was checked against are stored; not -> saved anyway, verified
+        false, and the memory block marks it. A preference is simply saved. Either way
+        user_edited is set; it is not a use. Returns {"memory", "changed", "verification"}.
+        """
+        try:
+            return self._edit(memory_id, text)
+        except Exception as exc:  # noqa: BLE001
+            return _error("memory_edit_failed", f"{type(exc).__name__}: {exc}")
+
+    def _edit(self, memory_id: str, text: Any) -> Dict[str, Any]:
+        if not valid_memory_id(memory_id):
+            return _error("bad_memory_id", f"expected a 32-character hex id, got {memory_id!r}")
+        body = self._clean(text)
+        if isinstance(body, dict):
+            return body
+        found = self.store.get([memory_id])
+        if "error" in found:
+            return found
+        if not found["memories"]:
+            return _error("memory_not_found", f"no memory {memory_id}")
+        memory = found["memories"][0]
+        if not memory["active"]:
+            return _error("memory_inactive", "restore this memory before editing it")
+        if body == memory["text"]:
+            return {"memory": memory, "changed": False, "verification": None}
+        vector = np.asarray(self.embedder.encode_passages([body])[0], dtype=np.float32)
+        verdict, verified, hashes = None, None, None
+        if memory["kind"] == "finding":
+            table = self.chunks()
+            verdict = self.verify(body, memory["chunk_ids"], table)
+            verified = verdict["verified"]
+            if verified:
+                hashes = {c: str(table[c].get("content_hash")) for c in verdict["checked"]}
+        saved = self.store.update_text(memory_id, body, vector, verified=verified,
+                                       content_hashes=hashes)
+        if "error" in saved:
+            return saved
+        log.info("memory %s edited by the user (%s)", memory_id,
+                 "preference" if verdict is None else verdict["label"])
+        return {"memory": saved["memory"], "changed": True, "verification": verdict}
+
+    def add_preference(self, text: Any) -> Dict[str, Any]:
+        """A preference the user types on the Memories page (D23). Never raises.
+
+        Settled like an extracted one (_reconcile): a restatement of an active preference
+        refreshes it instead of adding a copy, and a contradicted one is superseded.
+        Returns {"outcome": "added" | "refreshed", "memory", "replaced": [...]}.
+        """
+        try:
+            body = self._clean(text)
+            if isinstance(body, dict):
+                return body
+            vector = np.asarray(self.embedder.encode_passages([body])[0], dtype=np.float32)
+            report: Dict[str, Any] = {"written": [], "refreshed": [], "invalidated": []}
+            self._reconcile({"kind": "preference", "text": body, "chunk_ids": [], "hashes": {},
+                             "origin": "user"}, vector, None, "", report)
+            outcome = "added" if report["written"] else "refreshed"
+            ids = [r["id"] for r in report["written"] or report["refreshed"]]
+            got = self.store.get(ids)
+            if "error" in got:
+                return got
+            return {"outcome": outcome, "memory": got["memories"][0] if got["memories"] else None,
+                    "replaced": report["invalidated"]}
+        except Exception as exc:  # noqa: BLE001
+            return _error("memory_add_failed", f"{type(exc).__name__}: {exc}")
+
+    def restore(self, memory_id: str) -> Dict[str, Any]:
+        """Bring back a forgotten or invalidated memory (D23). Never raises.
+
+        Refused for a finding whose evidence is still stale: the next recall or sweep
+        would only invalidate it again. Otherwise the store clears the reason and resets
+        recency to now. A row past purge_after_days is gone and cannot come back.
+        """
+        try:
+            if not valid_memory_id(memory_id):
+                return _error("bad_memory_id", f"expected a 32-character hex id, got {memory_id!r}")
+            found = self.store.get([memory_id])
+            if "error" in found:
+                return found
+            if not found["memories"]:
+                return _error("memory_not_found",
+                              f"no memory {memory_id}: it may have been deleted for good")
+            memory = found["memories"][0]
+            if memory["active"]:
+                return _error("memory_active", "this memory is already active")
+            if memory["kind"] == "finding":
+                current = {cid: str(c.get("content_hash")) for cid, c in self.chunks().items()}
+                if forgetting.is_stale(memory, current):
+                    return _error("evidence_changed",
+                                  "its passages changed or left the index since it was checked, "
+                                  "so it would be invalidated again on its next use")
+            return self.store.restore(memory_id)
+        except Exception as exc:  # noqa: BLE001
+            return _error("memory_restore_failed", f"{type(exc).__name__}: {exc}")
 
 
 def build_long_term_memory(config: Config = CFG, embedder: Any = None,

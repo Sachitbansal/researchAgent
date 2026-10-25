@@ -1,6 +1,7 @@
 /* The card that opens on a citation: which paper, which passage, where to read it.
    In:  the clicked citation (chunk id, paper id, its screen rectangle), the paper record
-        if the corpus knows it, and the excerpt retrieval returned. Out: a positioned card. */
+        if the corpus knows it, and the excerpt retrieval returned. Out: a positioned card.
+        "Show in sources" only where there is a Sources pane to show it in. */
 
 import { useLayoutEffect, useRef, useState } from "react";
 import type { Paper } from "../types";
@@ -19,7 +20,7 @@ interface Props {
   paper?: Paper;
   excerpt?: string;
   onClose: () => void;
-  onShowInSources: (chunk: string) => void;
+  onShowInSources?: (chunk: string) => void;
 }
 
 export function CitationCard({ target, paper, excerpt, onClose, onShowInSources }: Props) {
@@ -47,8 +48,12 @@ export function CitationCard({ target, paper, excerpt, onClose, onShowInSources 
         <div className="card-foot">
           <code>{target.chunk}</code>
           <span className="card-actions">
-            <button className="link-btn" autoFocus onClick={() => onShowInSources(target.chunk)}>Show in sources</button>
-            {paper?.pdf_url && <a href={paper.pdf_url} target="_blank" rel="noopener noreferrer">Open on arXiv</a>}
+            {onShowInSources && (
+              <button className="link-btn" autoFocus onClick={() => onShowInSources(target.chunk)}>Show in sources</button>
+            )}
+            {paper?.pdf_url && (
+              <a href={paper.pdf_url} target="_blank" rel="noopener noreferrer" autoFocus={!onShowInSources}>Open on arXiv</a>
+            )}
           </span>
         </div>
       </div>
