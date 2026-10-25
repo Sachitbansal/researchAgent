@@ -52,25 +52,25 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Why:** a closed tab ends the stream but not the run. The question finishes, and its trace is written, before the agent is free again. No disconnect can leak the lock.
 - **Rejected:** a queue of waiting askers. That needs fairness and timeouts and has no demo value. Cancelling the run on disconnect was also rejected, because `AgentLoop` has no cancellation point and adding one would change `src/`.
 
-## D7 — Answer markdown: the old hand-written renderer, ported
+## D7 — Answer markdown: the old hand-written renderer, ported, plus KaTeX
 
-*2026-10-24 · `frontend/src/markdown.ts`*
+*2026-10-24, math 2026-10-25 · `frontend/src/markdown.ts`*
 
 - **Decision:** port the old app.js renderer to TypeScript. No markdown library.
 - **By:** Claude (subagent). The brief preferred this.
 - **Why:** it already handles what the agent emits, and it owns citation numbering. A library would need a plugin to do the same thing.
 - **Rejected:** `marked`/`markdown-it` plus a sanitiser (two dependencies).
-- **Pending (approved by user):** render `$…$` and `$$…$$` with the pinned `katex` package, with math spans protected from the citation and emphasis passes and `throwOnError: false`. The `npm install` was blocked by the session's permission check, so for now math still shows as plain text.
+- **Math (By: user, `katex` 0.19.1 pinned):** `$…$`, `$$…$$`, `\(…\)` and `\[…\]` render with `katex.renderToString` (`throwOnError: false`, `trust: false`). Code spans and math are cut out before the citation, emphasis and link passes and put back last, so `_`, `*` and `[` inside them are never touched. Inline `$` follows the pandoc rule (no space just inside either dollar, no digit after the closing one), so "$5 and $10" stays text. KaTeX's output is the only unescaped HTML in an answer. Memory texts (Memory tab, Memories page) get math only, no citations or emphasis. Citation-card excerpts stay plain: they are PDF text, not model output. Checks: `npm run check:markdown`.
+- **Also:** a code span holding only citations (`` `[id__c0001]` ``) is read as those citations; any other code span keeps its contents literal, so an id inside real code no longer becomes a button.
 
-## D8 — Styling: hand-written CSS with design tokens
+## D8 — Styling: Tailwind v4 with the design tokens in `@theme`
 
-*2026-10-24 · `frontend/src/styles.css`*
+*2026-10-24, Tailwind 2026-10-25 · `frontend/src/styles.css`, the TSX, `frontend/vite.config.ts`*
 
-- **Decision:** one stylesheet with CSS custom properties, and light/dark themes under `prefers-color-scheme` plus a `data-theme` override.
-- **By:** Claude (subagent). **No strong reason** over Tailwind, beyond having fewer dependencies and the old demo already being tokenised CSS. The palette and type are in D11.
-- **Rejected:** Tailwind (a dependency and a build plugin), and component libraries (the brief said no bloat).
+- **Decision:** Tailwind v4 through `@tailwindcss/vite` (both 4.3.3, pinned). The D11 palette, the Plex fonts, the 4px spacing base, the type sizes, the radii and the breakpoints are `@theme` tokens, and Tailwind's own colours, sizes and radii are switched off, so utilities can only use the design's values. Dark mode re-points the same variables under `prefers-color-scheme` (unless `data-theme="light"`) and under `data-theme="dark"`, as before; a `dark:` variant follows the same rule. Components are styled with utilities in the TSX; a small `@layer components` keeps the patterns that read badly as utilities (answer prose and math, buttons, chips, the timeline rows, the input focus ring).
+- **By:** user, cosmetic: "no point sticking with plain CSS if Tailwind is cleaner and not a big step". Same visual direction as D11; the port was checked against the previous build element by element (computed styles and boxes) in both themes and at three widths.
+- **Rejected:** `@tailwindcss/typography` (a further dependency; the answer prose is a dozen rules), and component libraries.
 - **Theme storage (by user):** only the light/dark/system choice is saved in `localStorage`, wrapped in try/catch. Chats are never stored in the browser.
-- **Pending:** the user has approved switching to Tailwind v4 (`@tailwindcss/vite`), on the grounds that there is "no point sticking with plain CSS if Tailwind is cleaner and not a big step". The `npm install` was blocked by the session's permission check, so the switch is not done yet.
 
 ## D9 — Figures served by `/api/figures/<paper_id>/<file>` only
 
@@ -92,7 +92,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 
 ## D11 — Visual direction: a quiet documentation-style tool
 
-*2026-10-24 · `frontend/src/styles.css`, `frontend/index.html`*
+*2026-10-24 · `frontend/src/styles.css` (tokens, since D8's Tailwind port), `frontend/index.html`*
 
 - **Decision:** neutral slate surfaces with one link-blue accent (#2563EB, #6EA8FE in dark) used for links, citations, the send button and focus. Text is IBM Plex Sans throughout, with Plex Mono for ids and arguments. Answers are set at 16px/1.7 with a 68ch measure. Spacing is on a 4px scale; radii are 4, 6 and 8px. Every text pair meets WCAG AA in both themes.
 - **By:** Claude (subagent), from the `ui-ux-pro-max` skill: its "Minimalism & Swiss" style, its "Knowledge Base/Documentation" palette, and the Plex Sans half of its "Developer Mono" pairing. The user asked for professional and restrained.

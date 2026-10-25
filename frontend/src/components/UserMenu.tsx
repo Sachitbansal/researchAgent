@@ -9,6 +9,10 @@ import { Icon } from "../icons";
 
 export type Theme = "system" | "light" | "dark";
 
+const ITEM =
+  "flex min-h-9 w-full items-center gap-2 rounded-sm px-2 text-left text-14 text-ink no-underline " +
+  "hover:bg-hover focus-visible:bg-hover focus-visible:-outline-offset-2 [&>svg]:flex-none [&>svg]:text-soft";
+
 const THEMES: { value: Theme; label: string; icon: string }[] = [
   { value: "system", label: "Match the system", icon: "auto" },
   { value: "light", label: "Light", icon: "sun" },
@@ -81,22 +85,24 @@ export function UserMenu({ theme, onTheme, memoriesActive }: Props) {
   };
 
   return (
-    <div className="user-menu" ref={wrap}>
+    <div className="relative" ref={wrap}>
       {open && (
-        <div className="menu" role="menu" id="user-menu" aria-label="You" ref={menu} tabIndex={-1} onKeyDown={onMenuKey}>
+        <div
+          className="absolute inset-x-0 bottom-[calc(100%+6px)] z-10 rounded-lg border border-rule-strong bg-raise p-1 shadow-md focus-visible:outline-none"
+          role="menu" id="user-menu" aria-label="You" ref={menu} tabIndex={-1} onKeyDown={onMenuKey}>
           <a
             role="menuitem"
             tabIndex={-1}
-            className={`menu-item${memoriesActive ? " is-on" : ""}`}
+            className={`${ITEM}${memoriesActive ? " font-medium" : ""}`}
             href="#/memories"
             aria-current={memoriesActive ? "page" : undefined}
             onClick={() => close(false)}
           >
             <Icon name="memory" size={16} />
-            <span className="menu-label">Memories</span>
+            <span className="flex-1">Memories</span>
           </a>
-          <div className="menu-sep" role="separator" />
-          <div className="menu-head" id="user-menu-theme">Theme</div>
+          <div className="my-1 h-px bg-rule" role="separator" />
+          <div className="px-2 pt-1.5 pb-0.5 text-12 font-semibold text-faint" id="user-menu-theme">Theme</div>
           <div role="group" aria-labelledby="user-menu-theme">
             {THEMES.map((t) => (
               <button
@@ -104,14 +110,14 @@ export function UserMenu({ theme, onTheme, memoriesActive }: Props) {
                 role="menuitemradio"
                 tabIndex={-1}
                 aria-checked={theme === t.value}
-                className="menu-item"
+                className={`${ITEM} aria-checked:[&>svg:last-child]:text-accent`}
                 onClick={() => {
                   onTheme(t.value);
                   close(true);
                 }}
               >
                 <Icon name={t.icon} size={16} />
-                <span className="menu-label">{t.label}</span>
+                <span className="flex-1">{t.label}</span>
                 {theme === t.value && <Icon name="check" size={16} />}
               </button>
             ))}
@@ -120,7 +126,8 @@ export function UserMenu({ theme, onTheme, memoriesActive }: Props) {
       )}
       <button
         ref={button}
-        className={`user-btn${open ? " is-open" : ""}`}
+        className={`flex min-h-11 w-full items-center gap-2.5 rounded-md pr-2 pl-1.5 text-left text-ink transition-colors hover:bg-hover
+          [&>svg]:text-faint [&>svg]:transition-transform ${open ? "bg-hover [&>svg]:rotate-180" : ""}`}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-controls={open ? "user-menu" : undefined}
@@ -130,8 +137,8 @@ export function UserMenu({ theme, onTheme, memoriesActive }: Props) {
         }}
         onKeyDown={onButtonKey}
       >
-        <span className="avatar" aria-hidden="true">Y</span>
-        <span className="user-name">You</span>
+        <span className="inline-grid size-7 flex-none place-items-center rounded-full border border-rule-strong bg-selected text-13 font-semibold text-soft" aria-hidden="true">Y</span>
+        <span className="flex-1 text-14 font-medium">You</span>
         <Icon name="chevron" size={16} />
       </button>
     </div>
