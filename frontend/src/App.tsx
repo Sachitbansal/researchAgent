@@ -362,10 +362,14 @@ export function App() {
   // ------------------------------------------------------------------ layout
 
   const title = route.view === "corpus" ? "Corpus" : route.view === "memories" ? "Memories" : sample ? sample.title : summary ? summary.title : "New chat";
+  const withInspector = inspectorOpen && route.view === "chat";
   const missingNotice = routeId && missing === routeId ? "That chat no longer exists. Ask a question to start a new one." : null;
 
   return (
-    <div className={`shell${inspectorOpen && route.view === "chat" ? " with-inspector" : ""}${sidebarOpen ? " sidebar-open" : ""}`}>
+    <div
+      className={`grid h-full max-xl:grid-cols-[var(--width-side)_minmax(0,1fr)] max-md:grid-cols-[minmax(0,1fr)] ${
+        withInspector ? "grid-cols-[var(--width-side)_minmax(0,1fr)_var(--width-insp)]" : "grid-cols-[var(--width-side)_minmax(0,1fr)_0]"}`}
+    >
       <Sidebar
         threads={threads}
         threadsError={threadsError}
@@ -377,6 +381,7 @@ export function App() {
         runningChatId={run?.chatId ?? null}
         theme={theme}
         onTheme={setTheme}
+        open={sidebarOpen}
         onNew={() => {
           setDraft("");
           go("#/");
@@ -384,18 +389,21 @@ export function App() {
         onDelete={removeThread}
         onClose={() => setSidebarOpen(false)}
       />
-      <div className="scrim" onClick={() => { setSidebarOpen(false); if (window.innerWidth < 1180) setInspectorOpen(false); }} />
+      {/* Behind a drawer: the inspector below xl, the chat list below md. */}
+      <div
+        className={`fixed inset-0 hidden bg-scrim ${withInspector ? "z-15 max-xl:block" : ""} ${sidebarOpen ? "max-md:z-22 max-md:block" : ""}`}
+        onClick={() => { setSidebarOpen(false); if (window.innerWidth < 1180) setInspectorOpen(false); }} />
 
-      <main className="centre">
-        <header className="topbar">
-          <button className="icon-btn only-narrow" onClick={() => setSidebarOpen(true)} aria-label="Open the chat list">
+      <main className="flex min-h-0 min-w-0 flex-col">
+        <header className="flex h-[52px] flex-none items-center gap-2 border-b border-rule pr-3 pl-6 max-md:pl-1">
+          <button className="icon-btn hidden max-md:inline-grid" onClick={() => setSidebarOpen(true)} aria-label="Open the chat list">
             <Icon name="menu" />
           </button>
-          <h1 className="topbar-title" title={title}>{title}</h1>
+          <h1 className="m-0 min-w-0 flex-1 truncate text-14.5 font-medium" title={title}>{title}</h1>
           {sample && <span className="sample-tag" title="Written by hand to show the interface, not produced by the agent">Sample</span>}
           {route.view === "chat" && (
             <button
-              className={`icon-btn${inspectorOpen ? " is-on" : ""}`}
+              className={`icon-btn ${inspectorOpen ? "text-accent" : ""}`}
               onClick={() => setInspectorOpen((o) => !o)}
               aria-label={inspectorOpen ? "Hide the agent's working" : "Show the agent's working"}
               aria-pressed={inspectorOpen}

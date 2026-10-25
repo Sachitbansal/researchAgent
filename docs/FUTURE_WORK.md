@@ -109,10 +109,10 @@ What keeps the constraint's intent intact:
   `eval/`, and `frontend/` (the page) only talks to `web/` over HTTP. Nothing in `src/`
   references either, so removing both directories changes nothing about the agent.
 - Its dependencies are its own. FastAPI, uvicorn and httpx (for tests) are pinned in
-  `web/requirements.txt`, and React, Vite and TypeScript in `frontend/package.json`. The
-  root `requirements.txt`, which pins the system under evaluation, is unchanged. The
-  answer renderer is still hand-written rather than a markdown library
-  (`docs/DECISIONS.md`, D1, D2, D7).
+  `web/requirements.txt`, and React, Vite, TypeScript, Tailwind and KaTeX in
+  `frontend/package.json`. The root `requirements.txt`, which pins the system under
+  evaluation, is unchanged. The answer renderer is still hand-written rather than a
+  markdown library (`docs/DECISIONS.md`, D1, D2, D7, D8).
 - It runs the same `AgentLoop` with the same registry and config as `python main.py
   ask`. There is no second code path to keep in sync, and no answer can appear in the
   browser that the CLI would not also give. A browser chat is a thread. The server passes

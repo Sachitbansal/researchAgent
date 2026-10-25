@@ -40,14 +40,17 @@ export function CitationCard({ target, paper, excerpt, onClose, onShowInSources 
 
   return (
     <>
-      <div className="card-catcher" onClick={onClose} />
-      <div ref={card} className="cite-card" role="dialog" aria-label="Cited passage" style={pos}>
-        <div className="card-title">{paper ? paper.title : "Not in the corpus as loaded"}</div>
-        {paper && <div className="card-who">{who(paper)}</div>}
-        {excerpt && <p className="card-excerpt"><mark>{excerpt}…</mark></p>}
-        <div className="card-foot">
-          <code>{target.chunk}</code>
-          <span className="card-actions">
+      <div className="fixed inset-0 z-30" onClick={onClose} />
+      <div
+        ref={card}
+        className="fixed z-31 w-[min(var(--container-card),calc(100vw-24px))] rounded-lg border border-rule-strong bg-raise px-4 py-3 shadow-md"
+        role="dialog" aria-label="Cited passage" style={pos}>
+        <div className="text-14.5 leading-1.4 font-semibold">{paper ? paper.title : "Not in the corpus as loaded"}</div>
+        {paper && <div className="mt-0.5 text-13 text-soft">{who(paper)}</div>}
+        {excerpt && <p className="mt-2.5 max-h-[9.6em] overflow-auto text-13.5 leading-1.6"><mark>{excerpt}…</mark></p>}
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 text-13">
+          <code className="text-11.5 text-faint">{target.chunk}</code>
+          <span className="flex gap-4">
             {onShowInSources && (
               <button className="link-btn" autoFocus onClick={() => onShowInSources(target.chunk)}>Show in sources</button>
             )}
