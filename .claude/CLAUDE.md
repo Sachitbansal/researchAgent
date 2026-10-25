@@ -28,8 +28,15 @@ reason.
 - `PyMuPDF` (fitz) — PDF text + image extraction
 - `sentence-transformers` — bi-encoder embeddings, cross-encoder rerank, NLI
 - `faiss-cpu` — vector index (flat)
-- `scikit-learn`, `pandas`, `numpy` — clustering, metrics, metadata analysis
+- `scikit-learn`, `pandas`, `numpy`, `scipy` — clustering, metrics, metadata analysis,
+  and the hand-written BM25 (no BM25 library)
 - OpenRouter via a thin `llm_client` wrapper — all LLM calls
+- stdlib `sqlite3` — threads and long-term memory (`data/threads.sqlite3`)
+- Outside `src/`: FastAPI + uvicorn in `web/` (`web/requirements.txt`), and React + Vite +
+  TypeScript + Tailwind v4 + KaTeX in `frontend/` (`frontend/package.json`)
+
+Retrieval is hybrid: BGE bi-encoder and BM25, fused by RRF into a pool of 40, then the
+cross-encoder rerank and the relevance gate (`docs/ARCHITECTURE.md` §7, D29–D33).
 
 Python 3.10+ (developed and tested on 3.10.12).
 
@@ -44,7 +51,7 @@ Python 3.10+ (developed and tested on 3.10.12).
 - **No UI inside `src/`.** The CLI is the system. `web/` (FastAPI server) and
   `frontend/` (React page) sit outside `src/` and import it, like `eval/`. Nothing in
   `src/` may depend on them, and the browser must run the same `AgentLoop` as
-  `main.py ask` (`docs/FUTURE_WORK.md`, `docs/DECISIONS.md`).
+  `main.py ask` (`docs/FUTURE_WORK.md`, last section; `docs/DECISIONS.md` D1–D11).
 - **Tools return structured dicts, never raw strings.** Every tool result is
   JSON-serialisable with explicit fields.
 - **Tools never raise.** Errors come back as `{"error": ..., "detail": ...}`.

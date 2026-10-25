@@ -35,8 +35,8 @@ export function CorpusView({ corpus, error }: { corpus: Corpus | null; error: st
       <h2 className={PAGE_TITLE}>What the agent has read</h2>
       <p className={PAGE_LEDE}>
         {plural(papers.length, "paper")}, collected under {plural(topics.length, "topic")}, embedded with{" "}
-        {corpus.embedding_model || "the configured model"}. The agent can add to this while answering, when the
-        papers here don't cover a question.
+        {corpus.embedding_model || "the configured model"}. When a question falls outside these papers, the agent
+        offers to fetch more, and adds them only once you approve.
       </p>
       {sections.map((t) => {
         const mine: Paper[] = t.tag === null ? loose : papers.filter((p) => (p.topic_tags || []).includes(t.tag!));

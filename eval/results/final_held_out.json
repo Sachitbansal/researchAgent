@@ -1,0 +1,346 @@
+{
+  "n_questions": 6,
+  "rows": [
+    {
+      "question_id": "sp04",
+      "category": "single_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.0,
+        "3": 0.0,
+        "5": 0.3333333333333333
+      },
+      "mrr": 0.25,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 2,
+        "resolved": 2,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 2,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 16788,
+      "answer": "The paper **\"Sample-aware Adaptive Structured Pruning for Large Language Models\"** (2503_06184v1) complains that existing structured pruning methods **randomly select** calibration examples from public datasets. This approach is problematic because:\n\n- Randomly selected calibration data **lacks representativeness and diversity**, leading to inaccurate gradient information and flawed pruning strategies [2503_06184v1__c0003].\n- The precision of gradient-based importance estimation is directly tied to the calibration data's quality, so subpar calibration data causes substantial performance degradation in pruned models [2503_06184v1__c0002].\n- Different calibration data distributions have varying effects on performance — uniformly distributed calibration data may degrade performance in some tasks while improving it in others compared to randomly distributed data [2503_06184v1__c0003].\n- Because importance estimation metrics are sensitive to calibration data, disparate calibration datasets lead to varying gradient magnitudes, causing parameters previously deemed crucial to lose importance with new calibration data and vice versa [2503_06184v1__c0003].\n\nThe authors argue that acquiring high-quality calibration data covering diverse parameters and sample spaces is crucial for accurate gradient computation and effective pruning decisions [2503_06184v1__c0003].",
+      "run_id": "41acc0e498a1"
+    },
+    {
+      "question_id": "sp05",
+      "category": "single_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.0,
+        "3": 0.16666666666666666,
+        "5": 0.3333333333333333
+      },
+      "mrr": 0.3333333333333333,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "4/4",
+      "citations": {
+        "total": 3,
+        "resolved": 3,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 2,
+      "tool_calls": 1,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 9959,
+      "answer": "In the study of Hebrew—a morphologically rich, low-resource language—researchers observed a **deep-layer routing collapse** in the final layers of mixture-of-experts models [2605_17598v1__c0052][2605_17598v1__c0000].\n\nSpecifically, expert utilization **dropped sharply in entropy** toward the end of the network, and tokens were increasingly **concentrated among a narrow subset of experts** rather than being distributed broadly [2605_17598v1__c0052]. This collapse manifested across multiple metrics simultaneously: reduced usage entropy, elevated Gini coefficients (indicating inequality in expert selection), and decreased cosine similarity between layers [2605_17598v1__c0052]. The pattern was robust and consistent across both model architectures studied, and it was largely absent for English, which maintained broad, uniform routing throughout all layers [2605_17598v1__c0052][2605_17598v1__c0000].\n\nThe authors describe this as a previously undocumented bottleneck that constrains the model's capacity to process underrepresented languages [2605_17598v1__c0058]. Importantly, they found that fine-tuning on data with greater representation of the target language substantially mitigated this collapse, restoring higher entropy and shifting expert selection from language-specific routing toward shared bilingual experts [2605_17598v1__c0000][2605_17598v1__c0058].",
+      "run_id": "befdb1d6aa76"
+    },
+    {
+      "question_id": "mp04",
+      "category": "multi_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.16666666666666666,
+        "3": 0.5,
+        "5": 0.5
+      },
+      "mrr": 1.0,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 13,
+        "resolved": 13,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 2,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 26359,
+      "answer": "Based on the indexed papers, deploying large language models on hardware with tight memory constraints requires combining multiple complementary techniques rather than relying on any single method. Here's what the literature reports:\n\n## Core Challenge\n\nRunning LLMs on edge and low-resource environments is constrained by high compute and memory demands, which limits real-world impact in domains like healthcare, education, and embedded systems [2506_18952v2__c0001]. While individual techniques such as quantization, pruning, and Retrieval-Augmented Generation (RAG) offer partial relief, they often sacrifice accuracy, speed, or generality when used in isolation [2506_18952v2__c0002]. Most prior approaches also optimize only isolated components—either internal inference or external retrieval—without addressing the full pipeline holistically [2506_18952v2__c0002].\n\n## Combined Techniques Reported\n\n### 1. HOLA Framework: Three Synergistic Modules [2506_18952v2__c0001][2506_18952v2__c0002]\n\nThis end-to-end optimization framework integrates three modules targeting both internal and external efficiency:\n\n- **Hierarchical Speculative Decoding (HSD)** — accelerates autoregressive token generation via entropy-aware verification, speeding up inference without quality loss [2506_18952v2__c0001][2506_18952v2__c0004]. This builds on draft-and-verify schemes like speculative decoding and Medusa but addresses their limitations with extra verifier networks and long-sequence struggles [2506_18952v2__c0003].\n\n- **AdaComp-RAG** — an adaptive retrieval system that modulates augmentation granularity on a per-query basis based on context relevance, reducing unnecessary retrieval overhead [2506_18952v2__c0001][2506_18952v2__c0004]. This improves on static RAG methods that introduce added system complexity and retraining needs [2506_18952v2__c0003].\n\n- **Lo-Bi Optimization** — a dual-stage compression strategy combining LoRA-based structured pruning with sensitivity-guided mixed-precision quantization (mapping weight subblocks to 4-, 8-, or 16-bit precision depending on task importance) [2506_18952v2__c0009]. The optimal precision level for each subblock is determined by minimizing reconstruction error while preserving accuracy under tight memory and bandwidth constraints [2506_18952v2__c0010].\n\nOn edge devices like the Jetson Nano, this combination delivers reduced latency and memory usage alongside improved accuracy (+17.6% EMA on GSM8K, +10.5% MCA on ARC) [2506_18952v2__c0001].\n\n### 2. QPruner: Structured Pruning + Mixed-Precision Quantization + Bayesian Optimization [2412_11629v1__c0001][2412_11629v1__c0028]\n\nThis framework addresses the challenge that fine-tuning after pruning is itself memory-intensive:\n\n- **Structured pruning** removes entire neurons/channels to reduce model size while maintaining hardware compatibility [2412_11629v1__c0002][2412_11629v1__c0007].\n\n- **Layer-wise mixed-precision quantization** assigns different bit-widths (4-bit or 8-bit) to layers based on their importance to the target task, allowing critical layers to retain finer granularity [2412_11629v1__c0001][2412_11629v1__c0007].\n\n- **Bayesian optimization** iteratively refines the bit-width allocation strategy to balance accuracy and memory efficiency [2412_11629v1__c0001][2412_11629v1__c0016].\n\n- **Performance recovery** uses efficient fine-tuning (LoRA or LoftQ) to restore accuracy after compression, made feasible by the reduced memory footprint [2412_11629v1__c0016].\n\nFor example, on LLaMA-7B with 20% pruning, QPruner reduces peak memory from 35.06 GB (half-precision baseline) to ~21–23 GB while maintaining competitive zero-shot performance [2412_11629v1__c0017].\n\n### 3. PBS2P: Progressive Binarization + Semi-Structured Pruning [2502_01705v4__c0002]\n\nThis post-training framework tackles extreme compression:\n\n- **Progressive binarization** reduces weights to 1 bit—the most extreme form of quantization—drastically lowering memory consumption [2502_01705v4__c0002].\n\n- **Semi-structured pruning** removes redundancy that remains even in binarized models, using a Stepwise semi-structured Pruning with Binarization Optimization (SPBO) approach that jointly reduces pruning and quantization error [2502_01705v4__c0002].\n\n- **Coarse-to-Fine Search (CFS)** first allocates pruning ratios globally, then refines element selection locally to enhance overall performance [2502_01705v4__c0002].\n\nNaïve combinations of binarization and pruning typically cause severe performance degradation; PBS2P's joint optimization avoids this [2502_01705v4__c0002].\n\n## Key Insight\n\nThe consistent finding across these works is that successful deployment on memory-constrained hardware requires **holistic integration** across the full inference stack—not just compressing model weights, but also accelerating generation, optimizing retrieval, and managing precision at multiple levels simultaneously. Single-technique approaches tend to trade off too heavily on accuracy or speed, whereas combined frameworks achieve better Pareto-optimal balances [2506_18952v2__c0002][2412_11629v1__c0028].",
+      "run_id": "c1ba85dbfb7c"
+    },
+    {
+      "question_id": "cf03",
+      "category": "conflicting",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.0,
+        "3": 0.0,
+        "5": 0.16666666666666666
+      },
+      "mrr": 0.2,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 4,
+        "resolved": 4,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "check_evidence_consistency"
+        ],
+        "missing": [],
+        "unexpected": [
+          "check_evidence_consistency"
+        ],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 1,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 45970,
+      "answer": "Based on the corpus, **routing collapse is presented as correctable, not inevitable**.\n\nThe paper \"Mixture of Experts for Low-Resource LLMs\" describes deep-layer routing collapse — where underrepresented languages in MoE models use fewer experts in deeper layers — as a robust pattern that emerges when models are trained on imbalanced multilingual corpora [2605_17598v1__c0052][2605_17598v1__c0005]. However, it explicitly identifies this as a \"measurable and potentially correctable diagnostic marker\" rather than an inherent limitation [2605_17598v1__c0001].\n\n**How it can be corrected:**\n\n- **Continual Pre-Training (CPT)** on balanced data substantially corrects the collapse and promotes bilingual expert sharing [2605_17598v1__c0001]. CPT produces a thorough reorganization where experts become nearly entirely bilingual [2605_17598v1__c0056].\n  \n- **Supervised Fine-Tuning (SFT)** alone partially corrects the imbalance but less completely than CPT, sometimes leaving residual deep-layer imbalance [2605_17598v1__c0056].\n\n**Architecture matters for correctability:**\n\nHybrid architectures combining Mamba-2 state-space layers with Transformers show greater routing correctability than pure Transformer designs. The Nemotron hybrid model largely eliminates deep-layer collapse after fine-tuning, while the pure Transformer Qwen model retains some residual imbalance even after CPT [2605_17598v1__c0052][2605_17598v1__c0056]. This suggests state-space components may offer more plasticity for reorganizing routing patterns during adaptation [2605_17598v1__c0056].",
+      "run_id": "0a6d2a8e8238"
+    },
+    {
+      "question_id": "ni03",
+      "category": "absent_fetchable",
+      "expect_abstention": true,
+      "abstained": true,
+      "abstention_correct": true,
+      "recall": {
+        "1": NaN,
+        "3": NaN,
+        "5": NaN
+      },
+      "mrr": NaN,
+      "gold_paper_hit": false,
+      "fact_coverage": NaN,
+      "facts_covered": "0/0",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": true,
+      "fetch_proposal": {
+        "query": "client drift federated learning non-IID data",
+        "searched_for": "data heterogeneity local model divergence; personalized federated learning non-IID; federated averaging bias",
+        "best_score": -3.9981,
+        "closest_topics": [
+          "sparse_mixture_of_experts_routing_in_transformer_models",
+          "structured_pruning_and_quantization_for_efficient_transforme"
+        ],
+        "agent_query": "data heterogeneity local model divergence; personalized federated learning non-IID; federated averaging bias",
+        "query_source": "rewritten"
+      },
+      "fetch_proposed": true,
+      "fetch_proposal_correct": true,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 2,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 35780,
+      "answer": "Based on my search of the indexed corpus, there is no evidence regarding how **client drift** is handled when training is distributed across devices with non-identically distributed (non-IID) data. \n\nThe index primarily covers topics such as:\n*   Structured pruning and quantization for efficient transformers\n*   Sparse mixture of experts routing in transformer models\n\nIt does not appear to contain literature on federated learning, data heterogeneity, or personalized federated learning. If you would like to explore this topic, you can use the **\"Fetch papers\"** button to download relevant arXiv papers into the corpus, after which I can provide a detailed answer based on those sources.",
+      "run_id": "85a002e22727"
+    },
+    {
+      "question_id": "af03",
+      "category": "absent_fetchable",
+      "expect_abstention": true,
+      "abstained": true,
+      "abstention_correct": true,
+      "recall": {
+        "1": NaN,
+        "3": NaN,
+        "5": NaN
+      },
+      "mrr": NaN,
+      "gold_paper_hit": false,
+      "fact_coverage": NaN,
+      "facts_covered": "0/0",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": true,
+      "fetch_proposal": {
+        "query": "sim-to-real transfer robot control policies physics simulator real hardware",
+        "searched_for": "sim-to-real transfer robot control policy; domain randomization sim2real robotics; policy generalization physics simulator to real hardware",
+        "best_score": -7.4713,
+        "closest_topics": [
+          "structured_pruning_and_quantization_for_efficient_transforme",
+          "sparse_mixture_of_experts_routing_in_transformer_models"
+        ],
+        "agent_query": "sim-to-real transfer robot control policy; domain randomization sim2real robotics; policy generalization physics simulator to real hardware",
+        "query_source": "rewritten"
+      },
+      "fetch_proposed": true,
+      "fetch_proposal_correct": true,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "analyze_corpus"
+        ],
+        "missing": [],
+        "unexpected": [
+          "analyze_corpus"
+        ],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 1,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 29194,
+      "answer": "The indexed corpus does not contain any evidence on this topic. It holds 11 papers published between 2023 and 2026, all focused on transformer model efficiency — specifically sparse mixture-of-experts routing and structured pruning/quantization techniques. None of them address robot control, physics simulators, or sim-to-real transfer.\n\nI searched for:\n- Sim-to-real transfer of robot control policies\n- Domain randomization for sim2real robotics\n- Policy generalization from physics simulators to real hardware\n\nThe search returned no relevant matches. If you'd like me to bring in papers on this subject, you can use the **\"Fetch papers\"** button to download arXiv literature on sim-to-real transfer, after which I can retrieve and synthesize the evidence for you.",
+      "run_id": "0c740e47fe90"
+    }
+  ],
+  "errors": 0,
+  "recall": {
+    "1": 0.0417,
+    "3": 0.1667,
+    "5": 0.3333
+  },
+  "mrr": 0.4458,
+  "gold_paper_hit_rate": 1.0,
+  "fact_coverage": 1.0,
+  "abstention_accuracy": 1.0,
+  "abstention_on_absent": 1.0,
+  "false_abstention_on_answerable": 0.0,
+  "citations_resolved": 1.0,
+  "tool_trace_matched": 1.0,
+  "fetch_proposal_on_fetchable": 1.0,
+  "fetch_proposal_on_answerable": 0.0,
+  "mean_iterations": 2.8333,
+  "median_elapsed_ms": 29194
+}

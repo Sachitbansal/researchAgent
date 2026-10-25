@@ -17,6 +17,7 @@ faiss-cpu==1.8.0.post1
 
 # ml / analysis
 scikit-learn==1.5.2
+scipy==1.15.3            # sparse matrices for the hand-written BM25 index (D31)
 numpy==1.26.4
 pandas==2.2.3
 

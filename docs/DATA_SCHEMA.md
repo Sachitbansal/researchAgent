@@ -332,21 +332,27 @@ makes the log unusable.
 {
   "question_id":   "string",
   "question":      "string — paraphrased, never copied from paper wording",
-  "category":      "'single_paper' | 'multi_paper' | 'not_in_corpus' | 'conflicting'",
+  "category":      "'single_paper' | 'multi_paper' | 'not_in_corpus' | 'conflicting' | 'absent_fetchable'",
+  "held_out":      "bool — in the held-out split",
   "gold_paper_ids":["string"],
   "gold_chunk_ids":["string"],
   "expected_facts":["string"],
   "expect_abstention": "bool",
+  "expect_fetch_proposal": "bool — absent_fetchable only; a question without it is not scored for proposals (D17)",
+  "previous_category": "string — set on questions re-tagged into absent_fetchable",
+  "absent_markers": ["string — words naming the absent subject; read by scripts/m7_gate.py"],
   "expected_tools": ["string"] ,
   "notes":         "string — why this question is here, what it is probing"
 }
 ```
 
+The file wraps the list as `{"_about": ..., "questions": [...]}`.
+
 `expected_tools` is a soft check. The agent is allowed to reach the right answer by a
 different route; the field records what the design anticipates so unexpected traces
 get looked at rather than silently passing.
 
-`gold_chunk_ids` may be empty for `not_in_corpus` questions — there is nothing to
+`gold_chunk_ids` may be empty for `not_in_corpus` and `absent_fetchable` questions — there is nothing to
 retrieve, and the correct behaviour is abstention.
 
 ---

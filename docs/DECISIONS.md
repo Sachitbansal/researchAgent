@@ -321,11 +321,18 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Why:** the tuning run showed both failure modes of the old trigger: mp03 answered fully with 7 citations and still got a card from a late failed search; af01 correctly refused, but loosely related chunks passed the gate, so no card appeared.
 - **Rejected:** keeping D24; requiring every unfiltered retrieve to fail (misses af01).
 
+## D35 — Search wording rule in the system prompt; one more refusal phrase
+*2026-10-25 · `src/prompts/system.md`, `eval/metrics.py` (D35)*
+- **Decision:** a "How to search" rule: plain keyword phrases, never boolean or quoted syntax; `queries` with one short search per part for multi-part questions. The eval's abstention phrases gain "does not cover".
+- **By:** user, on Claude's recommendation after the D29–D33 agent run.
+- **Why:** the agent had passed `queries` in 0 of 42 calls and wrote boolean searches on sp03, which failed. After the rule: 17 of 51 calls use `queries` in the final run, and sp03 answers with citations. af01 was a correct refusal scored as an answer for want of the phrase; it was added before the final run, not fitted after it.
+
 ---
 
 ## Benched questions
 
-- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. The comparison now exists at `docs/research/framework-comparison.md`, with the triggers for switching. Adoption stays benched: threads (D12), long-term memory (D19) and fetch approval (D26) are hand-rolled.
-- **Record/replay of arXiv responses** for an automated CRAG end-to-end test (D17). Until then the live path is checked by hand on a throwaway copy.
-- **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, and a tracing UI. (Long-term research memory: D19–D22. The framework comparison is written up in `docs/research/framework-comparison.md`; adopting one stays benched.)
-- **Unordered:** self-check and revise, plus a PDF hidden-text filter; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).
+Everything benched, including adopting a framework and arXiv record/replay, is now one
+ranked list in [`docs/FUTURE_WORK.md`](FUTURE_WORK.md), "Good to have later", with the
+honest negative results beside it. The framework comparison and the triggers for switching
+are in [`docs/research/framework-comparison.md`](research/framework-comparison.md). Threads
+(D12), long-term memory (D19) and fetch approval (D26) stay hand-rolled.

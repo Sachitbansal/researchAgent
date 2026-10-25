@@ -197,6 +197,30 @@ report it separately.
 
 ---
 
+## After M9
+
+The milestones above are the original build, kept as written. The work after M9 is logged
+in `docs/DECISIONS.md` by decision number rather than by milestone:
+
+- **D1–D11: the browser UI.** FastAPI server, React/Vite/TypeScript page, SSE streaming,
+  Tailwind v4 and KaTeX, sample chats; and per-tool call limits replacing the global
+  8-iteration cap (D4).
+- **D12–D13: short-term memory.** Threads in SQLite, a 9k-token history budget, and
+  "seen = still visible" chunk dedup.
+- **D14–D18, D24–D28, D34: corrective RAG.** The `coverage_gap` hint, the arXiv admission
+  gate, the `absent_fetchable` eval category, the Fetch papers button with user approval,
+  the query rewritten from the user's question, and the card shown exactly when the answer
+  cites nothing.
+- **D19–D23: long-term memory.** Grounded findings and preferences across chats, automatic
+  forgetting, and the Memories page.
+- **D29–D33: the retrieval upgrade.** Diagnosis, contextual headers (shipped off), hybrid
+  BM25 with RRF, multi-query, and the thresholds re-checked.
+
+The final evaluation of all of it is in `docs/EVALUATION.md`, "Final evaluation
+(2026-10-25)".
+
+---
+
 ## Standing rules
 
 - Update the "Things that have already gone wrong once" list in `.claude/CLAUDE.md`
