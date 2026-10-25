@@ -233,9 +233,12 @@ def test_changed_chunk_text_is_re_embedded_not_skipped(cfg):
     assert result["rebuilt"] is True, "a flat index cannot replace a vector in place"
     assert "unchanged chunk_id" in result["rebuild_reason"]
 
+    from retrieval.contextual import embed_hash, embed_text
+
     after = Manifest.load(cfg, strict_model_check=False).data["indexed_hashes"]
     changed = next(c for c in store.all() if c["chunk_id"] == "p1__c0001")
-    assert changed["content_hash"] in after, "the new text's hash is now what is indexed"
+    current = embed_hash(embed_text(changed, cfg)[0], cfg)
+    assert current in after, "the new embedder input's hash is now what is indexed"
 
 
 def test_unchanged_chunks_are_still_skipped(cfg):
@@ -266,7 +269,7 @@ def test_an_index_without_recorded_hashes_is_rebuilt_once(cfg):
 
 def test_add_refuses_mismatched_content_hashes(cfg):
     index = VectorIndex(4, cfg)
-    with pytest.raises(IndexError_, match="content_hashes"):
+    with pytest.raises(IndexError_, match="embed_hashes"):
         index.add(["a", "b"], np.zeros((2, 4), dtype=np.float32), ["only-one-hash"])
 
 

@@ -41,17 +41,20 @@ def load_questions(held_out: Optional[bool] = None) -> List[Dict[str, Any]]:
     return [q for q in questions if bool(q["held_out"]) is held_out]
 
 
-def config_with(**retrieval_overrides: Any):
+def config_with(sections: Optional[Dict[str, Dict[str, Any]]] = None, **retrieval_overrides: Any):
     """A Config identical to the project's but with retrieval settings overridden.
 
     Written through the YAML rather than poked into the loaded object: config sections
     are read-only on purpose, and a sweep that mutates them in place would be testing a
-    state the real system can never be in.
+    state the real system can never be in. `sections` overrides keys in other sections,
+    e.g. {"paths": {"index_dir": "/tmp/x"}} to point an ablation arm at a scratch index.
     """
     import config as config_module
 
     raw = yaml.safe_load((ROOT / "config.yaml").read_text(encoding="utf-8"))
     raw["retrieval"].update(retrieval_overrides)
+    for name, overrides in (sections or {}).items():
+        raw.setdefault(name, {}).update(overrides)
     scratch = ROOT / "eval" / "results" / "_sweep_config.yaml"
     scratch.parent.mkdir(parents=True, exist_ok=True)
     scratch.write_text(yaml.safe_dump(raw), encoding="utf-8")

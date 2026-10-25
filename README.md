@@ -49,7 +49,8 @@ index "<topic>"
 ask "<question>"
   agent loop ── chooses among five tools, up to 10 calls each (search_literature 5)
        │
-       ├─ retrieve_evidence          bi-encoder top-40 → cross-encoder rerank
+       ├─ retrieve_evidence          bi-encoder top-40 + BM25 top-40 → RRF pool of 40
+       │                             (per sub-query, up to 3) → cross-encoder rerank
        │                             → relevance gate → top-5 + neighbours
        ├─ search_literature          fetch and index new papers mid-question
        ├─ analyze_corpus             stats, timeline, KMeans clustering
@@ -74,8 +75,9 @@ intact. Past a token budget the oldest tool results have their *content* replace
 placeholder; the messages stay, because deleting one orphans its `tool_call` and the API
 rejects the whole request.
 
-**Two-stage retrieval.** A bi-encoder scores the whole index cheaply; the cross-encoder
-only ever rescores its top 40. Reranking the corpus directly would defeat the point.
+**Two-stage retrieval.** A bi-encoder and a hand-written BM25 score the whole index
+cheaply. Their rankings are fused by rank (RRF) into a pool of 40, and the cross-encoder
+only ever rescores that pool. Reranking the corpus directly would defeat the point.
 
 **Abstention is a mechanism, not a prompt instruction.** Chunks scoring below a tuned
 relevance threshold are withheld, and the tool reports `sufficient_evidence: false`.
@@ -148,7 +150,8 @@ python main.py index "sparse mixture-of-experts routing in transformer models"
 
 Searches arXiv, downloads the PDFs, extracts text and figures, describes each figure
 with a vision model, then embeds and indexes everything. Re-running is cheap: papers
-already held are not re-downloaded, embeddings are cached by content hash, and figure
+already held are not re-downloaded, embeddings are cached by the hash of the exact
+embedder input, and figure
 descriptions are cached by image hash.
 
 ```
@@ -160,6 +163,10 @@ descriptions are cached by image hash.
 
 Indexing a second topic adds to the *same* index — papers are distinguished by
 `topic_tags`, and a paper found under two topics gains both tags.
+
+`python main.py reindex` re-embeds the chunks already held, with no arXiv call. It is the
+step to run after changing what the first stage embeds, e.g. `retrieval.contextual_headers`.
+Unchanged inputs hit the cache.
 
 ### Ask a question
 
@@ -371,6 +378,11 @@ abstention. A separately tuned cosine gate does not recover it. The measurement,
 what it leaves open, is in
 [`docs/EVALUATION.md`](docs/EVALUATION.md#the-rerank-ablation--a-marginal-gain-and-what-the-ablation-missed).
 
+The retrieval upgrade (2026-10-25) added BM25 with RRF, which raised retrieval-only MRR
+from 0.344 to 0.479 on the tuning split with abstention unchanged. Contextual headers and
+multi-query were built and measured, and did not help offline. One agent run showed no
+clear change. See [`docs/EVALUATION.md`](docs/EVALUATION.md#retrieval-upgrade-2026-10-25).
+
 ## Examples
 
 - [`examples/worked_examples.md`](examples/worked_examples.md) — an abstention, a
@@ -421,7 +433,10 @@ produced it. The ones most worth knowing:
 | `chunking.max_tokens` | 445 | min of the two encoder budgets; the cross-encoder binds |
 | `retrieval.k_retrieve` / `k_final` | 40 / 5 | wide cheap pool, narrow expensive context |
 | `retrieval.relevance_threshold` | −3.0 | swept −8..+2 on the tuning split only |
-| `retrieval.bi_encoder_relevance_threshold` | 0.55 | the gate when the cross-encoder did not run; a degraded fallback, not an alternative |
+| `retrieval.bi_encoder_relevance_threshold` | 0.55 | the gate when the cross-encoder did not run (on the dense cosine, never the RRF score); a degraded fallback, not an alternative |
+| `retrieval.hybrid` / `rrf_k` | true / 60 | BM25 beside the bi-encoder, fused by RRF; pool recall@40 0.400 → 0.567 on the tuning split |
+| `retrieval.contextual_headers` | false | `title — section` headers for the first stage; measured to lower pool recall here, so off. Toggling needs `main.py reindex` |
+| `retrieval.max_subqueries` / `multi_query_rerank` | 3 / `retrieving` | `retrieve_evidence(queries=[...])`; each candidate is scored only against the sub-queries that found it, since scoring all pairs cost 3.1× one query |
 | `agent.max_calls_per_tool` | 10 | per tool, per question; an exhausted tool is no longer offered |
 | `agent.tool_call_limits` | `search_literature: 5` | it downloads papers: slow, and trips arXiv's per-IP 429 |
 | `agent.max_no_progress_turns` | 3 | consecutive turns with every call refused → forced final answer |
@@ -441,7 +456,7 @@ agent's own conversation on a follow-up turn, so a text-only model breaks that p
 ## Tests
 
 ```bash
-python -m pytest tests/ -q          # 311 tests
+python -m pytest tests/ -q          # 474 tests
 python scripts/m5_gate.py           # one milestone's verification gate
 ```
 

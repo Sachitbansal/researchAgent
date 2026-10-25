@@ -117,34 +117,49 @@ Core RAG. The tool the agent should reach for by default.
 
 **Description shown to the model:**
 
-> Retrieve passages, figures, and tables from the indexed papers that are relevant to
-> a query. This is your primary source of evidence — use it for any question about
-> what the papers say. Returns ranked chunks with paper, page, and section metadata
-> so you can cite them precisely. If `sufficient_evidence` comes back false, the
-> index does not contain good evidence for this query, and
-> `coverage_gap.suggested_next` says what to do: rephrase and retry once, or tell the
-> user what the corpus lacks so they can approve a fetch. Do not call
-> `search_literature` unless the user has approved a fetch, and do not answer from
+> Retrieve passages, figures, and tables from the indexed papers that are relevant to a
+> query. This is your primary source of evidence — use it for any question about what the
+> papers say. Returns ranked chunks with paper, page, and section metadata so you can cite
+> them precisely. For a question with several parts, or one that spans several papers,
+> pass `queries` instead: one short search per part or paper (up to 3), in a single call.
+> Each chunk then names the `matched_query` it answers, and `subquery_sufficient` says
+> which parts found nothing: say so for those parts rather than concluding the papers are
+> silent. If `sufficient_evidence` comes back false, the index does not contain good
+> evidence for this query, and `coverage_gap.suggested_next` says what to do: rephrase and
+> retry once, or tell the user what the corpus lacks so they can approve a fetch. Do not
+> call `search_literature` unless the user has approved a fetch, and do not answer from
 > your own knowledge when this returns nothing.
 
 **Input**
 
 ```json
 {
-  "query":        "string, required",
+  "query":        "string — one search; this or `queries` is required",
+  "queries":      "string[], optional — up to retrieval.max_subqueries (3) searches, one per
+                   part of a multi-part or multi-paper question; `query`, if also given,
+                   joins them first",
   "k":            "int, optional, default 5",
   "topic_filter": "string, optional — one tag; matches chunks whose topic_tags contain it",
   "chunk_types":  "string[], optional — subset of ['text','figure','table']"
 }
 ```
 
+Neither field alone is required by the schema. With both missing, the tool returns
+`empty_query`. More than 3 distinct queries returns `too_many_queries`. Both are error
+dicts, never exceptions.
+
 **Behaviour**
 
-1. bi-encoder retrieval, `k_retrieve = 30–50`
-2. metadata filter (`topic_tags` membership, `chunk_types`) — applied via FAISS ID selector where
-   possible, else post-filter
-3. cross-encoder rerank over candidates
-4. **relevance gate** — top scores vs. empirically tuned threshold
+1. per (sub-)query: bi-encoder top-`k_retrieve` (40) and, with `retrieval.hybrid`, BM25
+   top-40 (D31). The metadata filter (`topic_tags` membership, `chunk_types`) applies to
+   both lists alike, as a post-filter
+2. Reciprocal Rank Fusion of every list into one pool, **capped at `k_retrieve`** however
+   many lists feed it
+3. cross-encoder rerank over the pool. With several queries, each candidate gets its max
+   score over the sub-queries whose lists found it (`retrieval.multi_query_rerank:
+   retrieving`; `all` scores every pair, D32)
+4. **relevance gate** — scores vs. the empirically tuned threshold of the scorer that ran:
+   the cross-encoder logit, or on the fallback path the dense cosine (never an RRF score)
 5. neighbour expansion — attach `±1` adjacent chunks from the same paper
 6. truncate each chunk to ~500 tokens
 7. deduplicate against chunks already returned whose text is **still visible** in the
@@ -161,11 +176,17 @@ Core RAG. The tool the agent should reach for by default.
     "figure_id": "present only when chunk_type is figure|table"
   }],
   "sufficient_evidence": "bool",
-  "note": "string — why the gate failed, when it did",
-  "n_candidates_considered": "int",
+  "note": "string — why the gate failed, when it did; for several queries, which found
+           nothing, and which cleared the gate but were outranked out of k",
+  "n_candidates_considered": "int — the fused pool, at most k_retrieve",
+  "subquery_sufficient": "{query: bool} — several queries only: did any candidate clear
+                          the gate for that sub-query",
   "coverage_gap": "object — present only when the relevance gate failed, see below"
 }
 ```
+
+With several queries each chunk also carries `matched_query`, the sub-query that gave its
+score. A single `query` returns exactly the shape it always did.
 
 **`coverage_gap`** — a structured hint, returned only when a scorer ran and every
 candidate fell below the relevance threshold. It is data, not a call: the tool still
@@ -173,8 +194,8 @@ fetches nothing; the agent describes the gap and the user decides whether to fet
 
 ```json
 "coverage_gap": {
-  "searched_for":   "string — the query as given",
-  "best_score":     "float — the top candidate's score",
+  "searched_for":   "string — the query as given; several queries joined with '; '",
+  "best_score":     "float — the top candidate's score (over all sub-queries)",
   "threshold":      "float — the threshold actually used, for the scorer that ran",
   "scorer":         "'cross_encoder' | 'bi_encoder'",
   "closest_topics": ["topic_tag — up to 3, in the rank order of their best candidate"],

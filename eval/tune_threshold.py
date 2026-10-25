@@ -65,6 +65,13 @@ def sweep(thresholds: List[float] = None) -> Dict[str, Any]:
 
 
 def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    parser.add_argument("--out", default="threshold_sweep.json",
+                        help="file name under eval/results/ (a re-check writes a new file "
+                             "rather than over the one docs/EVALUATION.md cites)")
+    args = parser.parse_args()
     result = sweep()
     print(f"tuning split: {result['n_questions']} questions "
           f"(held-out questions are not touched)\n", flush=True)
@@ -82,7 +89,7 @@ def main() -> int:
           f"(balanced {best['balanced']}, answerable {best['gate_on_answerable']}, "
           f"absent {best['gate_on_absent']})", flush=True)
 
-    out = ROOT / "eval" / "results" / "threshold_sweep.json"
+    out = ROOT / "eval" / "results" / Path(args.out).name
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     print(f"written: {out}", flush=True)

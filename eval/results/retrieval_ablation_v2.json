@@ -1,0 +1,4761 @@
+{
+  "n_questions": 12,
+  "k": 10,
+  "arms": {
+    "baseline": {
+      "label": "baseline",
+      "recall": {
+        "1": 0.0417,
+        "3": 0.0833,
+        "5": 0.125,
+        "10": 0.125
+      },
+      "mrr": 0.3438,
+      "pool_recall@40": 0.4,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 1510,
+      "median_rerank_ms": 1462,
+      "median_rerank_ms_multi_questions": null,
+      "median_rerank_pairs_multi_questions": null,
+      "n_multi_questions": 0,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.125,
+          "gate_on_absent": 1.0,
+          "balanced": 0.2222
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.125,
+          "gate_on_absent": 1.0,
+          "balanced": 0.2222
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3137,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.3333333333333333,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 2663,
+          "rerank_ms": 2610,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2310_00811v1__c0002",
+            "2605_17598v1__c0003"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.212,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1571,
+          "rerank_ms": 1523,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2605_17598v1__c0053"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.7227,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.25,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1616,
+          "rerank_ms": 1564,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2412_11629v1__c0022",
+            "2412_11629v1__c0023",
+            "2502_01705v4__c0006",
+            "2412_11629v1__c0007",
+            "2502_01705v4__c0045",
+            "2503_06184v1__c0002",
+            "2412_11629v1__c0021",
+            "2412_11629v1__c0026",
+            "2502_01705v4__c0007",
+            "2502_01705v4__c0019"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1439,
+          "rerank_ms": 1389,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2412_11629v1__c0023",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.9631,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 1507,
+          "rerank_ms": 1464,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0004",
+            "2605_17598v1__c0003",
+            "2608_15102v2__c0016",
+            "2607_16427v1__c0021",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": false,
+          "latency_ms": 1531,
+          "rerank_ms": 1477,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2724,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1513,
+          "rerank_ms": 1461,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0018",
+            "2505_18232v4__c0005"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.3333333333333333,
+            "5": 0.3333333333333333,
+            "10": 0.3333333333333333
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1497,
+          "rerank_ms": 1454,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0001",
+            "2605_17598v1__c0000",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004",
+            "2608_15102v2__c0017",
+            "2605_17598v1__c0002"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -9.5687,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1588,
+          "rerank_ms": 1536,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1436,
+          "rerank_ms": 1381,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.9993,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1488,
+          "rerank_ms": 1448,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1479,
+          "rerank_ms": 1418,
+          "rerank_pairs": 40,
+          "retrieved": []
+        }
+      ]
+    },
+    "+headers": {
+      "label": "+headers",
+      "recall": {
+        "1": 0.0417,
+        "3": 0.0625,
+        "5": 0.0833,
+        "10": 0.0833
+      },
+      "mrr": 0.3125,
+      "pool_recall@40": 0.3167,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 1515,
+      "median_rerank_ms": 1470,
+      "median_rerank_ms_multi_questions": null,
+      "median_rerank_pairs_multi_questions": null,
+      "n_multi_questions": 0,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.125,
+          "gate_on_absent": 1.0,
+          "balanced": 0.2222
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.125,
+          "gate_on_absent": 1.0,
+          "balanced": 0.2222
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3137,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.3333333333333333,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 1567,
+          "rerank_ms": 1519,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2310_00811v1__c0002",
+            "2605_17598v1__c0003"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.212,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1532,
+          "rerank_ms": 1490,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2605_17598v1__c0053",
+            "2605_17598v1__c0056",
+            "2605_17598v1__c0055"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.7227,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.0,
+          "gold_paper_hit": true,
+          "latency_ms": 1588,
+          "rerank_ms": 1547,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2412_11629v1__c0022",
+            "2502_01705v4__c0006",
+            "2502_01705v4__c0045",
+            "2503_06184v1__c0002",
+            "2502_01705v4__c0007",
+            "2502_01705v4__c0035",
+            "2502_01705v4__c0019",
+            "2505_18232v4__c0021",
+            "2502_01705v4__c0013",
+            "2502_01705v4__c0023"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 1454,
+          "rerank_ms": 1399,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.9631,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 1546,
+          "rerank_ms": 1487,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2605_17598v1__c0003",
+            "2608_15102v2__c0016",
+            "2607_16427v1__c0021",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": false,
+          "latency_ms": 1519,
+          "rerank_ms": 1480,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2724,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1525,
+          "rerank_ms": 1471,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 1492,
+          "rerank_ms": 1435,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2605_17598v1__c0000",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004",
+            "2608_15102v2__c0017",
+            "2607_16427v1__c0006",
+            "2605_17598v1__c0003"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -10.9717,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1448,
+          "rerank_ms": 1396,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1398,
+          "rerank_ms": 1344,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -7.7445,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1443,
+          "rerank_ms": 1388,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1511,
+          "rerank_ms": 1469,
+          "rerank_pairs": 40,
+          "retrieved": []
+        }
+      ]
+    },
+    "+hybrid": {
+      "label": "+hybrid",
+      "recall": {
+        "1": 0.0625,
+        "3": 0.125,
+        "5": 0.1875,
+        "10": 0.2292
+      },
+      "mrr": 0.4792,
+      "pool_recall@40": 0.5667,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 1487,
+      "median_rerank_ms": 1428,
+      "median_rerank_ms_multi_questions": null,
+      "median_rerank_pairs_multi_questions": null,
+      "n_multi_questions": 0,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.25,
+          "gate_on_absent": 1.0,
+          "balanced": 0.4
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.125,
+          "gate_on_absent": 1.0,
+          "balanced": 0.2222
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3137,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.3333333333333333,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1570,
+          "rerank_ms": 1472,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2310_00811v1__c0002",
+            "2605_17598v1__c0003"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.212,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1497,
+          "rerank_ms": 1439,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2605_17598v1__c0053",
+            "2605_17598v1__c0055"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 1.1783,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.3333333333333333,
+            "10": 0.6666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1484,
+          "rerank_ms": 1429,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2412_11629v1__c0001",
+            "2412_11629v1__c0022",
+            "2412_11629v1__c0023",
+            "2412_11629v1__c0004",
+            "2502_01705v4__c0006",
+            "2412_11629v1__c0028",
+            "2412_11629v1__c0007",
+            "2412_11629v1__c0003",
+            "2502_01705v4__c0045",
+            "2503_06184v1__c0002"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.3333333333333333,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1404,
+          "rerank_ms": 1364,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2412_11629v1__c0023",
+            "2505_18232v4__c0001",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.9631,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1527,
+          "rerank_ms": 1486,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0004",
+            "2605_17598v1__c0003",
+            "2608_15102v2__c0016",
+            "2607_16427v1__c0021",
+            "2608_15102v2__c0005",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": false,
+          "latency_ms": 1532,
+          "rerank_ms": 1475,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2232,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1430,
+          "rerank_ms": 1375,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2502_01705v4__c0013",
+            "2505_18232v4__c0018",
+            "2505_18232v4__c0005"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.3333333333333333,
+            "5": 0.5,
+            "10": 0.5
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1396,
+          "rerank_ms": 1337,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2607_16427v1__c0026",
+            "2607_16427v1__c0001",
+            "2608_15102v2__c0001",
+            "2605_17598v1__c0000",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -10.6184,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1515,
+          "rerank_ms": 1463,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1422,
+          "rerank_ms": 1372,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.9993,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1466,
+          "rerank_ms": 1410,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1491,
+          "rerank_ms": 1427,
+          "rerank_pairs": 40,
+          "retrieved": []
+        }
+      ]
+    },
+    "headers+hybrid": {
+      "label": "headers+hybrid",
+      "recall": {
+        "1": 0.0625,
+        "3": 0.125,
+        "5": 0.1875,
+        "10": 0.2292
+      },
+      "mrr": 0.4792,
+      "pool_recall@40": 0.5667,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 1474,
+      "median_rerank_ms": 1424,
+      "median_rerank_ms_multi_questions": null,
+      "median_rerank_pairs_multi_questions": null,
+      "n_multi_questions": 0,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.25,
+          "gate_on_absent": 1.0,
+          "balanced": 0.4
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.125,
+          "gate_on_absent": 1.0,
+          "balanced": 0.2222
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3137,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.3333333333333333,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1749,
+          "rerank_ms": 1478,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2310_00811v1__c0002",
+            "2605_17598v1__c0003"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.212,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1550,
+          "rerank_ms": 1510,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2605_17598v1__c0053",
+            "2605_17598v1__c0055"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 1.1783,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.3333333333333333,
+            "10": 0.6666666666666666
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1609,
+          "rerank_ms": 1567,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2412_11629v1__c0001",
+            "2412_11629v1__c0022",
+            "2412_11629v1__c0023",
+            "2412_11629v1__c0004",
+            "2502_01705v4__c0006",
+            "2412_11629v1__c0028",
+            "2412_11629v1__c0007",
+            "2412_11629v1__c0003",
+            "2502_01705v4__c0045",
+            "2503_06184v1__c0002"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.3333333333333333,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1433,
+          "rerank_ms": 1378,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2412_11629v1__c0023",
+            "2505_18232v4__c0001",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 0.9631,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1528,
+          "rerank_ms": 1488,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2605_17598v1__c0003",
+            "2608_15102v2__c0016",
+            "2607_16427v1__c0021",
+            "2608_15102v2__c0005",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": false,
+          "latency_ms": 1515,
+          "rerank_ms": 1475,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2232,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1459,
+          "rerank_ms": 1405,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2502_01705v4__c0013",
+            "2505_18232v4__c0018",
+            "2505_18232v4__c0005"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.3333333333333333,
+            "5": 0.5,
+            "10": 0.5
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1430,
+          "rerank_ms": 1389,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2607_16427v1__c0026",
+            "2607_16427v1__c0001",
+            "2608_15102v2__c0001",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004",
+            "2608_15102v2__c0017"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -10.9514,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1467,
+          "rerank_ms": 1415,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1431,
+          "rerank_ms": 1377,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.9993,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1482,
+          "rerank_ms": 1425,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1465,
+          "rerank_ms": 1423,
+          "rerank_pairs": 40,
+          "retrieved": []
+        }
+      ]
+    },
+    "+multi(retrieving)": {
+      "label": "+multi(retrieving)",
+      "recall": {
+        "1": 0.0417,
+        "3": 0.0833,
+        "5": 0.1042,
+        "10": 0.1667
+      },
+      "mrr": 0.3375,
+      "pool_recall@40": 0.4208,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 3049,
+      "median_rerank_ms": 2939,
+      "median_rerank_ms_multi_questions": 3116,
+      "median_rerank_pairs_multi_questions": 83,
+      "n_multi_questions": 7,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.625,
+          "gate_on_absent": 1.0,
+          "balanced": 0.7692
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.375,
+          "gate_on_absent": 1.0,
+          "balanced": 0.5455
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token",
+            "What does it propose to fix that"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?": true,
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token": true,
+            "What does it propose to fix that": true
+          },
+          "top_score": 1.2029,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 3222,
+          "rerank_ms": 3094,
+          "rerank_pairs": 84,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0007",
+            "2310_00811v1__c0002",
+            "2608_15102v2__c0002",
+            "2605_17598v1__c0015",
+            "2607_16427v1__c0001",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model",
+            "what routing change is suggested to avoid it"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?": true,
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model": true,
+            "what routing change is suggested to avoid it": false
+          },
+          "top_score": 0.7385,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.3333333333333333
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 1.0,
+          "gold_paper_hit": true,
+          "latency_ms": 3258,
+          "rerank_ms": 3116,
+          "rerank_pairs": 84,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2412_11629v1__c0027",
+            "2412_11629v1__c0016",
+            "2605_17598v1__c0053",
+            "2410_18035v1__c0004",
+            "2412_11629v1__c0006",
+            "2410_18035v1__c0005"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+            "Which method brings a lower-precision numeric format into the pruning process itself",
+            "what resource is it trying to save"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?": true,
+            "Which method brings a lower-precision numeric format into the pruning process itself": true,
+            "what resource is it trying to save": false
+          },
+          "top_score": 2.3197,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 3228,
+          "rerank_ms": 3134,
+          "rerank_pairs": 81,
+          "retrieved": [
+            "2412_11629v1__c0023",
+            "2502_01705v4__c0006",
+            "2412_11629v1__c0022",
+            "2502_01705v4__c0019",
+            "2412_11629v1__c0026",
+            "2412_11629v1__c0021",
+            "2502_01705v4__c0023",
+            "2505_18232v4__c0005",
+            "2412_11629v1__c0007",
+            "2503_06184v1__c0002"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 1459,
+          "rerank_ms": 1413,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2412_11629v1__c0023",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+            "What reasons do the routing papers give for expert assignments being unreliable",
+            "do they locate the problem in the same place"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?": true,
+            "What reasons do the routing papers give for expert assignments being unreliable": true,
+            "do they locate the problem in the same place": false
+          },
+          "top_score": 2.9984,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.2,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 3585,
+          "rerank_ms": 3451,
+          "rerank_pairs": 97,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0004",
+            "2605_17598v1__c0003",
+            "2607_16427v1__c0021",
+            "2607_16427v1__c0001",
+            "2605_17598v1__c0014",
+            "2608_15102v2__c0016",
+            "2608_15102v2__c0017",
+            "2608_15102v2__c0015",
+            "2310_00811v1__c0002"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?",
+            "Both groups of papers claim to cut the cost of running a large model",
+            "How do their mechanisms differ in what they actually remove or skip"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?": false,
+            "Both groups of papers claim to cut the cost of running a large model": false,
+            "How do their mechanisms differ in what they actually remove or skip": false
+          },
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": false,
+          "latency_ms": 3136,
+          "rerank_ms": 3037,
+          "rerank_pairs": 83,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2724,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1505,
+          "rerank_ms": 1455,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0018",
+            "2505_18232v4__c0005"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.3333333333333333,
+            "5": 0.3333333333333333,
+            "10": 0.3333333333333333
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1496,
+          "rerank_ms": 1457,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0001",
+            "2605_17598v1__c0000",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004",
+            "2608_15102v2__c0017",
+            "2605_17598v1__c0002"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+            "What fermentation temperature gives the best rise in a sourdough starter",
+            "how does it change the flavour"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?": false,
+            "What fermentation temperature gives the best rise in a sourdough starter": false,
+            "how does it change the flavour": false
+          },
+          "top_score": -9.5687,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 3284,
+          "rerank_ms": 3170,
+          "rerank_pairs": 83,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1403,
+          "rerank_ms": 1367,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.9993,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1467,
+          "rerank_ms": 1427,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network",
+            "what is done to prevent it"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?": false,
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network": false,
+            "what is done to prevent it": false
+          },
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 2963,
+          "rerank_ms": 2841,
+          "rerank_pairs": 80,
+          "retrieved": []
+        }
+      ]
+    },
+    "hybrid+multi(all)": {
+      "label": "hybrid+multi(all)",
+      "recall": {
+        "1": 0.0417,
+        "3": 0.1042,
+        "5": 0.1667,
+        "10": 0.25
+      },
+      "mrr": 0.4104,
+      "pool_recall@40": 0.5042,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 4293,
+      "median_rerank_ms": 4137,
+      "median_rerank_ms_multi_questions": 4364,
+      "median_rerank_pairs_multi_questions": 120,
+      "n_multi_questions": 7,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.625,
+          "gate_on_absent": 1.0,
+          "balanced": 0.7692
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.375,
+          "gate_on_absent": 1.0,
+          "balanced": 0.5455
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token",
+            "What does it propose to fix that"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?": true,
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token": true,
+            "What does it propose to fix that": true
+          },
+          "top_score": 1.2029,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 4585,
+          "rerank_ms": 4388,
+          "rerank_pairs": 120,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0007",
+            "2310_00811v1__c0002",
+            "2608_15102v2__c0002",
+            "2605_17598v1__c0015",
+            "2607_16427v1__c0001",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model",
+            "what routing change is suggested to avoid it"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?": true,
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model": true,
+            "what routing change is suggested to avoid it": false
+          },
+          "top_score": 0.7385,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.3333333333333333
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 4502,
+          "rerank_ms": 4342,
+          "rerank_pairs": 120,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2412_11629v1__c0027",
+            "2412_11629v1__c0016",
+            "2605_17598v1__c0053",
+            "2410_18035v1__c0004",
+            "2412_11629v1__c0001",
+            "2412_11629v1__c0006",
+            "2605_17598v1__c0055",
+            "2410_18035v1__c0005"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+            "Which method brings a lower-precision numeric format into the pruning process itself",
+            "what resource is it trying to save"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?": true,
+            "Which method brings a lower-precision numeric format into the pruning process itself": true,
+            "what resource is it trying to save": false
+          },
+          "top_score": 2.3197,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.16666666666666666,
+            "10": 0.5
+          },
+          "mrr": 0.25,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 4199,
+          "rerank_ms": 4050,
+          "rerank_pairs": 120,
+          "retrieved": [
+            "2412_11629v1__c0023",
+            "2412_11629v1__c0028",
+            "2502_01705v4__c0006",
+            "2412_11629v1__c0007",
+            "2412_11629v1__c0022",
+            "2412_11629v1__c0006",
+            "2412_11629v1__c0001",
+            "2502_01705v4__c0007",
+            "2502_01705v4__c0045",
+            "2412_11629v1__c0026"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.3333333333333333,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1439,
+          "rerank_ms": 1385,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2412_11629v1__c0023",
+            "2505_18232v4__c0001",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+            "What reasons do the routing papers give for expert assignments being unreliable",
+            "do they locate the problem in the same place"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?": true,
+            "What reasons do the routing papers give for expert assignments being unreliable": true,
+            "do they locate the problem in the same place": false
+          },
+          "top_score": 2.9984,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.2,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 4502,
+          "rerank_ms": 4364,
+          "rerank_pairs": 120,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0004",
+            "2605_17598v1__c0003",
+            "2607_16427v1__c0021",
+            "2607_16427v1__c0001",
+            "2605_17598v1__c0012",
+            "2605_17598v1__c0014",
+            "2608_15102v2__c0016",
+            "2608_15102v2__c0017",
+            "2608_15102v2__c0015"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?",
+            "Both groups of papers claim to cut the cost of running a large model",
+            "How do their mechanisms differ in what they actually remove or skip"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?": false,
+            "Both groups of papers claim to cut the cost of running a large model": false,
+            "How do their mechanisms differ in what they actually remove or skip": false
+          },
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": false,
+          "latency_ms": 4526,
+          "rerank_ms": 4374,
+          "rerank_pairs": 120,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2232,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1430,
+          "rerank_ms": 1376,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2502_01705v4__c0013",
+            "2505_18232v4__c0018",
+            "2505_18232v4__c0005"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.3333333333333333,
+            "5": 0.5,
+            "10": 0.5
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1399,
+          "rerank_ms": 1343,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2607_16427v1__c0026",
+            "2607_16427v1__c0001",
+            "2608_15102v2__c0001",
+            "2605_17598v1__c0000",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+            "What fermentation temperature gives the best rise in a sourdough starter",
+            "how does it change the flavour"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?": false,
+            "What fermentation temperature gives the best rise in a sourdough starter": false,
+            "how does it change the flavour": false
+          },
+          "top_score": -10.0439,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 4636,
+          "rerank_ms": 4522,
+          "rerank_pairs": 120,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1430,
+          "rerank_ms": 1377,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.9993,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1463,
+          "rerank_ms": 1424,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network",
+            "what is done to prevent it"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?": false,
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network": false,
+            "what is done to prevent it": false
+          },
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 4388,
+          "rerank_ms": 4224,
+          "rerank_pairs": 120,
+          "retrieved": []
+        }
+      ]
+    },
+    "hybrid+multi(retrieving)": {
+      "label": "hybrid+multi(retrieving)",
+      "recall": {
+        "1": 0.0417,
+        "3": 0.1042,
+        "5": 0.1667,
+        "10": 0.25
+      },
+      "mrr": 0.4104,
+      "pool_recall@40": 0.5042,
+      "gold_paper_hit_rate": 0.875,
+      "gate_correct_on_answerable": 0.875,
+      "abstention_on_absent": 1.0,
+      "median_latency_ms": 3253,
+      "median_rerank_ms": 3141,
+      "median_rerank_ms_multi_questions": 3323,
+      "median_rerank_pairs_multi_questions": 93,
+      "n_multi_questions": 7,
+      "gate_sweep": [
+        {
+          "threshold": -8.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -6.0,
+          "gate_on_answerable": 1.0,
+          "gate_on_absent": 0.25,
+          "balanced": 0.4
+        },
+        {
+          "threshold": -5.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.5,
+          "balanced": 0.6364
+        },
+        {
+          "threshold": -4.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 0.75,
+          "balanced": 0.8077
+        },
+        {
+          "threshold": -3.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -2.0,
+          "gate_on_answerable": 0.875,
+          "gate_on_absent": 1.0,
+          "balanced": 0.9333
+        },
+        {
+          "threshold": -1.0,
+          "gate_on_answerable": 0.75,
+          "gate_on_absent": 1.0,
+          "balanced": 0.8571
+        },
+        {
+          "threshold": 0.0,
+          "gate_on_answerable": 0.625,
+          "gate_on_absent": 1.0,
+          "balanced": 0.7692
+        },
+        {
+          "threshold": 1.0,
+          "gate_on_answerable": 0.5,
+          "gate_on_absent": 1.0,
+          "balanced": 0.6667
+        },
+        {
+          "threshold": 2.0,
+          "gate_on_answerable": 0.375,
+          "gate_on_absent": 1.0,
+          "balanced": 0.5455
+        }
+      ],
+      "rows": [
+        {
+          "question_id": "sp01",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token",
+            "What does it propose to fix that"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?": true,
+            "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token": true,
+            "What does it propose to fix that": true
+          },
+          "top_score": 1.2029,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.3333333333333333
+          },
+          "mrr": 0.5,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 3539,
+          "rerank_ms": 3384,
+          "rerank_pairs": 93,
+          "retrieved": [
+            "2607_16427v1__c0002",
+            "2310_00811v1__c0003",
+            "2605_17598v1__c0002",
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0007",
+            "2310_00811v1__c0002",
+            "2608_15102v2__c0002",
+            "2605_17598v1__c0015",
+            "2607_16427v1__c0001",
+            "2605_17598v1__c0014"
+          ]
+        },
+        {
+          "question_id": "sp02",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model",
+            "what routing change is suggested to avoid it"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?": true,
+            "Why do adapter-based fine-tuning methods become slow when many tenants share a model": true,
+            "what routing change is suggested to avoid it": false
+          },
+          "top_score": 0.7385,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.3333333333333333
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.6666666666666666,
+          "gold_paper_hit": true,
+          "latency_ms": 3477,
+          "rerank_ms": 3323,
+          "rerank_pairs": 90,
+          "retrieved": [
+            "2410_18035v1__c0002",
+            "2412_11629v1__c0027",
+            "2412_11629v1__c0016",
+            "2605_17598v1__c0053",
+            "2410_18035v1__c0004",
+            "2412_11629v1__c0001",
+            "2412_11629v1__c0006",
+            "2605_17598v1__c0055",
+            "2410_18035v1__c0005"
+          ]
+        },
+        {
+          "question_id": "sp03",
+          "category": "single_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+            "Which method brings a lower-precision numeric format into the pruning process itself",
+            "what resource is it trying to save"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?": true,
+            "Which method brings a lower-precision numeric format into the pruning process itself": true,
+            "what resource is it trying to save": false
+          },
+          "top_score": 2.3197,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.16666666666666666,
+            "10": 0.5
+          },
+          "mrr": 0.25,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 3449,
+          "rerank_ms": 3318,
+          "rerank_pairs": 97,
+          "retrieved": [
+            "2412_11629v1__c0023",
+            "2412_11629v1__c0028",
+            "2502_01705v4__c0006",
+            "2412_11629v1__c0007",
+            "2412_11629v1__c0022",
+            "2412_11629v1__c0006",
+            "2412_11629v1__c0001",
+            "2502_01705v4__c0007",
+            "2412_11629v1__c0026",
+            "2412_11629v1__c0021"
+          ]
+        },
+        {
+          "question_id": "mp01",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -0.3854,
+          "recall": {
+            "1": 0.0,
+            "3": 0.16666666666666666,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.3333333333333333,
+          "pool_recall@40": 0.5,
+          "gold_paper_hit": true,
+          "latency_ms": 1428,
+          "rerank_ms": 1390,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2505_18232v4__c0004",
+            "2412_11629v1__c0023",
+            "2505_18232v4__c0001",
+            "2505_18232v4__c0018"
+          ]
+        },
+        {
+          "question_id": "mp02",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+            "What reasons do the routing papers give for expert assignments being unreliable",
+            "do they locate the problem in the same place"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": {
+            "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?": true,
+            "What reasons do the routing papers give for expert assignments being unreliable": true,
+            "do they locate the problem in the same place": false
+          },
+          "top_score": 2.9984,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.16666666666666666,
+            "10": 0.16666666666666666
+          },
+          "mrr": 0.2,
+          "pool_recall@40": 0.3333333333333333,
+          "gold_paper_hit": true,
+          "latency_ms": 3787,
+          "rerank_ms": 3642,
+          "rerank_pairs": 100,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2608_15102v2__c0004",
+            "2605_17598v1__c0003",
+            "2607_16427v1__c0021",
+            "2607_16427v1__c0001",
+            "2605_17598v1__c0012",
+            "2605_17598v1__c0014",
+            "2608_15102v2__c0016",
+            "2608_15102v2__c0017",
+            "2608_15102v2__c0015"
+          ]
+        },
+        {
+          "question_id": "mp03",
+          "category": "multi_paper",
+          "expect_abstention": false,
+          "subqueries": [
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?",
+            "Both groups of papers claim to cut the cost of running a large model",
+            "How do their mechanisms differ in what they actually remove or skip"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?": false,
+            "Both groups of papers claim to cut the cost of running a large model": false,
+            "How do their mechanisms differ in what they actually remove or skip": false
+          },
+          "top_score": -5.5078,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.16666666666666666,
+          "gold_paper_hit": false,
+          "latency_ms": 3617,
+          "rerank_ms": 3479,
+          "rerank_pairs": 95,
+          "retrieved": []
+        },
+        {
+          "question_id": "cf01",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": -1.2232,
+          "recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0,
+            "10": 0.0
+          },
+          "mrr": 0.0,
+          "pool_recall@40": 0.2,
+          "gold_paper_hit": true,
+          "latency_ms": 1407,
+          "rerank_ms": 1370,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2502_01705v4__c0013",
+            "2505_18232v4__c0018",
+            "2505_18232v4__c0005"
+          ]
+        },
+        {
+          "question_id": "cf02",
+          "category": "conflicting",
+          "expect_abstention": false,
+          "subqueries": [
+            "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?"
+          ],
+          "sufficient_evidence": true,
+          "subquery_sufficient": null,
+          "top_score": 3.3947,
+          "recall": {
+            "1": 0.16666666666666666,
+            "3": 0.3333333333333333,
+            "5": 0.5,
+            "10": 0.5
+          },
+          "mrr": 1.0,
+          "pool_recall@40": 0.8333333333333334,
+          "gold_paper_hit": true,
+          "latency_ms": 1396,
+          "rerank_ms": 1340,
+          "rerank_pairs": 40,
+          "retrieved": [
+            "2607_16427v1__c0003",
+            "2607_16427v1__c0026",
+            "2607_16427v1__c0001",
+            "2608_15102v2__c0001",
+            "2605_17598v1__c0000",
+            "2605_17598v1__c0035",
+            "2605_17598v1__c0030",
+            "2608_15102v2__c0016",
+            "2605_17598v1__c0004",
+            "2607_16427v1__c0004"
+          ]
+        },
+        {
+          "question_id": "ni01",
+          "category": "not_in_corpus",
+          "expect_abstention": true,
+          "subqueries": [
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?",
+            "What fermentation temperature gives the best rise in a sourdough starter",
+            "how does it change the flavour"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?": false,
+            "What fermentation temperature gives the best rise in a sourdough starter": false,
+            "how does it change the flavour": false
+          },
+          "top_score": -10.0439,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 3403,
+          "rerank_ms": 3282,
+          "rerank_pairs": 86,
+          "retrieved": []
+        },
+        {
+          "question_id": "ni02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "What top-1 accuracy does four-bit quantization reach on ImageNet when applied to vision transformers?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -3.269,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1402,
+          "rerank_ms": 1365,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af01",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "When an image generator built on iterative denoising is squeezed down to only a handful of sampling steps, what techniques keep the output quality from collapsing?"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": null,
+          "top_score": -5.9993,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 1449,
+          "rerank_ms": 1411,
+          "rerank_pairs": 40,
+          "retrieved": []
+        },
+        {
+          "question_id": "af02",
+          "category": "absent_fetchable",
+          "expect_abstention": true,
+          "subqueries": [
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?",
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network",
+            "what is done to prevent it"
+          ],
+          "sufficient_evidence": false,
+          "subquery_sufficient": {
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network, and what is done to prevent it?": false,
+            "Why do node representations become hard to tell apart as more message-passing layers are stacked in a graph network": false,
+            "what is done to prevent it": false
+          },
+          "top_score": -4.4834,
+          "recall": {
+            "1": NaN,
+            "3": NaN,
+            "5": NaN,
+            "10": NaN
+          },
+          "mrr": NaN,
+          "pool_recall@40": NaN,
+          "gold_paper_hit": false,
+          "latency_ms": 3104,
+          "rerank_ms": 3001,
+          "rerank_pairs": 86,
+          "retrieved": []
+        }
+      ]
+    }
+  },
+  "headers_truncated": 0,
+  "agent_query": {
+    "traces": "/home/sachit/Documents/VSCProjects/researchAgent/logs/traces",
+    "question_ids": [
+      "sp01",
+      "sp02",
+      "sp03",
+      "mp01",
+      "mp02",
+      "mp03",
+      "cf01",
+      "cf02",
+      "ni01",
+      "ni02"
+    ],
+    "arms": {
+      "baseline": {
+        "label": "baseline",
+        "recall": {
+          "1": 0.0875,
+          "3": 0.175,
+          "5": 0.2375,
+          "10": 0.3208
+        },
+        "mrr": 0.6562,
+        "pool_recall@40": 0.6208,
+        "gold_paper_hit_rate": 1.0,
+        "gate_correct_on_answerable": 1.0,
+        "abstention_on_absent": 0.5,
+        "median_latency_ms": 1411,
+        "median_rerank_ms": 1367,
+        "median_rerank_ms_multi_questions": null,
+        "median_rerank_pairs_multi_questions": null,
+        "n_multi_questions": 0,
+        "gate_sweep": [
+          {
+            "threshold": -8.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -6.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -5.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -4.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -3.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -2.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 1.0,
+            "balanced": 1.0
+          },
+          {
+            "threshold": -1.0,
+            "gate_on_answerable": 0.875,
+            "gate_on_absent": 1.0,
+            "balanced": 0.9333
+          },
+          {
+            "threshold": 0.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 1.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 2.0,
+            "gate_on_answerable": 0.5,
+            "gate_on_absent": 1.0,
+            "balanced": 0.6667
+          }
+        ],
+        "rows": [
+          {
+            "question_id": "sp01",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "gradient computation clashes with routing only a few experts per token"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 2.5154,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.5,
+              "10": 0.5
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.6666666666666666,
+            "gold_paper_hit": true,
+            "latency_ms": 1467,
+            "rerank_ms": 1427,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0002",
+              "2310_00811v1__c0003",
+              "2605_17598v1__c0002",
+              "2310_00811v1__c0001",
+              "2310_00811v1__c0002",
+              "2605_17598v1__c0014",
+              "2605_17598v1__c0007",
+              "2605_17598v1__c0015",
+              "2608_15102v2__c0007",
+              "2607_16427v1__c0003"
+            ],
+            "agent_query": "gradient computation clashes with routing only a few experts per token"
+          },
+          {
+            "question_id": "sp02",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "adapter-based fine-tuning slow many tenants share model routing change"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.8376,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 1.0,
+            "gold_paper_hit": true,
+            "latency_ms": 1472,
+            "rerank_ms": 1416,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2410_18035v1__c0002",
+              "2605_17598v1__c0056",
+              "2605_17598v1__c0053"
+            ],
+            "agent_query": "adapter-based fine-tuning slow many tenants share model routing change"
+          },
+          {
+            "question_id": "sp03",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "lower-precision numeric format pruning process save resource"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -0.3874,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.3333333333333333,
+              "5": 0.3333333333333333,
+              "10": 0.3333333333333333
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.3333333333333333,
+            "gold_paper_hit": true,
+            "latency_ms": 1381,
+            "rerank_ms": 1329,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0007",
+              "2412_11629v1__c0022",
+              "2412_11629v1__c0003",
+              "2412_11629v1__c0017",
+              "2502_01705v4__c0019",
+              "2503_06184v1__c0002",
+              "2502_01705v4__c0006",
+              "2607_08027v1__c0027",
+              "2412_11629v1__c0026"
+            ],
+            "agent_query": "lower-precision numeric format pruning process save resource"
+          },
+          {
+            "question_id": "mp01",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "avoid expensive retraining after removing parameters compression pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.6349,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 0.25,
+            "pool_recall@40": 0.5,
+            "gold_paper_hit": true,
+            "latency_ms": 1393,
+            "rerank_ms": 1343,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2607_08027v1__c0002",
+              "2505_18232v4__c0001",
+              "2412_11629v1__c0023",
+              "2505_18232v4__c0035",
+              "2505_18232v4__c0018",
+              "2502_01705v4__c0005",
+              "2412_11629v1__c0006",
+              "2505_18232v4__c0005"
+            ],
+            "agent_query": "avoid expensive retraining after removing parameters compression pruning"
+          },
+          {
+            "question_id": "mp02",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert assignment unreliable routing problems MoE"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 4.5104,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.6666666666666666
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1402,
+            "rerank_ms": 1350,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0001",
+              "2607_16427v1__c0005",
+              "2608_15102v2__c0004",
+              "2605_17598v1__c0003",
+              "2607_16427v1__c0021",
+              "2607_16427v1__c0002",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002",
+              "2605_17598v1__c0000",
+              "2608_15102v2__c0006"
+            ],
+            "agent_query": "expert assignment unreliable routing problems MoE"
+          },
+          {
+            "question_id": "mp03",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "reduce cost running large model skip remove compute efficiency"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -1.9519,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.0,
+              "10": 0.0
+            },
+            "mrr": 0.0,
+            "pool_recall@40": 0.0,
+            "gold_paper_hit": true,
+            "latency_ms": 1371,
+            "rerank_ms": 1319,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_08027v1__c0002",
+              "2503_06184v1__c0000",
+              "2506_18952v2__c0029"
+            ],
+            "agent_query": "reduce cost running large model skip remove compute efficiency"
+          },
+          {
+            "question_id": "cf01",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "removing parameters retrain model after pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 6.4354,
+            "recall": {
+              "1": 0.2,
+              "3": 0.4,
+              "5": 0.4,
+              "10": 0.4
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8,
+            "gold_paper_hit": true,
+            "latency_ms": 1399,
+            "rerank_ms": 1347,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2505_18232v4__c0001",
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2505_18232v4__c0018",
+              "2505_18232v4__c0005",
+              "2412_11629v1__c0023",
+              "2607_08027v1__c0002",
+              "2607_08027v1__c0025",
+              "2505_18232v4__c0035",
+              "2503_06184v1__c0000"
+            ],
+            "agent_query": "removing parameters retrain model after pruning"
+          },
+          {
+            "question_id": "cf02",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert specialization MoE models structured coherent behavior"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 5.7625,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.3333333333333333
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1447,
+            "rerank_ms": 1392,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0004",
+              "2607_16427v1__c0001",
+              "2605_17598v1__c0000",
+              "2605_17598v1__c0004",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002",
+              "2607_16427v1__c0023",
+              "2608_15102v2__c0001",
+              "2605_17598v1__c0003",
+              "2608_15102v2__c0002"
+            ],
+            "agent_query": "expert specialization MoE models structured coherent behavior"
+          },
+          {
+            "question_id": "ni01",
+            "category": "not_in_corpus",
+            "expect_abstention": true,
+            "subqueries": [
+              "sourdough starter fermentation temperature rise flavor"
+            ],
+            "sufficient_evidence": false,
+            "subquery_sufficient": null,
+            "top_score": -10.6001,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1546,
+            "rerank_ms": 1497,
+            "rerank_pairs": 40,
+            "retrieved": [],
+            "agent_query": "sourdough starter fermentation temperature rise flavor"
+          },
+          {
+            "question_id": "ni02",
+            "category": "absent_fetchable",
+            "expect_abstention": true,
+            "subqueries": [
+              "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -2.2309,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1421,
+            "rerank_ms": 1385,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0005",
+              "2412_11629v1__c0021"
+            ],
+            "agent_query": "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+          }
+        ]
+      },
+      "+headers": {
+        "label": "+headers",
+        "recall": {
+          "1": 0.0667,
+          "3": 0.1542,
+          "5": 0.1958,
+          "10": 0.2792
+        },
+        "mrr": 0.5417,
+        "pool_recall@40": 0.5375,
+        "gold_paper_hit_rate": 0.875,
+        "gate_correct_on_answerable": 1.0,
+        "abstention_on_absent": 0.5,
+        "median_latency_ms": 1469,
+        "median_rerank_ms": 1425,
+        "median_rerank_ms_multi_questions": null,
+        "median_rerank_pairs_multi_questions": null,
+        "n_multi_questions": 0,
+        "gate_sweep": [
+          {
+            "threshold": -8.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -6.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -5.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -4.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -3.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -2.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 1.0,
+            "balanced": 1.0
+          },
+          {
+            "threshold": -1.0,
+            "gate_on_answerable": 0.875,
+            "gate_on_absent": 1.0,
+            "balanced": 0.9333
+          },
+          {
+            "threshold": 0.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 1.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 2.0,
+            "gate_on_answerable": 0.5,
+            "gate_on_absent": 1.0,
+            "balanced": 0.6667
+          }
+        ],
+        "rows": [
+          {
+            "question_id": "sp01",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "gradient computation clashes with routing only a few experts per token"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 2.5154,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.5,
+              "10": 0.5
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.5,
+            "gold_paper_hit": true,
+            "latency_ms": 1485,
+            "rerank_ms": 1445,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0002",
+              "2310_00811v1__c0003",
+              "2605_17598v1__c0002",
+              "2310_00811v1__c0001",
+              "2310_00811v1__c0002",
+              "2605_17598v1__c0014",
+              "2605_17598v1__c0007",
+              "2605_17598v1__c0015",
+              "2608_15102v2__c0007",
+              "2607_16427v1__c0003"
+            ],
+            "agent_query": "gradient computation clashes with routing only a few experts per token"
+          },
+          {
+            "question_id": "sp02",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "adapter-based fine-tuning slow many tenants share model routing change"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.8376,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 1.0,
+            "gold_paper_hit": true,
+            "latency_ms": 1490,
+            "rerank_ms": 1447,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2410_18035v1__c0002",
+              "2605_17598v1__c0056",
+              "2605_17598v1__c0053",
+              "2605_17598v1__c0055"
+            ],
+            "agent_query": "adapter-based fine-tuning slow many tenants share model routing change"
+          },
+          {
+            "question_id": "sp03",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "lower-precision numeric format pruning process save resource"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -0.4599,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.0,
+              "10": 0.0
+            },
+            "mrr": 0.0,
+            "pool_recall@40": 0.0,
+            "gold_paper_hit": true,
+            "latency_ms": 1543,
+            "rerank_ms": 1511,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0022",
+              "2502_01705v4__c0019",
+              "2503_06184v1__c0002",
+              "2502_01705v4__c0006"
+            ],
+            "agent_query": "lower-precision numeric format pruning process save resource"
+          },
+          {
+            "question_id": "mp01",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "avoid expensive retraining after removing parameters compression pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.6349,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 0.3333333333333333,
+            "pool_recall@40": 0.5,
+            "gold_paper_hit": true,
+            "latency_ms": 1499,
+            "rerank_ms": 1453,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2505_18232v4__c0001",
+              "2412_11629v1__c0023",
+              "2505_18232v4__c0035",
+              "2505_18232v4__c0018",
+              "2502_01705v4__c0005",
+              "2412_11629v1__c0006",
+              "2505_18232v4__c0005",
+              "2412_11629v1__c0026"
+            ],
+            "agent_query": "avoid expensive retraining after removing parameters compression pruning"
+          },
+          {
+            "question_id": "mp02",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert assignment unreliable routing problems MoE"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 4.5104,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.6666666666666666
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1390,
+            "rerank_ms": 1356,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0001",
+              "2607_16427v1__c0005",
+              "2608_15102v2__c0004",
+              "2605_17598v1__c0003",
+              "2607_16427v1__c0021",
+              "2607_16427v1__c0002",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002",
+              "2605_17598v1__c0000",
+              "2608_15102v2__c0006"
+            ],
+            "agent_query": "expert assignment unreliable routing problems MoE"
+          },
+          {
+            "question_id": "mp03",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "reduce cost running large model skip remove compute efficiency"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -1.432,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.0,
+              "10": 0.0
+            },
+            "mrr": 0.0,
+            "pool_recall@40": 0.0,
+            "gold_paper_hit": false,
+            "latency_ms": 1415,
+            "rerank_ms": 1363,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2506_18952v2__c0001",
+              "2506_18952v2__c0029"
+            ],
+            "agent_query": "reduce cost running large model skip remove compute efficiency"
+          },
+          {
+            "question_id": "cf01",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "removing parameters retrain model after pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 6.4354,
+            "recall": {
+              "1": 0.2,
+              "3": 0.4,
+              "5": 0.4,
+              "10": 0.4
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8,
+            "gold_paper_hit": true,
+            "latency_ms": 1387,
+            "rerank_ms": 1341,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2505_18232v4__c0001",
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2505_18232v4__c0018",
+              "2505_18232v4__c0005",
+              "2412_11629v1__c0023",
+              "2505_18232v4__c0035",
+              "2505_18232v4__c0006",
+              "2412_11629v1__c0003",
+              "2503_06184v1__c0024"
+            ],
+            "agent_query": "removing parameters retrain model after pruning"
+          },
+          {
+            "question_id": "cf02",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert specialization MoE models structured coherent behavior"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 5.7625,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.3333333333333333
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.6666666666666666,
+            "gold_paper_hit": true,
+            "latency_ms": 1443,
+            "rerank_ms": 1392,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0004",
+              "2607_16427v1__c0001",
+              "2605_17598v1__c0000",
+              "2605_17598v1__c0004",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002",
+              "2607_16427v1__c0023",
+              "2608_15102v2__c0001",
+              "2605_17598v1__c0003",
+              "2608_15102v2__c0002"
+            ],
+            "agent_query": "expert specialization MoE models structured coherent behavior"
+          },
+          {
+            "question_id": "ni01",
+            "category": "not_in_corpus",
+            "expect_abstention": true,
+            "subqueries": [
+              "sourdough starter fermentation temperature rise flavor"
+            ],
+            "sufficient_evidence": false,
+            "subquery_sufficient": null,
+            "top_score": -11.0782,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1453,
+            "rerank_ms": 1406,
+            "rerank_pairs": 40,
+            "retrieved": [],
+            "agent_query": "sourdough starter fermentation temperature rise flavor"
+          },
+          {
+            "question_id": "ni02",
+            "category": "absent_fetchable",
+            "expect_abstention": true,
+            "subqueries": [
+              "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -2.2309,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1543,
+            "rerank_ms": 1490,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0005",
+              "2412_11629v1__c0021"
+            ],
+            "agent_query": "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+          }
+        ]
+      },
+      "+hybrid": {
+        "label": "+hybrid",
+        "recall": {
+          "1": 0.0875,
+          "3": 0.175,
+          "5": 0.2792,
+          "10": 0.3625
+        },
+        "mrr": 0.6562,
+        "pool_recall@40": 0.6625,
+        "gold_paper_hit_rate": 1.0,
+        "gate_correct_on_answerable": 1.0,
+        "abstention_on_absent": 0.5,
+        "median_latency_ms": 1412,
+        "median_rerank_ms": 1369,
+        "median_rerank_ms_multi_questions": null,
+        "median_rerank_pairs_multi_questions": null,
+        "n_multi_questions": 0,
+        "gate_sweep": [
+          {
+            "threshold": -8.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -6.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -5.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -4.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -3.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -2.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 1.0,
+            "balanced": 1.0
+          },
+          {
+            "threshold": -1.0,
+            "gate_on_answerable": 0.875,
+            "gate_on_absent": 1.0,
+            "balanced": 0.9333
+          },
+          {
+            "threshold": 0.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 1.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 2.0,
+            "gate_on_answerable": 0.5,
+            "gate_on_absent": 1.0,
+            "balanced": 0.6667
+          }
+        ],
+        "rows": [
+          {
+            "question_id": "sp01",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "gradient computation clashes with routing only a few experts per token"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 2.5154,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.5,
+              "10": 0.5
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.6666666666666666,
+            "gold_paper_hit": true,
+            "latency_ms": 1495,
+            "rerank_ms": 1406,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0002",
+              "2310_00811v1__c0003",
+              "2605_17598v1__c0002",
+              "2310_00811v1__c0001",
+              "2310_00811v1__c0002",
+              "2605_17598v1__c0014",
+              "2605_17598v1__c0007",
+              "2605_17598v1__c0015",
+              "2608_15102v2__c0007",
+              "2607_16427v1__c0003"
+            ],
+            "agent_query": "gradient computation clashes with routing only a few experts per token"
+          },
+          {
+            "question_id": "sp02",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "adapter-based fine-tuning slow many tenants share model routing change"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.8376,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.6666666666666666,
+            "gold_paper_hit": true,
+            "latency_ms": 1501,
+            "rerank_ms": 1447,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2410_18035v1__c0002",
+              "2605_17598v1__c0053",
+              "2605_17598v1__c0012",
+              "2605_17598v1__c0055",
+              "2605_17598v1__c0033",
+              "2605_17598v1__c0029"
+            ],
+            "agent_query": "adapter-based fine-tuning slow many tenants share model routing change"
+          },
+          {
+            "question_id": "sp03",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "lower-precision numeric format pruning process save resource"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -0.1291,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.3333333333333333,
+              "5": 0.6666666666666666,
+              "10": 0.8333333333333334
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1375,
+            "rerank_ms": 1323,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0004",
+              "2412_11629v1__c0007",
+              "2412_11629v1__c0022",
+              "2412_11629v1__c0006",
+              "2412_11629v1__c0001",
+              "2412_11629v1__c0003",
+              "2503_06184v1__c0010",
+              "2412_11629v1__c0017",
+              "2503_06184v1__c0002",
+              "2502_01705v4__c0006"
+            ],
+            "agent_query": "lower-precision numeric format pruning process save resource"
+          },
+          {
+            "question_id": "mp01",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "avoid expensive retraining after removing parameters compression pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.6349,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 0.25,
+            "pool_recall@40": 0.6666666666666666,
+            "gold_paper_hit": true,
+            "latency_ms": 1359,
+            "rerank_ms": 1323,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2607_08027v1__c0002",
+              "2505_18232v4__c0001",
+              "2412_11629v1__c0023",
+              "2505_18232v4__c0035",
+              "2505_18232v4__c0018",
+              "2502_01705v4__c0015",
+              "2502_01705v4__c0005",
+              "2412_11629v1__c0006"
+            ],
+            "agent_query": "avoid expensive retraining after removing parameters compression pruning"
+          },
+          {
+            "question_id": "mp02",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert assignment unreliable routing problems MoE"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 4.5104,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.5
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1387,
+            "rerank_ms": 1350,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0001",
+              "2607_16427v1__c0005",
+              "2608_15102v2__c0004",
+              "2605_17598v1__c0003",
+              "2607_16427v1__c0021",
+              "2310_00811v1__c0001",
+              "2310_00811v1__c0003",
+              "2607_16427v1__c0002",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002"
+            ],
+            "agent_query": "expert assignment unreliable routing problems MoE"
+          },
+          {
+            "question_id": "mp03",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "reduce cost running large model skip remove compute efficiency"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -1.432,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.0,
+              "10": 0.0
+            },
+            "mrr": 0.0,
+            "pool_recall@40": 0.0,
+            "gold_paper_hit": true,
+            "latency_ms": 1391,
+            "rerank_ms": 1354,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2506_18952v2__c0001",
+              "2503_06184v1__c0000",
+              "2506_18952v2__c0029"
+            ],
+            "agent_query": "reduce cost running large model skip remove compute efficiency"
+          },
+          {
+            "question_id": "cf01",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "removing parameters retrain model after pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 6.4354,
+            "recall": {
+              "1": 0.2,
+              "3": 0.4,
+              "5": 0.4,
+              "10": 0.4
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8,
+            "gold_paper_hit": true,
+            "latency_ms": 1396,
+            "rerank_ms": 1362,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2505_18232v4__c0001",
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2505_18232v4__c0018",
+              "2505_18232v4__c0005",
+              "2412_11629v1__c0023",
+              "2607_08027v1__c0025",
+              "2505_18232v4__c0035",
+              "2503_06184v1__c0000",
+              "2505_18232v4__c0006"
+            ],
+            "agent_query": "removing parameters retrain model after pruning"
+          },
+          {
+            "question_id": "cf02",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert specialization MoE models structured coherent behavior"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 5.7625,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.3333333333333333
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1428,
+            "rerank_ms": 1377,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0004",
+              "2607_16427v1__c0001",
+              "2605_17598v1__c0000",
+              "2605_17598v1__c0004",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002",
+              "2607_16427v1__c0023",
+              "2608_15102v2__c0001",
+              "2605_17598v1__c0003",
+              "2608_15102v2__c0002"
+            ],
+            "agent_query": "expert specialization MoE models structured coherent behavior"
+          },
+          {
+            "question_id": "ni01",
+            "category": "not_in_corpus",
+            "expect_abstention": true,
+            "subqueries": [
+              "sourdough starter fermentation temperature rise flavor"
+            ],
+            "sufficient_evidence": false,
+            "subquery_sufficient": null,
+            "top_score": -10.6001,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1507,
+            "rerank_ms": 1457,
+            "rerank_pairs": 40,
+            "retrieved": [],
+            "agent_query": "sourdough starter fermentation temperature rise flavor"
+          },
+          {
+            "question_id": "ni02",
+            "category": "absent_fetchable",
+            "expect_abstention": true,
+            "subqueries": [
+              "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -2.2309,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1448,
+            "rerank_ms": 1398,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0005",
+              "2412_11629v1__c0021"
+            ],
+            "agent_query": "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+          }
+        ]
+      },
+      "headers+hybrid": {
+        "label": "headers+hybrid",
+        "recall": {
+          "1": 0.0875,
+          "3": 0.1958,
+          "5": 0.2792,
+          "10": 0.3625
+        },
+        "mrr": 0.6667,
+        "pool_recall@40": 0.6833,
+        "gold_paper_hit_rate": 0.875,
+        "gate_correct_on_answerable": 1.0,
+        "abstention_on_absent": 0.5,
+        "median_latency_ms": 1446,
+        "median_rerank_ms": 1403,
+        "median_rerank_ms_multi_questions": null,
+        "median_rerank_pairs_multi_questions": null,
+        "n_multi_questions": 0,
+        "gate_sweep": [
+          {
+            "threshold": -8.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -6.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -5.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -4.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -3.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 0.5,
+            "balanced": 0.6667
+          },
+          {
+            "threshold": -2.0,
+            "gate_on_answerable": 1.0,
+            "gate_on_absent": 1.0,
+            "balanced": 1.0
+          },
+          {
+            "threshold": -1.0,
+            "gate_on_answerable": 0.875,
+            "gate_on_absent": 1.0,
+            "balanced": 0.9333
+          },
+          {
+            "threshold": 0.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 1.0,
+            "gate_on_answerable": 0.75,
+            "gate_on_absent": 1.0,
+            "balanced": 0.8571
+          },
+          {
+            "threshold": 2.0,
+            "gate_on_answerable": 0.5,
+            "gate_on_absent": 1.0,
+            "balanced": 0.6667
+          }
+        ],
+        "rows": [
+          {
+            "question_id": "sp01",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "gradient computation clashes with routing only a few experts per token"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 2.5154,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.5,
+              "10": 0.5
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.6666666666666666,
+            "gold_paper_hit": true,
+            "latency_ms": 1681,
+            "rerank_ms": 1408,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0002",
+              "2310_00811v1__c0003",
+              "2605_17598v1__c0002",
+              "2310_00811v1__c0001",
+              "2310_00811v1__c0002",
+              "2605_17598v1__c0014",
+              "2605_17598v1__c0007",
+              "2605_17598v1__c0015",
+              "2608_15102v2__c0007",
+              "2607_16427v1__c0003"
+            ],
+            "agent_query": "gradient computation clashes with routing only a few experts per token"
+          },
+          {
+            "question_id": "sp02",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "adapter-based fine-tuning slow many tenants share model routing change"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.8376,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1523,
+            "rerank_ms": 1467,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2410_18035v1__c0002",
+              "2605_17598v1__c0056",
+              "2605_17598v1__c0053",
+              "2605_17598v1__c0012",
+              "2605_17598v1__c0055",
+              "2605_17598v1__c0033",
+              "2605_17598v1__c0029"
+            ],
+            "agent_query": "adapter-based fine-tuning slow many tenants share model routing change"
+          },
+          {
+            "question_id": "sp03",
+            "category": "single_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "lower-precision numeric format pruning process save resource"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -0.1291,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.3333333333333333,
+              "5": 0.6666666666666666,
+              "10": 0.8333333333333334
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1442,
+            "rerank_ms": 1404,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0004",
+              "2412_11629v1__c0007",
+              "2412_11629v1__c0022",
+              "2412_11629v1__c0006",
+              "2412_11629v1__c0001",
+              "2412_11629v1__c0003",
+              "2503_06184v1__c0010",
+              "2412_11629v1__c0017",
+              "2503_06184v1__c0002",
+              "2502_01705v4__c0006"
+            ],
+            "agent_query": "lower-precision numeric format pruning process save resource"
+          },
+          {
+            "question_id": "mp01",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "avoid expensive retraining after removing parameters compression pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 1.6349,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.16666666666666666
+            },
+            "mrr": 0.3333333333333333,
+            "pool_recall@40": 0.5,
+            "gold_paper_hit": true,
+            "latency_ms": 1404,
+            "rerank_ms": 1366,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2505_18232v4__c0001",
+              "2412_11629v1__c0023",
+              "2505_18232v4__c0035",
+              "2505_18232v4__c0018",
+              "2502_01705v4__c0015",
+              "2502_01705v4__c0005",
+              "2412_11629v1__c0006",
+              "2505_18232v4__c0005"
+            ],
+            "agent_query": "avoid expensive retraining after removing parameters compression pruning"
+          },
+          {
+            "question_id": "mp02",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert assignment unreliable routing problems MoE"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 4.5104,
+            "recall": {
+              "1": 0.16666666666666666,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.5
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 1.0,
+            "gold_paper_hit": true,
+            "latency_ms": 1400,
+            "rerank_ms": 1363,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0001",
+              "2607_16427v1__c0005",
+              "2608_15102v2__c0004",
+              "2605_17598v1__c0003",
+              "2607_16427v1__c0021",
+              "2310_00811v1__c0001",
+              "2310_00811v1__c0003",
+              "2607_16427v1__c0002",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002"
+            ],
+            "agent_query": "expert assignment unreliable routing problems MoE"
+          },
+          {
+            "question_id": "mp03",
+            "category": "multi_paper",
+            "expect_abstention": false,
+            "subqueries": [
+              "reduce cost running large model skip remove compute efficiency"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -1.432,
+            "recall": {
+              "1": 0.0,
+              "3": 0.0,
+              "5": 0.0,
+              "10": 0.0
+            },
+            "mrr": 0.0,
+            "pool_recall@40": 0.0,
+            "gold_paper_hit": false,
+            "latency_ms": 1354,
+            "rerank_ms": 1317,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2506_18952v2__c0001",
+              "2506_18952v2__c0029"
+            ],
+            "agent_query": "reduce cost running large model skip remove compute efficiency"
+          },
+          {
+            "question_id": "cf01",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "removing parameters retrain model after pruning"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 6.4354,
+            "recall": {
+              "1": 0.2,
+              "3": 0.4,
+              "5": 0.4,
+              "10": 0.4
+            },
+            "mrr": 1.0,
+            "pool_recall@40": 0.8,
+            "gold_paper_hit": true,
+            "latency_ms": 1436,
+            "rerank_ms": 1396,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2505_18232v4__c0001",
+              "2502_01705v4__c0013",
+              "2505_18232v4__c0004",
+              "2505_18232v4__c0018",
+              "2505_18232v4__c0005",
+              "2412_11629v1__c0023",
+              "2505_18232v4__c0035",
+              "2503_06184v1__c0000",
+              "2505_18232v4__c0006",
+              "2412_11629v1__c0003"
+            ],
+            "agent_query": "removing parameters retrain model after pruning"
+          },
+          {
+            "question_id": "cf02",
+            "category": "conflicting",
+            "expect_abstention": false,
+            "subqueries": [
+              "expert specialization MoE models structured coherent behavior"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": 5.7625,
+            "recall": {
+              "1": 0.0,
+              "3": 0.16666666666666666,
+              "5": 0.16666666666666666,
+              "10": 0.3333333333333333
+            },
+            "mrr": 0.5,
+            "pool_recall@40": 0.8333333333333334,
+            "gold_paper_hit": true,
+            "latency_ms": 1460,
+            "rerank_ms": 1405,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2607_16427v1__c0004",
+              "2607_16427v1__c0001",
+              "2605_17598v1__c0000",
+              "2605_17598v1__c0004",
+              "2607_16427v1__c0026",
+              "2605_17598v1__c0002",
+              "2607_16427v1__c0023",
+              "2608_15102v2__c0001",
+              "2605_17598v1__c0003",
+              "2608_15102v2__c0002"
+            ],
+            "agent_query": "expert specialization MoE models structured coherent behavior"
+          },
+          {
+            "question_id": "ni01",
+            "category": "not_in_corpus",
+            "expect_abstention": true,
+            "subqueries": [
+              "sourdough starter fermentation temperature rise flavor"
+            ],
+            "sufficient_evidence": false,
+            "subquery_sufficient": null,
+            "top_score": -11.0782,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1451,
+            "rerank_ms": 1402,
+            "rerank_pairs": 40,
+            "retrieved": [],
+            "agent_query": "sourdough starter fermentation temperature rise flavor"
+          },
+          {
+            "question_id": "ni02",
+            "category": "absent_fetchable",
+            "expect_abstention": true,
+            "subqueries": [
+              "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+            ],
+            "sufficient_evidence": true,
+            "subquery_sufficient": null,
+            "top_score": -2.2309,
+            "recall": {
+              "1": NaN,
+              "3": NaN,
+              "5": NaN,
+              "10": NaN
+            },
+            "mrr": NaN,
+            "pool_recall@40": NaN,
+            "gold_paper_hit": false,
+            "latency_ms": 1528,
+            "rerank_ms": 1491,
+            "rerank_pairs": 40,
+            "retrieved": [
+              "2412_11629v1__c0005",
+              "2412_11629v1__c0021"
+            ],
+            "agent_query": "four-bit quantization ImageNet top-1 accuracy vision transformer ViT"
+          }
+        ]
+      }
+    }
+  }
+}

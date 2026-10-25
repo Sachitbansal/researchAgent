@@ -130,6 +130,14 @@ RETRIEVE_EVIDENCE_PARAMETERS: Dict[str, Any] = {
             "type": "string",
             "description": "What to search the indexed papers for, in natural language.",
         },
+        "queries": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Several searches in one call, one per sub-topic or paper, for a "
+                           "multi-part question. Their results are merged and each chunk "
+                           "is scored against the sub-query it best answers. If `query` "
+                           "is also given it counts as one of them.",
+        },
         "k": {
             "type": "integer",
             "description": "How many chunks to return. Defaults to 5.",
@@ -144,15 +152,27 @@ RETRIEVE_EVIDENCE_PARAMETERS: Dict[str, Any] = {
             "description": "Restrict results to these chunk types.",
         },
     },
-    "required": ["query"],
     "additionalProperties": False,
 }
+
+
+def retrieve_evidence_parameters(config: Config = CFG) -> Dict[str, Any]:
+    """The schema with `queries` capped at retrieval.max_subqueries, read from config.
+
+    Neither field is required on its own, since either one is enough; the tool returns
+    an `empty_query` error dict when both are missing.
+    """
+    import copy
+
+    schema = copy.deepcopy(RETRIEVE_EVIDENCE_PARAMETERS)
+    schema["properties"]["queries"]["maxItems"] = int(config.retrieval.max_subqueries)
+    return schema
 
 
 def build_default_registry(retriever, config: Config = CFG) -> ToolRegistry:
     """Retrieval only — the M5 registry, kept for tests that want one tool."""
     registry = ToolRegistry(config)
-    registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, retriever.retrieve)
+    registry.register("retrieve_evidence", retrieve_evidence_parameters(config), retriever.retrieve)
     return registry
 
 
@@ -182,7 +202,7 @@ def build_full_registry(
     retriever = retriever if retriever is not None else EvidenceRetriever(config)
     registry = ToolRegistry(config)
 
-    registry.register("retrieve_evidence", RETRIEVE_EVIDENCE_PARAMETERS, retriever.retrieve)
+    registry.register("retrieve_evidence", retrieve_evidence_parameters(config), retriever.retrieve)
     registry.register(
         "search_literature",
         SEARCH_LITERATURE_PARAMETERS,

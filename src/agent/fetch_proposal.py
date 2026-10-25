@@ -40,6 +40,20 @@ def is_filtered(record: Dict[str, Any]) -> bool:
     return bool(args.get("topic_filter") or args.get("chunk_types"))
 
 
+def _searched(args: Dict[str, Any]) -> str:
+    """What a retrieve call searched for: `query`, then any `queries`, joined as the tool
+    joins them for `coverage_gap.searched_for`. Only the empty-index path needs it; every
+    other path reads the gap, which the tool filled in itself."""
+    queries = args.get("queries") or []
+    parts = [args.get("query")] + ([queries] if isinstance(queries, str) else list(queries))
+    seen: list = []
+    for part in parts:
+        flat = " ".join(str(part).split()) if isinstance(part, str) else ""
+        if flat and flat.lower() not in {s.lower() for s in seen}:
+            seen.append(flat)
+    return "; ".join(seen)
+
+
 def _empty_index(record: Dict[str, Any]) -> bool:
     summary = record.get("result_summary")
     return isinstance(summary, dict) and summary.get("error") == "empty_index"
@@ -69,7 +83,7 @@ def derive_fetch_proposal(records: Sequence[Dict[str, Any]]) -> Optional[Dict[st
 
     record = records[last]
     if _empty_index(record):
-        query = str((record.get("args") or {}).get("query") or "").strip()
+        query = _searched(record.get("args") or {})
         if not query:
             return None
         return {"query": query, "searched_for": query, "best_score": None,

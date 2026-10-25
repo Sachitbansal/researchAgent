@@ -228,7 +228,12 @@ class CorpusAnalyzer:
         except ManifestError as exc:
             return _error("manifest_unreadable", str(exc))
 
-        cache_key = manifest.data.get("manifest_hash") or manifest.compute_hash()
+        # The vectors clustered are whatever the index embedded, headers included when
+        # retrieval.contextual_headers is on, so the embed format is part of the key:
+        # re-embedding leaves manifest_hash unchanged and would otherwise serve the old
+        # clusters. A manifest without the field was embedded plain.
+        cache_key = (f"{manifest.data.get('manifest_hash') or manifest.compute_hash()}:"
+                     f"{manifest.data.get('embed_format') or 'plain-v1'}")
         scope = topic_filter or "__all__"
         cache = read_json(self.config.paths.clusters, default={}) or {}
         cached = cache.get(cache_key, {}).get(scope)

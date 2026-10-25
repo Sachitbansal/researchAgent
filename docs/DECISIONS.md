@@ -263,6 +263,57 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Threads (resolved by Claude):** the prompt always gets the current turn's question, plus the thread's previous stored question as context, so "what about 2-bit?" and approval turns resolve their subject. The prompt tells the model to ignore the earlier question when the current one names its own subject. An approval run that re-derives a proposal also pays for one rewrite, which nothing shows (D26).
 - **Card:** still editable. Its label reads "Search arXiv for (suggested from your question)" when `query_source` is `"rewritten"`.
 
+## D29 — Retrieval diagnosis: the loss is in the pool, then in query wording
+
+*2026-10-25 · `eval/diagnose_retrieval.py`, `eval/results/retrieval_diagnosis.json` · measurement only*
+
+- **Pool is the main loss.** Tuning split, 8 answerable questions, 47 gold chunks. Only 19/47 reach the bi-encoder's top 40 with the raw question (pool recall@40 0.400), 29/47 with the agent's first query (0.621). The median gold bi-encoder rank is 53 and 32 of 406.
+- **Rerank loses less.** Of the gold chunks in the pool, 7/19 and 11/29 reach the top 5. The cross-encoder would put 7 (raw) and 3 (agent) of the pool misses into the top 5 if they were shortlisted. So a better pool converts, partly.
+- **Query wording matters as much as the model.** The agent's keyword queries beat the raw questions at every pool depth, and get far higher cross-encoder scores. The eval questions avoid the papers' vocabulary on purpose, which limits what BM25 can do for them.
+- **The SparseMixer case is wording, not the pool.** `2310_00811v1__c0023` sits at bi-encoder rank 3–16 for all 16 phrasings tried, so it is always in the pool. With "downstream" in the query it reranks #1–2 in 6 of 7 phrasings. With broad wording ("SparseMixer results", "limitations", "… results benchmarks") it reranks #13–18. The top 5 is filled by other SparseMixer chunks, so `k=5` never shows it. The live query is in no kept trace, so this is a reconstruction. One trace also shows the agent passing a paper title as `topic_filter`, which matches nothing.
+- **What follows:** headers and hybrid (B1, B2) target the pool. Multi-query (B3) targets multi-part wording such as the SparseMixer case. All three were built and each was measured on its own (D30–D32).
+
+## D30 — Contextual headers, first stage only, behind an embed-input hash
+
+*2026-10-25 · `src/retrieval/contextual.py`, `indexer.py`, `vector_index.py`, `embedder.py`, `config.yaml` retrieval · changes ARCHITECTURE §5, DATA_SCHEMA §4*
+
+- **Built (By: user), shipped off.** `retrieval.contextual_headers` embeds and BM25-indexes `"{paper_title} — {section}\n{text}"`. The chunk's `text`, `content_hash`, ids and positions are unchanged, and so is what the cross-encoder and the agent see.
+- **Measured negative.** On the tuning split, dense pool recall@40 fell 0.400 → 0.317 for raw questions and 0.621 → 0.537 for agent queries. With hybrid on it was a wash. A likely cause: headers make every chunk of one paper look alike, and many detected sections are noisy strings (e.g. `I(X; Y ) =`). So the default is `false`. The committed index is `plain-v1`, with vectors numerically unchanged.
+- **Embed hash.** sha256 of the model, the format (`header-v1` / `plain-v1`) and the exact embedder input. It keys the embedding cache and the manifest's `indexed_hashes` (same name, new meaning). A header or format change rebuilds the index while `content_hash` stays put, which is the known stale-vector bug. A test covers it.
+- **Budget.** Headers cost 32 tokens at most (median 18). The longest chunk plus header is 475 of 510, so 0 headers were truncated. Only the header is ever cut.
+- **Resolved by Claude:** the retriever refuses an index whose `embed_format` differs from config (`index_stale`). New `main.py reindex` re-embeds locally. The cluster cache key includes the format.
+
+## D31 — Hybrid retrieval: hand-written BM25, fused with RRF
+
+*2026-10-25 · `src/retrieval/lexical_index.py`, `src/tools/retrieve_evidence.py`, `config.yaml` retrieval*
+
+- **By: user.** Okapi BM25 (`k1` 1.2, `b` 0.75, Lucene idf) in numpy/scipy, with no dependency. It is built in memory from the chunk table and dropped by `invalidate()`. RRF (`rrf_k` 60) fuses the dense and BM25 top-40s, capped at 40, and then the cross-encoder reranks as before.
+- **Tokeniser.** Lowercased; hyphen and dot compounds stay whole (`1e-2`, `0.01`, `top-1`), and alphabetic compounds also yield their parts. Greek letters survive. Light stopwords, with negations kept. Zero-score documents are never candidates.
+- **The only clear win.** On raw tuning questions: pool@40 0.400 → 0.567, recall@5 0.125 → 0.188, MRR 0.344 → 0.479. Abstention stays 1.000 and latency is flat. +0.135 MRR is about two questions at n=8. On replayed agent queries the gain is smaller: recall@5 0.237 → 0.279, MRR unchanged.
+- **One attributable regression.** In the agent run, sp02's query let BM25 add three off-paper chunks that clear −3.0 (−1.47 to −2.18). Its facts fell from 4/4 to 3/4 and its citations from 5 to 1. Hybrid widens what passes the gate, not only what reaches the pool.
+- **Gate unchanged.** The gate thresholds the cross-encoder score. On the fallback path it thresholds each candidate's dense cosine (also computed for BM25-only candidates) and ranks by RRF, as specified. Cost: RRF order lowers fallback MRR from 0.317 to 0.213 against dense order.
+- **Default `hybrid: true`**, for the offline gain. One agent run shows no measurable gain against CRAG phase 2 (`docs/EVALUATION.md`).
+
+## D32 — Multi-query, reranked by the max over sub-queries
+
+*2026-10-25 · `src/tools/retrieve_evidence.py`, `src/agent/tool_registry.py`, `src/agent/fetch_proposal.py`, `src/prompts/tools/retrieve_evidence.md`*
+
+- **By: user.** `retrieve_evidence(queries=[...])` takes up to `max_subqueries` (3), and `query` joins the list first. Duplicates are removed case-insensitively. Each sub-query's dense and BM25 lists go into one RRF pool, capped at 40. A candidate keeps its max cross-encoder score.
+- **Latency forced the narrower variant.** Scoring every candidate against every sub-query cost 4364 ms (120 pairs), 3.1× one query's 1428 ms. `multi_query_rerank: retrieving` scores a candidate only against the sub-queries whose lists found it: 3323 ms (93 pairs). That is still 2.3×, above the 2× bar.
+- **Gate.** Sufficient if any candidate clears it. `subquery_sufficient` reports each sub-query, `coverage_gap.searched_for` joins the queries with "; ", `best_score` is the best overall, and each chunk carries `matched_query`. The empty-index fetch proposal now reads `queries` too.
+- **Offline it did not help.** Splitting clauses deterministically lowered MRR from 0.479 to 0.410: the 40-slot pool is shared, and the second clause is often a pronoun fragment. On the SparseMixer case it is the only fix: the three broad-plus-specific pairings put `c0023` in the top 5, 3 of 3.
+- **The agent never used it.** None of 42 calls in the agent run passed `queries`. The tool description alone did not change behaviour, so the SparseMixer bug is not fixed in practice. A system-prompt nudge is the follow-up, and it needs a paid rerun.
+- **Resolved by Claude:** `too_many_queries` is an error dict, not a silent truncation. `proposed_query` is the joined string.
+
+## D33 — Relevance thresholds re-checked under hybrid: unchanged
+
+*2026-10-25 · `eval/results/threshold_sweep_v2.json`, `bi_threshold_sweep_v2.json`*
+
+- **Cross-encoder −3.0 stays.** With hybrid it is still the balanced best (0.933, tied with −2.0, which loses MRR: 0.438 vs 0.479).
+- **Bi-encoder 0.55 stays**, but it is weaker than the record says. On the 12-question split it abstains on only 1 of 4 absent questions (balanced 0.400, not 0.667): ni02, af01 and af02 have cosines of 0.71 or more. Max cosine is identical with hybrid on and off, so the cause is the larger split, not this change.
+- **Method:** `eval/tune_threshold.py` and `tune_bi_threshold.py`, run unchanged on the tuning split under the final config. They write new `_v2` files via `--out`, so the cited sweeps stay untouched.
+- **No change is pending.**
+
 ---
 
 ## Benched questions
@@ -270,4 +321,4 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. The comparison now exists at `docs/research/framework-comparison.md`, with the triggers for switching. Adoption stays benched: threads (D12), long-term memory (D19) and fetch approval (D26) are hand-rolled.
 - **Record/replay of arXiv responses** for an automated CRAG end-to-end test (D17). Until then the live path is checked by hand on a throwaway copy.
 - **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, and a tracing UI. (Long-term research memory: D19–D22. The framework comparison is written up in `docs/research/framework-comparison.md`; adopting one stays benched.)
-- **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).
+- **Unordered:** self-check and revise, plus a PDF hidden-text filter; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).

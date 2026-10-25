@@ -2,8 +2,8 @@
 Embeds any chunk not yet in the index and appends it: the M3 incremental path.
 
 In:  chunks.jsonl and the existing index; nothing else is required.
-Out: {"chunks_indexed", "chunks_skipped", "cache_hits", "total_indexed"}. Existing
-     vectors are never recomputed, and a changed embedding model forces a rebuild.
+Out: {"chunks_indexed", "chunks_skipped", "cache_hits", "total_indexed", ...}. A changed
+     model, or a changed embedder input (text, header or format: the embed hash), rebuilds.
 """
 
 from __future__ import annotations
@@ -14,6 +14,8 @@ import numpy as np
 
 from corpus.chunk_store import ChunkStore
 from config import CFG, Config
+from common.tokenization import TokenCounter
+from retrieval.contextual import embed_hash, embed_text
 from retrieval.embedder import Embedder, EmbeddingCache, EmbeddingError
 from corpus.manifest import Manifest, ManifestError
 from retrieval.vector_index import IndexError_, VectorIndex
@@ -67,15 +69,30 @@ def index_chunks(
     except IndexError_ as exc:
         return {"error": "index_unreadable", "detail": str(exc), "partial": None}
 
+    # What the bi-encoder actually embeds: the chunk text, plus a "title — section" header
+    # when retrieval.contextual_headers is on. The chunk record's text and content_hash
+    # never change, so content_hash cannot say whether a vector is current — the embed
+    # hash (sha256 of the exact embedder input plus its format) can.
+    counter = TokenCounter(config)
+    inputs: Dict[str, str] = {}
+    hashes: Dict[str, str] = {}
+    headers_truncated = 0
+    for chunk in chunks:
+        text, truncated = embed_text(chunk, config, counter)
+        inputs[chunk["chunk_id"]] = text
+        hashes[chunk["chunk_id"]] = embed_hash(text, config)
+        headers_truncated += int(truncated)
+
     # A chunk_id is positional within its paper, so it survives a re-ingest even when the
     # text beneath it changes — figure chunks gaining a description is exactly that.
     # Skipping on id alone therefore leaves a stale vector in place, and retrieval quietly
-    # keeps matching the old text. Staleness is checked on content_hash instead.
-    stale = [c for c in chunks if existing.is_stale(c["chunk_id"], c["content_hash"])]
+    # keeps matching the old text. Staleness is checked on the embed hash instead, which
+    # also moves when only the header or its format does.
+    stale = [c for c in chunks if existing.is_stale(c["chunk_id"], hashes[c["chunk_id"]])]
     if stale and not force_rebuild:
         force_rebuild = True
         rebuild_reason = (
-            f"{len(stale)} chunk(s) changed text under an unchanged chunk_id "
+            f"{len(stale)} chunk(s) changed embedder input under an unchanged chunk_id "
             f"(e.g. {stale[0]['chunk_id']}); a flat index cannot replace a vector in "
             "place without renumbering every position after it, so it is rebuilt"
         )
@@ -92,23 +109,23 @@ def index_chunks(
             "stale_detected": 0,
             "total_indexed": len(index),
             "rebuilt": False,
+            "headers_truncated": headers_truncated,
         }
 
     embedder = embedder if embedder is not None else Embedder(config)
     cache = EmbeddingCache(config)
-    hits_before = sum(1 for chunk in pending if cache.get(chunk["content_hash"]) is not None)
+    keys = [hashes[chunk["chunk_id"]] for chunk in pending]
+    hits_before = sum(1 for key in keys if cache.get(key) is not None)
 
     try:
-        vectors = embedder.encode_passages([chunk["text"] for chunk in pending], cache=cache)
+        vectors = embedder.encode_passages(
+            [inputs[chunk["chunk_id"]] for chunk in pending], cache=cache, keys=keys
+        )
     except EmbeddingError as exc:
         return {"error": "embedding_failed", "detail": str(exc), "partial": None}
 
     try:
-        index.add(
-            [chunk["chunk_id"] for chunk in pending],
-            vectors,
-            [chunk["content_hash"] for chunk in pending],
-        )
+        index.add([chunk["chunk_id"] for chunk in pending], vectors, keys)
         index.save(manifest)
     except IndexError_ as exc:
         return {"error": "index_write_failed", "detail": str(exc), "partial": None}
@@ -122,6 +139,7 @@ def index_chunks(
         "total_indexed": len(index),
         "rebuilt": force_rebuild,
         "rebuild_reason": rebuild_reason,
+        "headers_truncated": headers_truncated,
     }
 
 

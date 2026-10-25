@@ -107,6 +107,30 @@ def cmd_index(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reindex(args: argparse.Namespace) -> int:
+    """Re-embed chunks.jsonl into the vector index. Local only: no arXiv, no LLM.
+
+    The step a changed embedder input needs, e.g. toggling retrieval.contextual_headers.
+    Unchanged inputs hit the embedding cache; changed ones are re-embedded.
+    """
+    from config import CFG
+    from retrieval.indexer import index_chunks
+
+    CFG.paths.ensure()
+    indexed = index_chunks(config=CFG, rebuild=args.rebuild)
+    if _failed(indexed):
+        return _report_error("indexing", indexed)
+    print(
+        f"{indexed.get('chunks_indexed', 0)} embedded, "
+        f"{indexed.get('chunks_skipped', 0)} already indexed, "
+        f"{indexed.get('cache_hits', 0)} cache hit(s), "
+        f"{indexed.get('total_indexed', 0)} vectors in the index, "
+        f"{indexed.get('headers_truncated', 0)} header(s) shortened to fit"
+        + (f"; rebuilt: {indexed['rebuild_reason']}" if indexed.get("rebuild_reason") else "")
+    )
+    return 0
+
+
 # ---- ask -------------------------------------------------------------------------
 
 
@@ -333,6 +357,12 @@ def build_parser() -> argparse.ArgumentParser:
     index.add_argument("--rebuild", action="store_true",
                        help="rebuild the vector index from scratch")
     index.set_defaults(handler=cmd_index)
+
+    reindex = subparsers.add_parser(
+        "reindex", help="re-embed the existing chunks into the index (local, no arXiv)")
+    reindex.add_argument("--rebuild", action="store_true",
+                         help="rebuild the vector index from scratch")
+    reindex.set_defaults(handler=cmd_reindex)
 
     ask = subparsers.add_parser("ask", help="answer one question against the index")
     ask.add_argument("question", nargs="?", default=None,

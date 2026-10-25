@@ -1,0 +1,113 @@
+{
+  "rows": [
+    {
+      "threshold": 0.0,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.0,
+      "balanced": 0.0,
+      "recall@5": 0.0625,
+      "mrr": 0.2125,
+      "gold_paper_hit_rate": 0.75
+    },
+    {
+      "threshold": 0.4,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.0,
+      "balanced": 0.0,
+      "recall@5": 0.0625,
+      "mrr": 0.2125,
+      "gold_paper_hit_rate": 0.75
+    },
+    {
+      "threshold": 0.5,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.0,
+      "balanced": 0.0,
+      "recall@5": 0.0625,
+      "mrr": 0.2125,
+      "gold_paper_hit_rate": 0.75
+    },
+    {
+      "threshold": 0.55,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.25,
+      "balanced": 0.4,
+      "recall@5": 0.0625,
+      "mrr": 0.2125,
+      "gold_paper_hit_rate": 0.75
+    },
+    {
+      "threshold": 0.6,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.25,
+      "balanced": 0.4,
+      "recall@5": 0.0625,
+      "mrr": 0.2125,
+      "gold_paper_hit_rate": 0.75
+    },
+    {
+      "threshold": 0.62,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.25,
+      "balanced": 0.4,
+      "recall@5": 0.0417,
+      "mrr": 0.1875,
+      "gold_paper_hit_rate": 0.75
+    },
+    {
+      "threshold": 0.65,
+      "gate_on_answerable": 1.0,
+      "gate_on_absent": 0.25,
+      "balanced": 0.4,
+      "recall@5": 0.0417,
+      "mrr": 0.1875,
+      "gold_paper_hit_rate": 0.875
+    },
+    {
+      "threshold": 0.68,
+      "gate_on_answerable": 0.875,
+      "gate_on_absent": 0.25,
+      "balanced": 0.3889,
+      "recall@5": 0.0417,
+      "mrr": 0.1875,
+      "gold_paper_hit_rate": 0.625
+    },
+    {
+      "threshold": 0.7,
+      "gate_on_answerable": 0.5,
+      "gate_on_absent": 0.25,
+      "balanced": 0.3333,
+      "recall@5": 0.0458,
+      "mrr": 0.0875,
+      "gold_paper_hit_rate": 0.375
+    },
+    {
+      "threshold": 0.75,
+      "gate_on_answerable": 0.125,
+      "gate_on_absent": 1.0,
+      "balanced": 0.2222,
+      "recall@5": 0.0,
+      "mrr": 0.0,
+      "gold_paper_hit_rate": 0.0
+    },
+    {
+      "threshold": 0.8,
+      "gate_on_answerable": 0.125,
+      "gate_on_absent": 1.0,
+      "balanced": 0.2222,
+      "recall@5": 0.0208,
+      "mrr": 0.0625,
+      "gold_paper_hit_rate": 0.125
+    }
+  ],
+  "recommended": {
+    "threshold": 0.55,
+    "gate_on_answerable": 1.0,
+    "gate_on_absent": 0.25,
+    "balanced": 0.4,
+    "recall@5": 0.0625,
+    "mrr": 0.2125,
+    "gold_paper_hit_rate": 0.75
+  },
+  "n_questions": 12
+}
