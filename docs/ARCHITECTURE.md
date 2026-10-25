@@ -525,8 +525,10 @@ reserved and run only after tuning stops.
 - **No agent framework.** The tool loop is written directly against the provider
   SDK. The structure of the agentic system is itself under evaluation, and a
   hand-written loop shows the design rather than hiding it inside a framework.
-- **No human-in-the-loop gates.** This is autonomous QA, not a research workflow
-  with approval steps.
+- **One human-in-the-loop gate only.** Answering is autonomous. The single exception is
+  adding papers to the shared corpus, which needs the user's approval via the Fetch
+  papers button (`docs/DECISIONS.md` D14, D26), because it permanently changes what every
+  later question searches.
 - **No UI.** Explicitly out of scope per the task statement. `web/` (with its page in
   `frontend/`) is a demo shim added afterwards to show the system to someone; it sits
   outside `src/`, imports it, and runs the same agent — see `docs/FUTURE_WORK.md`.

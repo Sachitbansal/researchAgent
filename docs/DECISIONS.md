@@ -256,7 +256,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 
 ## Benched questions
 
-- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts. (v1 in D12 is hand-rolled.)
+- **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. The comparison now exists at `docs/research/framework-comparison.md`, with the triggers for switching. Adoption stays benched: threads (D12), long-term memory (D19) and fetch approval (D26) are hand-rolled.
 - **Record/replay of arXiv responses** for an automated CRAG end-to-end test (D17). Until then the live path is checked by hand on a throwaway copy.
-- **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, the framework comparison, and a tracing UI. (Long-term research memory: D19–D22.)
-- **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; Tailwind and KaTeX (waiting on the user's `npm install`); saving the research report under `docs/research/`; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).
+- **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, and a tracing UI. (Long-term research memory: D19–D22. The framework comparison is written up in `docs/research/framework-comparison.md`; adopting one stays benched.)
+- **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).
