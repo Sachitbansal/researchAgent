@@ -8,7 +8,7 @@ sequenced by the system.
 1. **Tools never call other tools.** All control flow goes through the agent. If
    `retrieve_evidence` returns `sufficient_evidence: false`, it does *not* trigger a
    fetch — it reports the gap, the agent describes it, and the user approves a fetch
-   with the "Fetch papers" button (`docs/DECISIONS.md` D14, D24–D27). Automating that
+   with the "Fetch papers" button (`docs/DECISIONS.md` D14, D24–D27, D34). Automating that
    away would recreate a fixed pipeline, and fetch into a shared corpus unasked.
 2. **Tools never raise.** Every failure path returns `{"error": "...", "detail": ...}`
    so a bad PDF or a dead API degrades the loop instead of killing it.
@@ -216,12 +216,15 @@ fetches nothing; the agent describes the gap and the user decides whether to fet
   chunk, an index with no candidates, and "every passing chunk was already returned".
   None of those is a gap in the literature, and in the first two no scorer ran.
 
-The agent loop reads the **last unfiltered** `retrieve_evidence` call of a run (no
-`topic_filter`, no `chunk_types`; filtered calls neither propose nor clear, D24). If its
-`coverage_gap` says `propose_fetch`, or it hit an `empty_index`, and `search_literature`
-was not called after it, the run result carries `fetch_proposal: {query, agent_query,
-query_source, searched_for, best_score, closest_topics}` (else `null`) for the user to
-approve (`src/agent/fetch_proposal.py`). `query` is the user's question rewritten into a
+The agent loop proposes a fetch when the **final answer cites nothing** (D34), the run
+made an unfiltered `retrieve_evidence` call, and `search_literature` was not called after
+it. The subject comes from the **last unfiltered** call (no `topic_filter`, no
+`chunk_types`, D24): its `coverage_gap` when there is one, else its arguments. The run
+result then carries `fetch_proposal: {query, agent_query, query_source, searched_for,
+best_score, closest_topics}` (else `null`) for the user to approve
+(`src/agent/fetch_proposal.py`). Before D34 the trigger was that last call's
+`propose_fetch` hint or an `empty_index`; that rule is still used by callers that have
+only the trace. `query` is the user's question rewritten into a
 keyword phrase by one `utility` call (`src/agent/fetch_query.py`, prompt
 `src/prompts/fetch_query.md`; `query_source: "rewritten"`). On an LLM failure or a junk
 reply it falls back to the agent's retrieve query (`query_source: "agent"`, with

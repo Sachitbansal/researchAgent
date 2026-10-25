@@ -4,11 +4,12 @@ What was measured, how, and what the numbers actually say — including the ones
 came out worse than hoped. `docs/ARCHITECTURE.md` §13 summarises the design; this is
 the results document it points at.
 
-All numbers below were produced at M8 on **2026-09-09** and are reproduced verbatim
-from `eval/results/*.json`. They are not re-run for this document on purpose: the
-agent model is a hosted service and `eval/build_corpus.py` queries a live arXiv, so a
-re-run would produce different numbers and leave the prose disagreeing with the JSON
-beside it.
+The current numbers are the **final evaluation of 2026-10-25**, the first section after
+the question set. The agent runs after it are **earlier runs**, kept as history and dated.
+All numbers are reproduced verbatim from `eval/results/*.json`, and none is re-run for
+this document: the agent model is a hosted service and `eval/build_corpus.py` queries a
+live arXiv, so a re-run would produce different numbers and leave the prose disagreeing
+with the JSON beside it.
 
 ## The corpus these numbers describe
 
@@ -41,18 +42,22 @@ nothing to do with the system.
 
 ## Question set and splits
 
-15 questions in `eval/questions.json`, hand-annotated with gold chunks, gold papers,
-required facts, and the tools a reasonable agent should reach for. Four categories:
-single-paper (5), multi-paper (4), conflicting (3), and not-in-corpus (3). There are no
-figure-dependent questions; the multimodal path is demonstrated in
-`examples/cold_start.md` but not scored.
+18 questions in `eval/questions.json`, hand-annotated with gold chunks, gold papers,
+required facts, and the tools a reasonable agent should reach for. Five categories:
+single-paper (5), multi-paper (4), conflicting (3), not-in-corpus (1) and
+absent-but-fetchable (5). There are no figure-dependent questions; the multimodal path is
+demonstrated in `examples/cold_start.md` but not scored.
 
-**Ten questions tune, five are held out.** The threshold sweep and every other tuning
-decision touched only the first ten. The held-out five were run once, at the end, and
-are reported separately below. That is the only defensible way to report a threshold
-that was itself chosen from data.
+**12 questions tune, 6 are held out.** The tuning split has 8 answerable questions and 4
+absent ones; the held-out split has 4 and 2. Every threshold sweep and tuning decision
+touched only the tuning split. The held-out split is run only at the end, and reported
+separately. That is the only defensible way to report a threshold that was itself chosen
+from data.
 
-### Absent but fetchable (added for CRAG phase 1, not yet run)
+At M8 the set was 15 questions in four categories, 10 tuning and 5 held out. The earlier
+runs below say which set they used.
+
+### Absent but fetchable (added for CRAG phase 1)
 
 The set now holds **18 questions, 6 held out**, so the held-out share is still a third.
 The new category is `absent_fetchable`. Its subject is absent from the corpus but well
@@ -76,20 +81,92 @@ is scored separately.
   it is not scored for proposals either way. Proposing a fetch for sourdough is not wrong:
   the admission gate's job is to find that arXiv has nothing.
 - **Scoring.** `eval.metrics.fetch_proposal_detected(run)` reads the structured
-  `fetch_proposal` field that `AgentLoop.run` derives from the run's last
-  `coverage_gap` (D18). The runner reports `fetch_proposal_on_fetchable` (the target)
+  `fetch_proposal` field that `AgentLoop.run` derives (D18; since D34, from whether the
+  final answer cites anything). The runner reports `fetch_proposal_on_fetchable` (the target)
   and `fetch_proposal_on_answerable` (false alarms: a needless fetch button).
-- **No numbers yet.** The full agent eval has not been run on this category. The prompt
-  rule that acts on the hint is phase 2 and will change behaviour, and measuring before it
-  lands would only produce a number that is about to go stale. All results below are on
-  the original 15 questions and four categories. *Since measured on the tuning split: see
-  "CRAG phase 2" under Results.*
+- **Measured.** First on the tuning split ("CRAG phase 2" and later earlier runs), then
+  on both splits in the final evaluation below. At phase 1 there were no numbers, because
+  the prompt rule that acts on the hint was about to change behaviour.
 - **The live fetch path is not in the automated eval.** Record/replay of arXiv responses
   is benched. `scripts/crag_fetch_check.py` runs one real `search_literature` on a
   throwaway copy of the data dir and proves the real `data/index` is byte-identical
   afterwards.
 
-## Results
+## Final evaluation (2026-10-25)
+
+The full agent under the shipped configuration: hybrid retrieval on, contextual headers
+off, per-tool call limits (D4), the D34 fetch trigger, and the system prompt's "How to
+search" rule (plain keyword phrases, sub-queries for multi-part questions; D35). Same corpus as every run here: 11 papers, 406 chunks.
+Written to `eval/results/final_tuning.json` and `final_held_out.json`, with 0 harness
+errors on either split. `search_literature` was called 0 times in 18 runs, and the run
+reported the index unchanged afterwards.
+
+| metric | tuning (12 q) | held out (6 q) |
+|---|---|---|
+| fact coverage (answerable) | **1.000** | **1.000** |
+| abstention accuracy | **1.000** (12 of 12) | **1.000** (6 of 6) |
+| — abstains on absent (answer text) | 1.000 | 1.000 |
+| — false abstention on answerable | 0.000 | 0.000 |
+| citations resolved | 0.971 | **1.000** |
+| gold-paper hit rate | **1.000** (8 of 8) | **1.000** (4 of 4) |
+| MRR | 0.906 | 0.446 |
+| recall@1 / @3 / @5 | 0.150 / 0.217 / 0.321 | 0.042 / 0.167 / 0.333 |
+| `fetch_proposal_on_fetchable` | **1.000** (3 of 3) | **1.000** (2 of 2) |
+| `fetch_proposal_on_answerable` (false proposals) | 0.125 (1 of 8) | **0.000** (0 of 4) |
+| tool trace matched | 0.917 | 1.000 |
+| mean iterations | 4.92 | 2.83 |
+| median time per question | 46.6 s | 29.2 s |
+
+Over time, on comparable metrics (all agent-level; M8 used the 15-question set):
+
+| run | split | fact coverage | MRR | recall@5 | fetch on fetchable | false fetch |
+|---|---|---|---|---|---|---|
+| M8 (2026-09-09) | tuning, 10 q | 1.000 | 0.660 | 0.238 | — | — |
+| CRAG phase 2 | tuning, 12 q | 1.000 | 0.750 | 0.342 | 0.667 | 0.000 |
+| retrieval v2 | tuning, 12 q | 0.969 | 0.781 | 0.321 | 1.000 | 0.125 |
+| "How to search" prompt (`tuning_split_prompts_v3.json`) | tuning, 12 q | 1.000 | 0.643 | 0.258 | 0.667 | 0.125 |
+| **final** | tuning, 12 q | **1.000** | **0.906** | **0.321** | **1.000** | **0.125** |
+| M8 (2026-09-09) | held out, 5 q | 0.917 | 0.458 | 0.250 | — | — |
+| **final** | held out, 6 q | **1.000** | **0.446** | **0.333** | **1.000** | **0.000** |
+
+**A short, honest reading:**
+
+- **The generation side holds on held-out data.** Every answerable question got all its
+  facts, every abstention was right, every held-out citation resolved, and every
+  answerable question reached a gold paper.
+- **Corrective RAG works on both splits.** All 5 absent-but-fetchable questions got a
+  fetch proposal, including the two held-out ones (ni03, af03), which had never been run.
+- **One false proposal, and it is the cost of D34.** sp01 answered correctly (3 of 3
+  facts) but wrote no inline citations, so the card appeared. D34 reads citations, not
+  correctness. An uncited answer is a defect anyway: `citations_resolved` skips it, so the
+  card is the only place it shows.
+- **Citations resolved 0.971 is one citation.** It is a mean over the 7 tuning answers
+  that cite anything. mp03 cited `2502_01705v4__c0001`, a real chunk that the agent had not
+  retrieved in that run, so 4 of its 5 citations resolved.
+- **MRR is mostly noise at this n.** The "How to search" run and the final run differ only
+  in the D34 trigger, which does not touch retrieval, yet tuning MRR moved from 0.643 to
+  0.906. That is run-to-run variation of a hosted model over 8 questions. Held-out MRR is
+  flat against M8 (0.446 vs 0.458): three of its four answerable questions first saw a
+  gold chunk at rank 3 to 5.
+- **Recall@5 is up on both splits against M8** (0.238 → 0.321 tuning, 0.250 → 0.333
+  held out). It cannot be credited to the retrieval upgrade: the CRAG phase 2 run, before
+  hybrid existed, already reached 0.342. The agent's keyword queries are where hybrid adds
+  least (see "Retrieval upgrade"), and the differences are within one or two questions'
+  worth of noise.
+- **Sub-queries are now used.** 17 of 51 `retrieve_evidence` calls passed `queries` (14 of
+  42 tuning, 3 of 9 held out, counted from the run's traces), against 0 of 42 in the
+  retrieval-v2 run. No arm isolates what they are worth.
+- **Not measured here:** long-term memory (the eval never runs in a thread), the live
+  fetch itself (no arXiv call is made), and run-to-run spread (one run per split).
+
+## Earlier runs
+
+The agent runs and analyses from here through "Retrieval upgrade" were made before the final
+configuration existed. They are kept because the decisions in `docs/DECISIONS.md` cite
+them. The sweeps and ablations after them (relevance threshold, rerank, admission) are
+still the measurements behind the shipped values.
+
+### M8 results (2026-09-09, 15 questions)
 
 These results were measured under the old global 8-iteration cap (`agent.max_iterations: 8`), before per-tool call limits replaced it (`docs/DECISIONS.md` D4).
 
@@ -110,7 +187,7 @@ The generation-side metrics hold up on held-out data. The retrieval-side ones dr
 (MRR 0.660 → 0.458), which is what a 10-question tuning split should be expected to do
 — it is a small sample and the threshold was fitted on it.
 
-### CRAG phase 2 (2026-10-25)
+### CRAG phase 2 (2026-10-25, earlier run)
 
 The tuning split was run once with the phase-2 prompt rule (`docs/DECISIONS.md` D24–D27),
 written to `eval/results/tuning_split_crag2.json`. The cited `tuning_split.json` is
@@ -148,7 +225,7 @@ was made.
   citations, so the 1.000 above does not show it. This is one run of a hosted model, not a
   measured trend.
 
-### Why recall@5 is low while gold-paper hit rate is 1.000
+### Why recall@5 is low while gold-paper hit rate is 1.000 (M8 analysis)
 
 These look contradictory. Part of the gap is a ceiling effect, but — measured rather
 than assumed — **less of it than is comfortable.**
@@ -178,7 +255,7 @@ things drive that, and `eval/metrics.py` flags the first in its own docstring:
 Read recall@5 as a relative signal between configurations, never as an absolute — and
 read gold-paper hit rate as the metric that reflects whether the system worked.
 
-## Retrieval upgrade (2026-10-25)
+## Retrieval upgrade (2026-10-25, earlier runs)
 
 New measurements, beside the cited ones, which are untouched. Retrieval-only, local, tuning
 split only (12 questions: 8 answerable, 4 absent). Decisions are D29–D33 in
@@ -268,8 +345,10 @@ times. One run of a hosted model.
   agent writes keyword queries, where hybrid adds less (+0.042 recall@5, MRR unchanged).
 - **The agent never used `queries`.** None of 42 `retrieve_evidence` calls passed it. The
   tool description alone did not change behaviour, so multi-query's agent-level effect is
-  unmeasured.
-- **af01: "abstains on absent" 0.75 is a text-marker miss, not a gate failure.** All three
+  unmeasured. *Later, a "How to search" rule in the system prompt got the agent to use
+  sub-queries in 7 of 46 calls (`tuning_split_prompts_v3.json`).*
+- **af01: "abstains on absent" 0.75 is a text-marker miss, not a gate failure.** *Since
+  fixed: "does not cover" is now an abstention marker.* All three
   retrieves failed the gate (top rerank −8.95, −5.46, −3.98, all below −3.0). It proposed
   a fetch, and its answer opens "The indexed corpus does not cover this topic". That
   phrase is not in `eval/metrics.py`'s marker list, so `abstention_accuracy`, which also
@@ -436,11 +515,12 @@ Scored by harmonic mean of the three rates, as above:
 
 ## What else the numbers do not say
 
-- **n is small.** 10 tuning and 5 held-out questions. A single question moves fact
-  coverage by 0.1, and every metric here should be read with that in mind.
+- **n is small.** 12 tuning and 6 held-out questions (10 and 5 at M8). One question
+  moves a rate over the 8 answerable tuning questions by 0.125, and over the 4 held-out
+  ones by 0.25. Every metric here should be read with that in mind.
 - **One annotator.** Gold chunks and required facts were annotated once, by the same
   person who wrote the questions. No inter-annotator agreement was measured.
-- **Tool trace matched 0.900 on tuning**, and the one miss is instructive: on `cf02`
+- **Tool trace matched 0.900 on tuning at M8** (0.917 in the final run), and the M8 miss is instructive: on `cf02`
   ("is expert specialisation coherent or unstable?") the agent answered from two
   retrieval calls and never ran `check_evidence_consistency`, which the annotation
   expected. It reached a well-cited, correct answer anyway (fact coverage 1.0, 9/9
@@ -455,10 +535,15 @@ Scored by harmonic mean of the three rates, as above:
 ## Reproducing
 
 ```bash
-python main.py eval              # tuning split
-python main.py eval --held-out   # held-out split
-python scripts/m8_gate.py        # both splits plus the rerank ablation
+python main.py eval --out final_tuning                # tuning split
+python main.py eval --held-out --out final_held_out   # held-out split
+python scripts/m8_gate.py                             # both splits plus the rerank ablation
 ```
+
+Without `--out`, each split writes its own default file. A full eval makes LLM calls. The
+eval never sends a fetch approval, so it reaches arXiv only if the agent breaks its prompt
+rule and calls `search_literature` unasked; the earlier CRAG runs planted an arXiv cooldown
+to rule even that out.
 
 Threshold sweep: `python -m eval.tune_threshold`. Ablation alone: `python -m eval.ablation`.
 Results land in `eval/results/`.

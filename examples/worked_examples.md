@@ -4,6 +4,8 @@ Real runs against the 11-paper eval corpus, lifted from the scored M8 results in
 
 See `docs/EVALUATION.md` for the corpus these ran against and the full metrics. For a topic taken from nothing to an answered question, see `examples/cold_start.md`.
 
+*From M8 runs, before the work logged in `docs/DECISIONS.md` (D1–D34): hybrid retrieval, memory, and fetches that need the user's approval. A run today may take a different route. The current results are in `docs/EVALUATION.md`, "Final evaluation".*
+
 ## 1. Abstention — a question the corpus cannot answer
 
 > **What fermentation temperature gives the best rise in a sourdough starter, and how does it change the flavour?**

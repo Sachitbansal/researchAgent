@@ -3,10 +3,11 @@
 ## 1. What this system is
 
 A topic-agnostic agentic research assistant over scientific papers. Given a natural
-language question, it decides for itself whether it needs to fetch new literature,
-retrieve evidence from what it already has, look at a figure, check evidence for
-contradictions, or compute statistics over the corpus — and then answers with
-inline, traceable citations.
+language question, it decides for itself whether it needs to retrieve evidence from what
+it already has, look at a figure, check evidence for contradictions, or compute
+statistics over the corpus — and then answers with inline, traceable citations. When the
+corpus lacks the subject, it proposes fetching new literature, and fetches only once the
+user approves (§7, D14).
 
 **Core design commitment:** the agent is not a fixed pipeline. Tools are exposed
 with clear boundaries and the model chooses the sequence. A question that needs no
@@ -22,8 +23,9 @@ A fixed-topic system collapses into a plain RAG pipeline: the paper set is froze
 `search_literature` is never called, and the "agent decides which tools to use"
 requirement becomes vacuous. So:
 
-- **The agent is topic-agnostic.** Any topic can be given at runtime; it fetches,
-  indexes, and answers.
+- **The agent is topic-agnostic.** Any topic can be given at runtime: `main.py index`
+  collects and indexes it, or the agent proposes a fetch and the user approves it, and
+  the agent then answers from it.
 - **Two contrasting topics are used for evaluation only**, to give the eval harness a
   stable, known corpus against which gold evidence can be labelled.
 
@@ -36,8 +38,8 @@ Both topics live in **one index**, tagged via each record's `topic_tags`, rather
 separate stores. A mixed pool is a more honest test of retrieval: cross-topic
 distractors are present by construction, which is what a real index looks like.
 
-A **cold-start demo** is included: a topic never seen before is given, and the agent
-runs fetch → index → answer end to end. This is the evidence that the topic choice
+A **cold-start demo** is included (`examples/cold_start.md`): a topic never seen before
+goes from an empty index through fetch → index → answer, end to end. This is the evidence that the topic choice
 is an evaluation artefact, not an architectural one.
 
 ## 3. Pipeline
@@ -48,8 +50,9 @@ user question
       v
   agent loop  <---------------------------------+
       |  (model picks tools, max N calls/tool)   |
-      +--> search_literature      arXiv -> PDF -> index
-      +--> retrieve_evidence      bi-encoder -> rerank -> gate -> expand
+      +--> search_literature      arXiv search -> admission gate (abstracts) -> PDF -> index
+      |                           (only after the user approves a fetch)
+      +--> retrieve_evidence      bi-encoder + BM25 -> RRF -> rerank -> gate -> expand
       +--> inspect_figure         raw image to a vision model
       +--> check_evidence_consistency   NLI: contradiction / groundedness
       +--> analyze_corpus         pandas + KMeans over metadata
@@ -58,6 +61,9 @@ user question
       |
       v
   answer with inline per-claim citations
+      |
+      +--> no citation: a fetch proposal for the user to approve (§7)
+      +--> in a thread: grounded findings written to long-term memory (§7.2)
 ```
 
 ## 4. Collection
@@ -280,13 +286,14 @@ actual mechanism, and is what the *not in corpus* eval category tests.
 `coverage_gap` hint: the best score, the closest held topics, whether the call was
 filtered, and `suggested_next` (`rephrase` | `propose_fetch`). The agent acts on it by
 prompt rule. It rewords once, or describes the gap and never fetches on its own. The loop
-derives a `fetch_proposal` from the run's last *unfiltered* retrieval. One small LLM call
+derives a `fetch_proposal` when the final answer cites nothing (D34); the subject comes from
+the run's last *unfiltered* retrieval and its gap (D24). One small LLM call
 rewrites the user's question into the proposal's keyword query, because the agent's own
 queries drift, and the agent's query is the fallback (D28). The UI turns the proposal
 into a **Fetch papers** button. The click comes back as `approve_fetch`, a thread turn
 worded by `src/prompts/fetch_approval.md`. Only then does the agent call
 `search_literature`, whose admission gate scores abstracts before anything is downloaded
-(`docs/DECISIONS.md` D14–D18, D24–D28).
+(`docs/DECISIONS.md` D14–D18, D24–D28, D34).
 
 **Neighbor expansion.** Adjacent chunks (`±1` within the same paper) are attached to
 selected chunks, recovering information severed at chunk boundaries without
@@ -520,7 +527,7 @@ normal loop; the evaluator compares what it retrieved against what it should hav
 **Questions are paraphrased**, never copied from paper wording, so retrieval cannot
 pass by string matching.
 
-**Four question categories:**
+**Five question categories** (18 questions; the fifth was added with corrective RAG, D17):
 
 | Category | Tests |
 |---|---|
@@ -528,14 +535,16 @@ pass by string matching.
 | Multi-paper synthesis | combining and citing multiple sources |
 | Not in corpus | abstention — does the relevance gate fire, or does it hallucinate |
 | Conflicting evidence | does it surface the disagreement instead of silently picking one |
+| Absent but fetchable | abstention **and** a fetch proposal for the user to approve |
 
 **Metrics:** retrieval recall@k and MRR against gold chunks; answer correctness
 against expected facts; groundedness ratio; abstention correctness; and
 **tool-call traces** — which tools were called in what order, which is what
 distinguishes "right answer" from "right process".
 
-**Ablation:** no-rerank vs. cross-encoder rerank, reported with both quality and
-latency.
+**Ablations:** no-rerank vs. cross-encoder rerank, reported with both quality and
+latency; and, for the retrieval upgrade, hybrid BM25, contextual headers and multi-query,
+each arm on its own scratch index (D29–D33).
 
 **Eval hygiene:** questions are written from abstracts *before* seeing system
 output, to avoid writing tests the system already passes. A held-out subset is
@@ -553,9 +562,10 @@ reserved and run only after tuning stops.
   adding papers to the shared corpus, which needs the user's approval via the Fetch
   papers button (`docs/DECISIONS.md` D14, D26), because it permanently changes what every
   later question searches.
-- **No UI.** Explicitly out of scope per the task statement. `web/` (with its page in
-  `frontend/`) is a demo shim added afterwards to show the system to someone; it sits
-  outside `src/`, imports it, and runs the same agent — see `docs/FUTURE_WORK.md`.
+- **No UI inside `src/`.** The original task put a UI out of scope, and the CLI is still
+  the system. The browser UI was added afterwards: a FastAPI server in `web/` and a React
+  page in `frontend/`. Both sit outside `src/`, import it, and run the same agent — see
+  `docs/FUTURE_WORK.md`, "`web/` and `frontend/` sit outside the system under evaluation".
 - **No structural table parsing.** Tables are handled as images; the trade-off is
   documented above.
 - **No index eviction.** Growth is bounded by `max_papers_per_topic` and made

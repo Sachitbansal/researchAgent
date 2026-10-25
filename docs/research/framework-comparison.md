@@ -10,7 +10,7 @@ could not confirm are marked **[unverified]**.
 
 | | Core idea | What it would have given this project | What it would have cost or hidden here | OpenRouter |
 |---|---|---|---|---|
-| **Hand-rolled loop** (ours) | A plain loop against `/chat/completions`. It sends the messages and five tool schemas, runs the tool calls, appends the results and repeats. `src/agent/loop.py` (529 lines) plus `conversation.py` (249) | Everything is visible and testable. Every policy below is code we wrote and can point to | Nothing hidden. The cost is that we built threads (D12), memory (D19–D23) and approval (D26) ourselves. There are no checkpoints or time travel, and tracing is JSONL only | Native. The provider is a config value (ARCHITECTURE §11) |
+| **Hand-rolled loop** (ours) | A plain loop against `/chat/completions`. It sends the messages and five tool schemas, runs the tool calls, appends the results and repeats. `src/agent/loop.py` (553 lines) plus `conversation.py` (249) | Everything is visible and testable. Every policy below is code we wrote and can point to | Nothing hidden. The cost is that we built threads (D12), memory (D19–D23) and approval (D26) ourselves. There are no checkpoints or time travel, and tracing is JSONL only | Native. The provider is a config value (ARCHITECTURE §11) |
 | **LangGraph** | A `StateGraph` of nodes with typed state and reducers, plus a checkpointer | Durable per-step checkpoints. `interrupt()` / `Command(resume=)` approval that survives restarts. Time travel. Thread memory and a cross-thread Store | The loop becomes a graph, and message plumbing, retries and tool-call parsing sit behind Runnables. Each of our policies would become custom graph code next to the prebuilt agent **[unverified how cleanly]**: the image on a follow-up user turn (§9), elision that keeps messages and releases chunks (D13), per-tool limits with two backstops, and the forced final answer (D4). LangSmith self-hosting is Enterprise-only | Yes, `ChatOpenAI(base_url=...)` |
 | **Pydantic AI** | A typed `Agent[Deps, Output]`. Tools are typed functions with validated arguments | Validated tool arguments, OTel-native tracing, and durable execution via Temporal, DBOS and others. Tool approval for human-in-the-loop | It hides schema generation and retry-on-validation. Of the five, it hides the least, but the same four policies would need porting and re-testing **[unverified where they would hook in]** | Yes, provider-agnostic. Exact OpenRouter class **[unverified]** |
 | **OpenAI Agents SDK** | `Agent` plus a `Runner` loop, with handoffs, guardrails and sessions | SQLite and other session stores. `needs_approval` with a serialisable `RunState` for pause and resume | Its best extras (compaction, hosted tools, server conversations) are OpenAI Responses-API-only. Tracing is on by default and sends to OpenAI. Handoffs are multi-agent, which we rule out. Our limits, backstops and forced answer would live in `Runner` configuration or hooks **[unverified]** | Through LiteLLM / Any-LLM adapters |
@@ -18,9 +18,9 @@ could not confirm are marked **[unverified]**.
 
 ## Why hand-rolled here
 
-- **The loop is the thing being evaluated.** `.claude/CLAUDE.md` makes "no agent
-  framework" a hard constraint, and ARCHITECTURE §14 lists it as a non-goal. A framework
-  would hide the very structure under review.
+- **The loop is the thing being evaluated.** `.claude/CLAUDE.md` rules out adopting a
+  framework without a logged decision with the user, and ARCHITECTURE §14 lists it as a
+  non-goal. A framework would hide the very structure under review.
 - **The provider forces a non-standard turn shape.** On OpenRouter's OpenAI-compatible API,
   a `tool` message's content is a string, and image parts are only valid on a `user`
   message. So `inspect_figure` returns a path, and the loop attaches the image on a
@@ -52,7 +52,7 @@ could not confirm are marked **[unverified]**.
 | **Multi-hour runs** (deep research mode) | A crash or deploy would lose the run. Nothing checkpoints | **Pydantic AI** with durable execution (Temporal or DBOS). It hides the least and is OTel-native. LangGraph if time travel matters more |
 | **Many concurrent users** | One run at a time (D6), single-user SQLite (D12), no auth (D23), and arXiv's 429 limit is per IP | The fix is serving first: workers, a shared database and a shared arXiv rate limit. Add **LangGraph** with a Postgres checkpointer only if run state must move between workers |
 
-Adoption stays benched (DECISIONS, "Benched questions"). If any trigger fires, log the
+Adoption stays benched (`docs/FUTURE_WORK.md`). If any trigger fires, log the
 switch as a decision, along with what it loses: the image turn, elision, the per-scorer
 gate and the forced answer.
 
@@ -63,7 +63,7 @@ gate and the forced answer.
 | **Mem0** | Extract facts, then an LLM picks ADD / UPDATE / DELETE / NOOP against similar memories | The add / refresh / supersede decision. Ours makes it with cosine plus NLI and **no LLM call** (D22) | An LLM call per decision, plus a vector-DB service |
 | **Zep / Graphiti** | A temporal knowledge graph in which a contradiction *invalidates* the old fact rather than deleting it | Invalidate, don't delete: a superseded memory is soft-deleted with a reason and `superseded_by`, and can be restored (D20, D23). Ours is hard-purged after 180 days, and is not bi-temporal | A graph database and a server, for one user |
 | **Letta** | A stateful agent server. The agent edits its own memory blocks | Nothing directly. The nearest parallel is that our preferences are always injected (D22), for a reason of our own: a cosine gate would rarely surface them | The loop moves inside Letta, and the loop is what is being evaluated |
-| **LangMem** | Memory tools on the LangGraph Store | Nothing | A LangChain/LangGraph dependency, which CLAUDE.md rules out. Also no release for a year |
+| **LangMem** | Memory tools on the LangGraph Store | Nothing | A LangChain/LangGraph dependency, which CLAUDE.md rules out without a logged decision. Also no release for a year |
 | **Ours** | SQLite in `data/threads.sqlite3`. Stores grounded findings with chunk hashes, and stated preferences. Injected by the loop with chunk text, not through a sixth tool (ARCHITECTURE §7.2) | — | — |
 
 ## Likely interview questions
@@ -83,8 +83,9 @@ restarts.
 - **When the corpus lacks the subject**, the agent proposes a fetch rather than answering
   from its own knowledge (D25).
 
-Abstention scored 1.000 on both splits. Citation resolution skips uncited answers, so one
-uncited answer in the CRAG run doesn't show in it.
+Abstention accuracy was 1.000 on both splits in every recorded run. Citation resolution
+skips uncited answers, so an uncited answer never shows in it; since D34 such an answer
+gets a Fetch card instead, which is where the final run's one false proposal came from.
 
 **How does memory forget?**
 Automatically, in four ways (D20):
@@ -106,14 +107,14 @@ memory until the hard purge at 180 days. Preferences don't decay.
 - **Cost.** Prompt caching, and a context budget under qwen's 32k price tier (benched).
 
 **How do you know it works?**
-- **The question set.** 15 paraphrased questions, hand-labelled with gold chunks, and 5
-  held out until tuning stopped.
-- **Results (M8, under the old 8-iteration cap).** Fact coverage 1.000 tuning / 0.917
-  held out; abstention 1.000 / 1.000; citations resolved 1.000 / 1.000.
-- **CRAG phase 2.** It proposed fetches on 2 of 3 fetchable questions, with 0 false
-  proposals out of 8 (tuning split only).
-- **Gaps.** Recall@5 is low (0.238). Long-term memory has no eval yet. Each number is a
-  single run.
+- **The question set.** 18 paraphrased questions in 5 categories, hand-labelled with gold
+  chunks, with 6 held out until tuning stopped.
+- **Results.** The final run (2026-10-25) is in EVALUATION.md, "Final evaluation". Every
+  earlier run is kept there too, marked as such.
+- **Retrieval.** Hybrid BM25 + dense raised retrieval-only MRR from 0.344 to 0.479 on the
+  tuning split; contextual headers made it worse and ship off (D29–D33).
+- **Gaps.** Long-term memory has no eval yet. Each number is a single run of a hosted
+  model, at n = 12 and 6.
 
 **Why must the user approve fetches?**
 Auto-fetch pollutes the shared corpus, and arXiv returns *something* even for topics it
