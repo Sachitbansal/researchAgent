@@ -548,6 +548,6 @@ class AgentLoop:
             "run_id": tracer.run_id,
             "trace": str(tracer.path),
             "trace_records": tracer.records,
-            "fetch_proposal": derive_fetch_proposal(tracer.records),
+            "fetch_proposal": derive_fetch_proposal(tracer.records, conversation.final_text()),
             "conversation": conversation,
         }

@@ -270,3 +270,21 @@ def test_the_cli_approval_needs_a_thread_and_no_question(cli, capsys):
 def test_the_cli_still_needs_a_question_without_an_approval(cli, capsys):
     _, code = _ask(cli, ["--quiet"])
     assert code == 1 and "empty_question" in capsys.readouterr().err
+
+
+def test_cited_answer_gets_no_card_even_after_a_failed_search():
+    """D34: the corpus answered, so a late failed search must not put a card under it."""
+    assert derive_fetch_proposal([passed(), gap()], "It does [pA__c0001].") is None
+
+
+def test_uncited_answer_gets_a_card_even_when_a_chunk_passed_the_gate():
+    """D34: the agent could not answer from what passed (af01), so offer the fetch."""
+    proposal = derive_fetch_proposal([passed("few-step sampling")],
+                                     "The indexed corpus does not cover this.")
+    assert proposal is not None and proposal["searched_for"] == "few-step sampling"
+
+
+def test_uncited_answer_prefers_the_gap_subject():
+    proposal = derive_fetch_proposal([gap("the real gap"), passed("later wording")],
+                                     "Not covered.")
+    assert proposal["searched_for"] == "the real gap"

@@ -91,13 +91,21 @@ class ScriptedClient:
         self.requests = []
 
     def complete(self, messages, tools=None, role="agent", **kwargs):
-        self.requests.append({"messages": messages, "tools": tools, "kwargs": kwargs})
+        self.requests.append({"messages": messages, "tools": tools, "kwargs": kwargs,
+                              "role": role})
         if not self.responses:
             return text_response("done")
         nxt = self.responses.pop(0)
         if isinstance(nxt, Exception):
             raise nxt
         return nxt
+
+
+def agent_calls(client):
+    """The agent-role requests only. A run whose answer cites nothing also makes one
+    utility call to word its fetch proposal (D28, D34); loop tests are about the agent's
+    own turns, so they read past it."""
+    return [r for r in client.requests if r.get("role", "agent") == "agent"]
 
 
 def registry_with(cfg, handler, name="retrieve_evidence"):
@@ -263,7 +271,8 @@ class EndlessClient:
         self.requests = []
 
     def complete(self, messages, tools=None, role="agent", **kwargs):
-        self.requests.append({"messages": messages, "tools": tools, "kwargs": kwargs})
+        self.requests.append({"messages": messages, "tools": tools, "kwargs": kwargs,
+                              "role": role})
         if len(self.requests) > self.GUARD:
             raise AssertionError("the loop did not terminate")
         if tools is None:
@@ -305,7 +314,7 @@ def test_eleventh_call_to_one_tool_is_refused(cfg):
 
     assert len(calls) == limit
     assert result["tool_call_counts"] == {"retrieve_evidence": limit, "analyze_corpus": 0}
-    last = tool_messages(client.requests[-1]["messages"])[-1]
+    last = tool_messages(agent_calls(client)[-1]["messages"])[-1]
     assert last["tool_call_id"] == f"c{limit}"
     assert json.loads(last["content"])["error"] == "tool_limit_reached"
     assert "retrieve_evidence" in last["content"] and str(limit) in last["content"]
@@ -330,7 +339,7 @@ def test_parallel_calls_past_the_limit_in_one_turn_are_each_refused(cfg):
     assert len(calls) == limit
     assert result["tool_call_counts"]["retrieve_evidence"] == limit
     assert result["tool_calls"] == limit
-    messages = client.requests[-1]["messages"]
+    messages = agent_calls(client)[-1]["messages"]
     assert_every_call_answered(messages)
     by_id = {m["tool_call_id"]: json.loads(m["content"]) for m in tool_messages(messages)}
     assert "error" not in by_id[f"c{limit - 1}"]
@@ -387,7 +396,7 @@ def test_shipped_config_gives_search_literature_five_calls(cfg):
     assert len(calls) == 5
     assert result["tool_call_counts"] == {"retrieve_evidence": 0, "search_literature": 5}
     assert offered(client.requests[5]) == ["retrieve_evidence"]
-    last = json.loads(tool_messages(client.requests[-1]["messages"])[-1]["content"])
+    last = json.loads(tool_messages(agent_calls(client)[-1]["messages"])[-1]["content"])
     assert last["error"] == "tool_limit_reached" and "5" in last["detail"]
     system = client.requests[0]["messages"][0]["content"]
     assert "10 calls per tool (except search_literature: 5)" in system
@@ -410,7 +419,7 @@ def test_repeating_one_call_forever_stops_on_no_progress(cfg):
     assert result["tool_call_counts"] == {"retrieve_evidence": 1}
     assert result["repeated_calls"] == n
     assert result["answer"] == "Partial answer from what I have."
-    final = client.requests[-1]
+    final = agent_calls(client)[-1]
     assert final["tools"] is None, "no tools offered on the forced final call"
     assert final["messages"][-1] == {"role": "user", "content": NO_PROGRESS_NUDGE}
     cap = [e for e in events if e["kind"] == "cap"]
@@ -428,8 +437,8 @@ def test_calling_a_nonexistent_tool_forever_stops_on_no_progress(cfg):
     assert result["tool_calls"] == 0
     assert result["tool_call_counts"] == {"retrieve_evidence": 0}
     assert result["trace_records"] == []
-    assert client.requests[-1]["tools"] is None
-    assert_every_call_answered(client.requests[-1]["messages"])
+    assert agent_calls(client)[-1]["tools"] is None
+    assert_every_call_answered(agent_calls(client)[-1]["messages"])
 
 
 def test_exhausting_every_tool_stops_with_tools_exhausted(tmp_path, monkeypatch):
@@ -446,7 +455,7 @@ def test_exhausting_every_tool_stops_with_tools_exhausted(tmp_path, monkeypatch)
     assert result["iterations"] == 3
     assert result["tool_call_counts"] == {"retrieve_evidence": 3, "analyze_corpus": 3}
     assert result["tool_calls"] == 6 == len(result["trace_records"])
-    final = client.requests[-1]
+    final = agent_calls(client)[-1]
     assert final["tools"] is None
     assert final["messages"][-1] == {"role": "user", "content": TOOLS_EXHAUSTED_NUDGE}
     assert result["answer"] == "Partial answer from what I have."
@@ -480,7 +489,7 @@ def test_refused_calls_do_not_consume_a_tools_budget(tmp_path, monkeypatch):
     assert result["stopped_because"] == "answered"
     assert result["tool_call_counts"] == {"retrieve_evidence": 2, "analyze_corpus": 0}
     assert result["tool_calls"] == 2 == len(result["trace_records"])
-    assert_every_call_answered(client.requests[-1]["messages"])
+    assert_every_call_answered(agent_calls(client)[-1]["messages"])
 
 
 def test_a_dispatched_call_that_errors_still_counts(cfg):
@@ -529,7 +538,7 @@ def test_loop_detection_injects_a_notice_instead_of_re_executing(cfg):
 
     assert len(calls) == 1, "the repeat must not run the tool again"
     assert result["repeated_calls"] == 1
-    tool_messages = [m for m in client.requests[-1]["messages"] if m["role"] == "tool"]
+    tool_messages = [m for m in agent_calls(client)[-1]["messages"] if m["role"] == "tool"]
     assert any("already made this exact call" in m["content"] for m in tool_messages)
 
 

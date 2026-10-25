@@ -1,7 +1,8 @@
 """
 The CRAG fetch round-trip: derive a run's fetch proposal, and build the user's approval.
 
-In:  the run's trace records, in call order (agent.trace.TraceWriter.records); or, for an
+In:  the run's trace records, in call order (agent.trace.TraceWriter.records), and the
+     final answer text; or, for an
      approval, the query the user approved plus the config (prompt files, length cap).
 Out: {"query", "searched_for", "best_score", "closest_topics"} or None; and the approval
      as {"query", "question", "display"} or an error dict. The loop never runs
@@ -10,6 +11,7 @@ Out: {"query", "searched_for", "best_score", "closest_topics"} or None; and the 
 
 from __future__ import annotations
 
+import re
 from typing import Any, Dict, Optional, Sequence
 
 from config import CFG, Config
@@ -19,6 +21,8 @@ SEARCH_TOOL = "search_literature"
 # Filled into the approval prompt files. str.replace, not str.format: a query may carry
 # braces, and a prompt file may one day carry an example in braces.
 QUERY_PLACEHOLDER = "{query}"
+# A citation as the agent writes it: [<paper_id>__c<position>].
+_CITATION = re.compile(r"\[[A-Za-z0-9._+-]+__c\d+\]")
 
 
 def _coverage_gap(record: Dict[str, Any]) -> Optional[Dict[str, Any]]:
@@ -59,8 +63,19 @@ def _empty_index(record: Dict[str, Any]) -> bool:
     return isinstance(summary, dict) and summary.get("error") == "empty_index"
 
 
-def derive_fetch_proposal(records: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+def derive_fetch_proposal(records: Sequence[Dict[str, Any]],
+                          answer: Optional[str] = None) -> Optional[Dict[str, Any]]:
     """The proposal for this run, or None.
+
+    With `answer` (what the loop passes; D34): offer a fetch exactly when the final answer
+    cites nothing. A cited answer means the corpus covered the question, so no card even
+    if a later search failed; an uncited answer means the agent could not answer from the
+    corpus, so offer one even if a loosely related chunk passed the gate. The subject comes
+    from the last unfiltered retrieve's gap when there is one, else from its arguments.
+    The rewrite (D28) then turns the user's question into the query actually offered.
+
+    Without `answer`, the original rule below applies (kept for callers that only have
+    the trace).
 
     Read from the LAST UNFILTERED retrieve_evidence call only (D24). A filtered call is
     skipped entirely, failing or passing: a figure-only search that finds no figure says
@@ -82,6 +97,8 @@ def derive_fetch_proposal(records: Sequence[Dict[str, Any]]) -> Optional[Dict[st
         return None
 
     record = records[last]
+    if answer is not None:
+        return _proposal_for_uncited(records[:last + 1], answer)
     if _empty_index(record):
         query = _searched(record.get("args") or {})
         if not query:
@@ -98,6 +115,29 @@ def derive_fetch_proposal(records: Sequence[Dict[str, Any]]) -> Optional[Dict[st
         "best_score": gap.get("best_score"),
         "closest_topics": list(gap.get("closest_topics") or []),
     }
+
+
+def _proposal_for_uncited(records: Sequence[Dict[str, Any]],
+                          answer: str) -> Optional[Dict[str, Any]]:
+    """D34: a proposal when the answer cites nothing, built from the unfiltered retrieves."""
+    if _CITATION.search(answer or ""):
+        return None
+    unfiltered = [r for r in records
+                  if r.get("tool_name") == RETRIEVE_TOOL and not is_filtered(r)]
+    for record in reversed(unfiltered):
+        gap = _coverage_gap(record)
+        if gap is not None and not gap.get("filtered"):
+            return {
+                "query": gap.get("proposed_query") or gap.get("searched_for"),
+                "searched_for": gap.get("searched_for"),
+                "best_score": gap.get("best_score"),
+                "closest_topics": list(gap.get("closest_topics") or []),
+            }
+    searched = _searched(unfiltered[-1].get("args") or {})
+    if not searched:
+        return None
+    return {"query": searched, "searched_for": searched, "best_score": None,
+            "closest_topics": []}
 
 
 def approval_request(query: Any, config: Config = CFG) -> Dict[str, Any]:
