@@ -151,11 +151,14 @@ def test_a_thread_turn_stores_its_fetch_proposal(cfg, tmp_path):  # noqa: F811
     store = ThreadStore(tmp_path / "threads.sqlite3")
     tid = store.create_thread("t")["id"]
     client = ScriptedClient(tool_response([("c1", "retrieve_evidence", {"query": "absent subject"})]),
-                            text_response("The corpus has no papers on this."))
+                            text_response("The corpus has no papers on this."),
+                            text_response("absent subject keywords"))  # the rewrite (D28)
     loop = AgentLoop(registry_with(cfg, lambda **kw: dict(GAP_RESULT)), client=client,
                      config=cfg, store=store)
     result = loop.run("What about the absent subject?", thread_id=tid)
-    assert result["fetch_proposal"]["query"] == "absent subject"
+    assert result["fetch_proposal"]["query"] == "absent subject keywords"
+    assert result["fetch_proposal"]["agent_query"] == "absent subject"
+    assert result["fetch_proposal"]["query_source"] == "rewritten"
     stats = store.get_thread(tid)["turns"][0]["stats"]
     assert stats["fetch_proposal"] == result["fetch_proposal"]
     assert "approved_fetch" not in stats
