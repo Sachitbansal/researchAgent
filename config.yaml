@@ -452,6 +452,12 @@ agent:
                             # are re-sent with every later question, so they stay short.
   thread_title_chars: 72    # a thread created by its first question is named after that
                             # question, cut at a word boundary to this many characters
+  fetch_query_max_chars: 300
+                            # cap on the query a user approves for fetching ("Fetch
+                            # papers" button, `ask --approve-fetch`; D26). It is pasted
+                            # into the approval prompt and planned into an arXiv query, so
+                            # a pasted essay is refused, not sent. Not measured: the
+                            # proposed query is the agent's retrieve query, well under it.
 
 paths:
   data_dir: data

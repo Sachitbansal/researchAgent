@@ -82,7 +82,8 @@ is scored separately.
 - **No numbers yet.** The full agent eval has not been run on this category. The prompt
   rule that acts on the hint is phase 2 and will change behaviour, and measuring before it
   lands would only produce a number that is about to go stale. All results below are on
-  the original 15 questions and four categories.
+  the original 15 questions and four categories. *Since measured on the tuning split: see
+  "CRAG phase 2" under Results.*
 - **The live fetch path is not in the automated eval.** Record/replay of arXiv responses
   is benched. `scripts/crag_fetch_check.py` runs one real `search_literature` on a
   throwaway copy of the data dir and proves the real `data/index` is byte-identical
@@ -108,6 +109,44 @@ These results were measured under the old global 8-iteration cap (`agent.max_ite
 The generation-side metrics hold up on held-out data. The retrieval-side ones drop
 (MRR 0.660 → 0.458), which is what a 10-question tuning split should be expected to do
 — it is a small sample and the threshold was fitted on it.
+
+### CRAG phase 2 (2026-10-25)
+
+The tuning split was run once with the phase-2 prompt rule (`docs/DECISIONS.md` D24–D27),
+written to `eval/results/tuning_split_crag2.json`. The cited `tuning_split.json` is
+untouched. This is now 12 questions, with af01 and af02 added. The run uses per-tool limits
+(D4), not the old 8-iteration cap, so the comparison is not like for like. To guarantee
+the eval made no arXiv calls, it ran on a throwaway copy of the data with an arXiv
+cooldown planted. `search_literature` was called **0 times** in all 12 runs. Afterwards,
+`search_literature`'s description gained one sentence (leave `categories` unset, D25).
+That text is sent with every request, but the tool was never called here, so no rerun
+was made.
+
+| metric | baseline (10 q, cited) | phase 2, same 10 q | phase 2, all 12 q |
+|---|---|---|---|
+| fact coverage | 1.000 | 1.000 | 1.000 |
+| abstention accuracy | 1.000 | 1.000 | 1.000 |
+| citations resolved | 1.000 | 1.000 | 1.000 |
+| `fetch_proposal_on_fetchable` | — | — | **0.667** (2 of 3) |
+| `fetch_proposal_on_answerable` (false proposals) | — | — | **0.000** (0 of 8) |
+
+- **Proposals land on af01 and af02.** Both answers name what was searched for and the two
+  held topics, point to the "Fetch papers" button, and answer nothing from the model's own
+  knowledge.
+- **ni02 got no proposal, and the cause is the gate, not the derivation.** Its last
+  unfiltered retrieve ("vision transformer quantization accuracy") passed, on chunks from
+  the corpus's LLM-quantization papers. One earlier retrieve did return `propose_fetch` at
+  −3.83, but a later passing call clears it, as D18 and D24 intend. The answer abstains
+  correctly but still tells the user to use the "Fetch papers" button, which does not
+  appear without a proposal. The prompt rule leaks into abstentions that have none. The baseline run of ni02 also cited 6 chunks
+  from those papers. The relevance gate cannot tell "quantization of ViTs" from
+  "quantization of LLMs" at −3.0.
+- **ni01 (sourdough) proposed a fetch.** It is unscored by design (see above). The
+  admission gate is what should then find that arXiv has nothing.
+- **One regression worth knowing about:** sp03 answered correctly (facts 3/3) but with no
+  inline citations, where the baseline had 5. `citations_resolved` skips answers with no
+  citations, so the 1.000 above does not show it. This is one run of a hosted model, not a
+  measured trend.
 
 ### Why recall@5 is low while gold-paper hit rate is 1.000
 

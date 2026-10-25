@@ -7,9 +7,9 @@ sequenced by the system.
 
 1. **Tools never call other tools.** All control flow goes through the agent. If
    `retrieve_evidence` returns `sufficient_evidence: false`, it does *not* trigger a
-   fetch — it reports the gap and the agent decides whether to call
-   `search_literature`. That decision is the agentic behaviour the task is asking
-   for; automating it away would recreate a fixed pipeline.
+   fetch — it reports the gap, the agent describes it, and the user approves a fetch
+   with the "Fetch papers" button (`docs/DECISIONS.md` D14, D24–D27). Automating that
+   away would recreate a fixed pipeline, and fetch into a shared corpus unasked.
 2. **Tools never raise.** Every failure path returns `{"error": "...", "detail": ...}`
    so a bad PDF or a dead API degrades the loop instead of killing it.
 
@@ -25,12 +25,13 @@ Fetches new papers from arXiv and adds them to the index.
 
 **Description shown to the model:**
 
-> Search arXiv for papers on a topic, download them, and add them to the index.
-> Use this when the corpus has no papers on the subject being asked about, or when
-> `retrieve_evidence` reported insufficient evidence and the gap looks like missing
-> literature rather than a bad query. This is slow (30–60s) and costs API calls — do
-> not use it to answer questions about papers that are already indexed; use
-> `retrieve_evidence` for that. Do not call it twice for the same topic.
+> Search arXiv for papers on a topic, download them, and add them to the index. Call
+> this only when the user has approved a fetch; their message says so explicitly. It
+> adds papers to the corpus permanently, is slow (30–60s) and costs API calls. Do not
+> use it to answer questions about papers that are already indexed; use
+> `retrieve_evidence` for that. Do not call it twice for the same topic. Leave
+> `categories` unset: the query planner already chooses them, and yours would narrow
+> its choice a second time.
 
 **Input**
 
@@ -120,10 +121,11 @@ Core RAG. The tool the agent should reach for by default.
 > a query. This is your primary source of evidence — use it for any question about
 > what the papers say. Returns ranked chunks with paper, page, and section metadata
 > so you can cite them precisely. If `sufficient_evidence` comes back false, the
-> index does not contain good evidence for this query: either rephrase and retry with
-> different wording, or — if the topic is genuinely absent from the corpus —
-> call `search_literature`, or tell the user you cannot answer from available
-> evidence. Do not answer from your own knowledge when this returns nothing.
+> index does not contain good evidence for this query, and
+> `coverage_gap.suggested_next` says what to do: rephrase and retry once, or tell the
+> user what the corpus lacks so they can approve a fetch. Do not call
+> `search_literature` unless the user has approved a fetch, and do not answer from
+> your own knowledge when this returns nothing.
 
 **Input**
 
@@ -167,7 +169,7 @@ Core RAG. The tool the agent should reach for by default.
 
 **`coverage_gap`** — a structured hint, returned only when a scorer ran and every
 candidate fell below the relevance threshold. It is data, not a call: the tool still
-fetches nothing, and the agent (or, in phase 2, the user) decides what to do.
+fetches nothing; the agent describes the gap and the user decides whether to fetch.
 
 ```json
 "coverage_gap": {
@@ -178,7 +180,8 @@ fetches nothing, and the agent (or, in phase 2, the user) decides what to do.
   "closest_topics": ["topic_tag — up to 3, in the rank order of their best candidate"],
   "suggested_next": "'rephrase' | 'propose_fetch'",
   "proposed_query": "string — what to hand search_literature; today the query itself,
-                     since search_literature plans its own arXiv syntax"
+                     since search_literature plans its own arXiv syntax",
+  "filtered":       "bool — the call set topic_filter or chunk_types (D24)"
 }
 ```
 
@@ -192,10 +195,15 @@ fetches nothing, and the agent (or, in phase 2, the user) decides what to do.
   chunk, an index with no candidates, and "every passing chunk was already returned".
   None of those is a gap in the literature, and in the first two no scorer ran.
 
-The agent loop reads the **last** `retrieve_evidence` call of a run: if its
-`coverage_gap` says `propose_fetch` and `search_literature` was not called after it, the
-run result carries `fetch_proposal: {query, searched_for, best_score, closest_topics}`
-(else `null`), for the user to approve (`src/agent/fetch_proposal.py`).
+The agent loop reads the **last unfiltered** `retrieve_evidence` call of a run (no
+`topic_filter`, no `chunk_types`; filtered calls neither propose nor clear, D24). If its
+`coverage_gap` says `propose_fetch`, or it hit an `empty_index`, and `search_literature`
+was not called after it, the run result carries `fetch_proposal: {query, searched_for,
+best_score, closest_topics}` (else `null`) for the user to approve
+(`src/agent/fetch_proposal.py`). It rides in the web `answer` frame and the turn's
+stats. The approval is `POST /api/ask` with `approve_fetch: {query}` and a `thread_id`,
+or `main.py ask --thread ID --approve-fetch "<query>"`. Either way the agent's message
+comes from `src/prompts/fetch_approval.md` (D26).
 
 **Note on figure chunks:** these come back with the *stored description plus
 caption*, not the image. If detail is needed that the description does not carry,
@@ -405,7 +413,8 @@ anticipates — they are what the eval's tool-trace check looks for, not a scrip
 | Question shape | Likely trace |
 |---|---|
 | Factual, corpus has it | `retrieve_evidence` → answer |
-| Factual, corpus lacks it | `retrieve_evidence` (gate fails) → `search_literature` → `retrieve_evidence` → answer |
+| Factual, corpus lacks it | `retrieve_evidence` (gate fails, `propose_fetch`) → describe the gap, closest topics, and the button. On approval, next turn: `search_literature` → `retrieve_evidence` → cited answer |
+| Near miss | `retrieve_evidence` (gate fails, `rephrase`) → one reworded `retrieve_evidence` → answer or abstain |
 | Genuinely unanswerable | `retrieve_evidence` (gate fails) → possibly one retry → abstain |
 | Multi-paper synthesis | `retrieve_evidence` → `check_evidence_consistency(contradiction)` → answer |
 | Numeric detail in a plot | `retrieve_evidence` → `inspect_figure` → answer |

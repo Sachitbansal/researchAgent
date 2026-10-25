@@ -6,6 +6,8 @@ Out: assertions that vectors and chunk_ids stay aligned, that the map survives a
      save/load cycle, and that a changed embedding model forces a rebuild.
 """
 
+import zlib
+
 import numpy as np
 import pytest
 
@@ -42,7 +44,7 @@ class StubEmbedder(Embedder):
         self.encoded.extend(texts)
         out = np.zeros((len(texts), self.dim), dtype=np.float32)
         for row, text in enumerate(texts):
-            out[row, hash(text) % self.dim] = 1.0
+            out[row, zlib.crc32(text.encode("utf-8")) % self.dim] = 1.0
         return out
 
 

@@ -1,6 +1,7 @@
 /* The client for web/api.py: the corpus, chat threads, long-term memories (list, edit,
    add, delete, restore), and one streamed question.
-   In:  a question, the thread it belongs to (or none, to start one), a callback per frame.
+   In:  a question, the thread it belongs to (or none, to start one), a callback per frame;
+        or an approved fetch for a thread, whose wording the server builds.
    Out: parsed JSON, or an ApiError carrying the server's {error, detail}. Asking is a POST
         read as a stream, not an EventSource, which would silently re-run on reconnect. */
 
@@ -69,18 +70,23 @@ export const addPreference = (text: string) =>
 export const restoreMemory = (id: string) =>
   fetch(`/api/memories/${encodeURIComponent(id)}/restore`, { method: "POST" }).then((r) => json<{ memory: MemoryRecord }>(r));
 
+type OnFrame = (event: string, data: unknown) => void;
+
 /** Ask, calling `onFrame` for every frame until the server sends `done`. With no
     threadId the server starts a thread, and its first frame (`thread`) names it. */
-export async function ask(
-  question: string,
-  threadId: string | null,
-  onFrame: (event: string, data: unknown) => void,
-  signal?: AbortSignal,
-): Promise<void> {
+export const ask = (question: string, threadId: string | null, onFrame: OnFrame, signal?: AbortSignal) =>
+  stream(threadId ? { question, thread_id: threadId } : { question }, onFrame, signal);
+
+/** The user's "Fetch papers" click: the server turns `query` into the agent's message
+    from a prompt file and runs it as the thread's next turn. Same frames as `ask`. */
+export const approveFetch = (query: string, threadId: string, onFrame: OnFrame, signal?: AbortSignal) =>
+  stream({ thread_id: threadId, approve_fetch: { query } }, onFrame, signal);
+
+async function stream(body: Record<string, unknown>, onFrame: OnFrame, signal?: AbortSignal): Promise<void> {
   const res = await fetch("/api/ask", {
     method: "POST",
     headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-    body: JSON.stringify(threadId ? { question, thread_id: threadId } : { question }),
+    body: JSON.stringify(body),
     signal,
   });
   if (!res.ok || !res.body) {

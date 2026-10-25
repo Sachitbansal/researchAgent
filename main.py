@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -109,6 +110,24 @@ def cmd_index(args: argparse.Namespace) -> int:
 # ---- ask -------------------------------------------------------------------------
 
 
+def _approval(args: argparse.Namespace, config: Any) -> Dict[str, Any]:
+    """The approved fetch `--approve-fetch` asks for, or an error dict.
+
+    The same checks and the same prompt file as the web server's `approve_fetch` (D26):
+    it continues an existing thread, so the agent's history holds the question to answer.
+    """
+    from agent.fetch_proposal import approval_request
+
+    if args.question:
+        return {"error": "question_and_approval",
+                "detail": "give a question or --approve-fetch, not both"}
+    if not args.thread:
+        return {"error": "approval_needs_thread",
+                "detail": "--approve-fetch continues the thread that proposed the fetch; "
+                          "pass --thread ID"}
+    return approval_request(args.approve_fetch, config)
+
+
 def cmd_ask(args: argparse.Namespace) -> int:
     """Answer one question with the agent loop, printing the answer and the trace path."""
     from agent.loop import AgentLoop
@@ -120,6 +139,15 @@ def cmd_ask(args: argparse.Namespace) -> int:
     from tools.retrieve_evidence import EvidenceRetriever
 
     CFG.paths.ensure()
+    approval = None
+    if args.approve_fetch is not None:
+        approval = _approval(args, CFG)
+        if _failed(approval):
+            return _report_error("the approval", approval)
+        args.question = approval["question"]
+    elif not (args.question or "").strip():
+        return _report_error("the question", {"error": "empty_question",
+                                              "detail": "a question is required"})
     # Threads only when asked for: a plain `ask` stays a single, unpersisted question.
     store = ThreadStore(CFG.paths.threads_db) if (args.thread or args.new_thread) else None
     thread_id = args.thread
@@ -154,7 +182,10 @@ def cmd_ask(args: argparse.Namespace) -> int:
                      config=CFG, retriever=retriever, on_event=reporter, store=store,
                      memory=memory)
 
-    result = loop.run(args.question, thread_id=thread_id)
+    if approval is None:
+        result = loop.run(args.question, thread_id=thread_id)
+    else:
+        result = loop.run(args.question, thread_id=thread_id, approval=approval)
     if _failed(result):
         partial = result.get("partial") or {}
         if partial.get("answer"):
@@ -170,6 +201,12 @@ def cmd_ask(args: argparse.Namespace) -> int:
     )
     print(f"--- tool calls per tool: {result['tool_call_counts']}")
     print(f"--- trace: {result['trace']}")
+    proposal = result.get("fetch_proposal")
+    if proposal and approval is None:
+        # Not after an approved fetch: re-offering the same fetch that just ran is noise.
+        how = "re-ask with --approve-fetch" if thread_id else \
+            "re-ask in a thread (--new-thread), then --thread ID --approve-fetch"
+        print(f"--- fetch proposal: {json.dumps(proposal.get('query'), ensure_ascii=False)}  ({how})")
     if thread_id:
         print(f"--- thread: {thread_id}, turn {result.get('turn_seq')}")
         if result.get("thread_error"):
@@ -252,6 +289,13 @@ def cmd_eval(args: argparse.Namespace) -> int:
     # committed tuning_split.json by number, so a --limit 3 smoke run landing on that
     # filename would silently replace the evidence the write-up rests on.
     name = split if not args.limit else f"{split}_limit{args.limit}"
+    if args.out:
+        # A new behaviour measured beside the cited numbers, never over them. A plain
+        # file stem only, so the name cannot point outside eval/results/.
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]*", args.out):
+            print(f"--out must be a plain file stem, got {args.out!r}", file=sys.stderr)
+            return 2
+        name = args.out
     result = run_split(
         held_out=args.held_out, limit=args.limit, check_groundedness=not args.no_groundedness
     )
@@ -291,7 +335,11 @@ def build_parser() -> argparse.ArgumentParser:
     index.set_defaults(handler=cmd_index)
 
     ask = subparsers.add_parser("ask", help="answer one question against the index")
-    ask.add_argument("question", help="the question, quoted")
+    ask.add_argument("question", nargs="?", default=None,
+                     help="the question, quoted (omit with --approve-fetch)")
+    ask.add_argument("--approve-fetch", metavar="QUERY", default=None,
+                     help="approve the fetch an answer in --thread proposed: search arXiv "
+                          "for QUERY, then answer that thread's previous question")
     ask.add_argument("--show-tools", action="store_true",
                      help="after the answer, print a one-line summary of every tool call")
     ask.add_argument("--quiet", action="store_true",
@@ -312,6 +360,8 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--limit", type=int, default=None, help="run only the first N questions")
     evaluate.add_argument("--no-groundedness", action="store_true",
                           help="skip the NLI groundedness pass")
+    evaluate.add_argument("--out", metavar="NAME", default=None,
+                          help="write eval/results/NAME.json instead of the split's own file")
     evaluate.set_defaults(handler=cmd_eval)
 
     return parser

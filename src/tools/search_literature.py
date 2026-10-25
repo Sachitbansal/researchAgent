@@ -211,7 +211,8 @@ SEARCH_LITERATURE_PARAMETERS: Dict[str, Any] = {
         "categories": {
             "type": "array",
             "items": {"type": "string"},
-            "description": "arXiv categories to restrict the search to, e.g. ['cs.LG','cs.CL'].",
+            "description": "arXiv categories to restrict the search to, e.g. ['cs.LG','cs.CL']. "
+                           "Usually leave unset: the query planner already picks categories.",
         },
     },
     "required": ["query"],

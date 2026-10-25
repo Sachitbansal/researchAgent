@@ -113,6 +113,14 @@ export interface MemoryAddResult {
   replaced: { id: string; text: string }[];
 }
 
+/* What an answer proposes to fetch when the corpus lacks its subject (D18, D24). */
+export interface FetchProposal {
+  query: string;
+  searched_for?: string | null;
+  best_score?: number | null;
+  closest_topics: string[]; // topic tags; the page shows their labels
+}
+
 export interface Stats {
   iterations?: number;
   tool_calls?: number;
@@ -127,6 +135,10 @@ export interface Stats {
   history_turns_dropped?: number;
   history_tokens?: number;
   memory?: MemoryReport;
+  // The fetch this answer proposes, and, on the turn that ran it, the fetch the user
+  // approved (D26). Both are kept in the turn's stats, so a reloaded chat knows.
+  fetch_proposal?: FetchProposal | null;
+  approved_fetch?: { query: string } | null;
   error?: string;
   detail?: string;
 }

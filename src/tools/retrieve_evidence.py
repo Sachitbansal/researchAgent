@@ -212,7 +212,7 @@ class EvidenceRetriever:
 
     def _coverage_gap(
         self, query: str, ranked: Sequence[Dict[str, Any]], best: float,
-        threshold: float, cross_encoder_ran: bool,
+        threshold: float, cross_encoder_ran: bool, filtered: bool = False,
     ) -> Dict[str, Any]:
         """The structured hint returned when the relevance gate fails. Data, not a call.
 
@@ -220,6 +220,8 @@ class EvidenceRetriever:
         rephrase margin below its threshold, else "propose_fetch". The margin is chosen
         by which scorer actually ran, for the same reason the threshold is: a logit
         margin applied to cosines would label every bi-encoder miss a near miss.
+        `filtered` says the search was narrowed by topic_filter or chunk_types, so its
+        failure says nothing about the corpus as a whole (D24): no proposal comes of it.
         """
         margin = float(
             self.config.retrieval.rephrase_margin if cross_encoder_ran
@@ -245,6 +247,7 @@ class EvidenceRetriever:
             # search_literature plans its own arXiv syntax from natural language, so the
             # query the agent already wrote is the right thing to hand it.
             "proposed_query": query,
+            "filtered": bool(filtered),
         }
 
     # ---- the tool --------------------------------------------------------------
@@ -358,7 +361,8 @@ class EvidenceRetriever:
                         + rerank_note,
                 "n_candidates_considered": len(candidates),
                 "coverage_gap": self._coverage_gap(
-                    query, ranked, top_score, threshold, rerank_enabled
+                    query, ranked, top_score, threshold, rerank_enabled,
+                    filtered=bool(topic_filter or chunk_types),
                 ),
             }
 

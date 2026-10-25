@@ -41,14 +41,12 @@ alone produced a wrong conclusion once already (see `docs/EVALUATION.md`).
 Fixed at 40. Rerank latency scales with the shortlist, so a smaller pool might keep the
 gate at a fraction of the 1527 ms. No measurement has been taken.
 
-## The "absent but fetchable" category exists but has not been run
+## The "absent but fetchable" category is measured on the tuning split only
 
-`ni02` and `ni03` are now `absent_fetchable`, alongside three new questions, and are
-scored by `fetch_proposal_detected` (`docs/EVALUATION.md`; `docs/DECISIONS.md` D17). No
-agent run has scored them yet: the prompt rule that acts on `coverage_gap` is phase 2,
-and numbers taken before it would be stale on arrival. The live fetch path is also only
-checked by hand (`scripts/crag_fetch_check.py`). Record/replay of arXiv responses would
-make it an automated test, and is benched.
+The tuning split's fetchable questions have been run once with the phase-2 prompt
+(`docs/EVALUATION.md`, CRAG phase 2). The held-out one has not. The live fetch path,
+including the approval turn, is still checked only by hand, on a throwaway copy of the
+data. Record/replay of arXiv responses would make it an automated test, and is benched.
 
 ## `rephrase_margin` and `admission_threshold` rest on very little data
 
@@ -60,20 +58,21 @@ pairs, but question-shaped queries lose 38% of their positives at the chosen −
 phase 2 hands `search_literature` long questions, either the proposed query should be
 condensed to a topic phrase first or the threshold re-swept on that shape.
 
-A filtered retrieval can also yield a false proposal. `coverage_gap` is emitted on any
-gate failure, including calls with `topic_filter` or `chunk_types`, so a run whose last
-call was a figure-only search that found no figure proposes a fetch even when the
-unfiltered corpus covers the subject. Two fixes for phase 2: carry the filter in the gap,
-or have the loop ignore filtered gaps.
+The proposed query also drifts. It is the last unfiltered retrieve's query, and the agent's
+rewordings can lose the point of the question. In the phase-2 end-to-end check, "How do
+recent methods quantize vision transformers to 4 bits after training?" proposed
+`vision image classification transformer ViT`, without "quantization". Fetched unedited,
+that would have admitted generic ViT papers, since the admission gate scores against the
+same query. The fetch worked only because the query was edited in the card first. One fix
+is to propose the condensed subject of the *question*, not the last query.
 
-## Abstention vs. literature search is resolved by prompt, not by rule
+## Rephrase vs. fetch is still a hint the model follows
 
-Both answer the same signal: the corpus cannot answer this. Which one fires is left to
-the model via `src/prompts/system.md`. In every eval run the agent chose to abstain and
-*offer* to search rather than search, so `search_literature` is implemented and tested
-but has no end-to-end transcript. CRAG phase 1 turns the offer into data: a
-`coverage_gap` hint and a loop-derived `fetch_proposal` for the user to approve
-(`docs/DECISIONS.md` D14–D18). The prompt rule that uses them is phase 2.
+Both answer the same signal: the corpus cannot answer this. `coverage_gap.suggested_next`
+says which, and `src/prompts/system.md` tells the agent to follow it. Nothing enforces the
+"one reworded retrieve" or the ban on searching unasked; only the eval checks them. The
+user approves every fetch (`docs/DECISIONS.md` D14–D18, D24–D27), so whether the agent
+*would* choose to search well on its own is no longer tested.
 
 ## Long-term memory is unevaluated, and its NLI filter is strict
 

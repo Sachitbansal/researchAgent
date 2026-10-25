@@ -44,6 +44,7 @@ class StubLoop:
         self.store = store
         self.fail = fail
         self.on_event_during_run: List[Any] = []
+        self.approvals: List[Any] = []
 
     def _emit(self, kind: str, **fields: Any) -> None:
         if self.on_event is not None:
@@ -59,7 +60,10 @@ class StubLoop:
             run_id=stats.get("run_id"))
         return saved.get("seq")
 
-    def run(self, question: str, thread_id: Any = None) -> Dict[str, Any]:
+    def run(self, question: str, thread_id: Any = None, **kwargs: Any) -> Dict[str, Any]:
+        # Only an approved fetch passes `approval`; a plain question passes nothing more.
+        if "approval" in kwargs:
+            self.approvals.append(kwargs["approval"])
         self.questions.append(question)
         self.thread_ids.append(thread_id)
         self.on_event_during_run.append(self.on_event)
@@ -90,6 +94,8 @@ class StubLoop:
             "run_id": "run-1",
             "thread_id": thread_id,
             "turn_seq": seq,
+            "fetch_proposal": {"query": "absent subject", "searched_for": "absent subject",
+                               "best_score": -7.5, "closest_topics": ["topic_a"]},
             "conversation": object(),   # must never reach the wire
         }
 
@@ -115,7 +121,10 @@ def _config(tmp_path: Path) -> SimpleNamespace:
     }), encoding="utf-8")
     return SimpleNamespace(
         paths=SimpleNamespace(manifest=index / "manifest.json", figures=figures, logs=tmp_path / "logs"),
-        agent=SimpleNamespace(trace_text_chars=50, thread_title_chars=24),
+        agent=SimpleNamespace(trace_text_chars=50, thread_title_chars=24,
+                              fetch_query_max_chars=40),
+        # The real prompt files: the approval's wording must come from them (D26).
+        prompt=lambda name: (ROOT / "src" / "prompts" / f"{name}.md").read_text(encoding="utf-8"),
     )
 
 
@@ -186,7 +195,8 @@ def test_ask_streams_thread_then_steps_then_answer_then_done(setup):
 
     answer = frames[-2][1]
     assert set(answer) == {"answer", "iterations", "tool_calls", "context_tokens",
-                           "stopped_because", "run_id", "thread_id", "turn_seq"}
+                           "stopped_because", "run_id", "thread_id", "turn_seq",
+                           "fetch_proposal", "approved_fetch"}
     assert answer["run_id"] == "run-1"
     assert answer["thread_id"] == frames[0][1]["thread_id"] and answer["turn_seq"] == 1
 
@@ -523,3 +533,58 @@ def test_memories_routes(mem_setup):
 def test_memories_routes_need_long_term_memory(setup):
     assert setup.client.get("/api/memories").status_code == 503
     assert setup.client.delete("/api/memories/" + "a" * 32).status_code == 503
+
+
+# ---------------------------------------------------------------- approved fetch (D26)
+
+def _approve(client, body: Dict[str, Any]):
+    return client.post("/api/ask", json=body)
+
+
+def test_the_answer_frame_carries_the_fetch_proposal(setup):
+    frames = _ask(setup.client, "What about the absent subject?")
+    answer = dict(frames)["answer"]
+    assert answer["fetch_proposal"]["query"] == "absent subject"
+    assert answer["fetch_proposal"]["closest_topics"] == ["topic_a"]
+    assert "conversation" not in answer
+
+
+def test_an_approval_runs_the_prompt_file_text_in_the_thread(setup):
+    from agent.fetch_proposal import approval_request
+
+    tid = setup.store.create_thread("t")["id"]
+    response = _approve(setup.client, {"thread_id": tid, "approve_fetch": {"query": " absent  subject "}})
+    assert response.status_code == 200
+    frames = _frames(response.text)
+    assert frames[0] == ("thread", {"thread_id": tid, "created": False, "title": "t"})
+    template = (ROOT / "src" / "prompts" / "fetch_approval.md").read_text(encoding="utf-8")
+    expected = template.strip().replace("{query}", "absent subject")
+    assert setup.loop.questions == [expected]
+    assert setup.loop.thread_ids == [tid]
+    approval = setup.loop.approvals[0]
+    assert approval == approval_request("absent subject", setup.config)
+    assert approval["display"].endswith('"absent subject"')
+
+
+def test_a_plain_question_passes_no_approval(setup):
+    _ask(setup.client, "an ordinary question")
+    assert setup.loop.approvals == []
+
+
+def test_an_approval_is_validated_before_the_stream_opens(setup):
+    tid = setup.store.create_thread("t")["id"]
+    cases = [
+        ({"approve_fetch": {"query": "x"}}, "approval_needs_thread"),
+        ({"thread_id": tid, "approve_fetch": {"query": "   "}}, "empty_fetch_query"),
+        ({"thread_id": tid, "approve_fetch": {"query": "y" * 41}}, "fetch_query_too_long"),
+        ({"thread_id": tid, "question": "and also this", "approve_fetch": {"query": "x"}},
+         "question_and_approval"),
+    ]
+    for body, code in cases:
+        response = _approve(setup.client, body)
+        assert response.status_code == 400, body
+        assert response.json()["error"] == code
+    assert _approve(setup.client, {"thread_id": tid, "approve_fetch": {}}).status_code == 422
+    assert _approve(setup.client, {"thread_id": "0" * 32, "approve_fetch": {"query": "x"}}).status_code == 404
+    assert setup.loop.questions == []
+    assert _approve(setup.client, {}).json()["error"] == "empty_question"

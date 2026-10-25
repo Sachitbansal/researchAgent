@@ -5,9 +5,10 @@ In:  a builder returning (AgentLoop, Config), called once at startup; the loop's
      ThreadStore (`loop.store`) holds the threads, its LongTermMemory (`loop.memory`) the
      memories. Then HTTP requests.
 Out: a FastAPI app. POST /api/ask streams a `thread` frame, the loop's own events as SSE,
-     the answer, then a `memory` frame once memory is written (D12, D19). Memories are
-     listed, edited, added (preferences only), deleted and restored under /api/memories
-     for the Memories page (D23). Lives outside src/ and imports it, as eval/.
+     the answer, then a `memory` frame once memory is written (D12, D19); with
+     `approve_fetch` it runs the user's approved fetch instead. Memories are listed,
+     edited, added (preferences only), deleted and restored under /api/memories for the
+     Memories page (D23). Lives outside src/ and imports it, as eval/.
 """
 
 from __future__ import annotations
@@ -42,7 +43,7 @@ IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp"}
 # Only these leave the server. loop.run also returns the Conversation object, which is
 # not JSON-serialisable, and trace_records, which the steps already cover.
 ANSWER_FIELDS = ("answer", "iterations", "tool_calls", "context_tokens", "stopped_because",
-                 "run_id", "thread_id", "turn_seq")
+                 "run_id", "thread_id", "turn_seq", "fetch_proposal", "approved_fetch")
 
 MISSING_BUILD = """<!doctype html><meta charset="utf-8"><title>sciagent</title>
 <body style="font:16px/1.6 system-ui,sans-serif;max-width:38rem;margin:4rem auto;padding:0 1rem">
@@ -53,12 +54,22 @@ MISSING_BUILD = """<!doctype html><meta charset="utf-8"><title>sciagent</title>
 <code>frontend/</code> instead and open the address it prints.</p></body>"""
 
 
+class ApproveFetch(BaseModel):
+    """The user's click on "Fetch papers": the query to fetch, possibly edited by them."""
+
+    query: str
+
+
 class AskBody(BaseModel):
     """Module level, not inside create_app: with postponed annotations FastAPI resolves
-    the model by name, and a local class would turn the body into a query parameter."""
+    the model by name, and a local class would turn the body into a query parameter.
 
-    question: str
+    Either a question, or `approve_fetch` with a thread_id. The approval's wording is
+    built here from src/prompts/fetch_approval.md, never sent by the page (D26)."""
+
+    question: Optional[str] = None
     thread_id: Optional[str] = None
+    approve_fetch: Optional[ApproveFetch] = None
 
 
 class NewThreadBody(BaseModel):
@@ -389,7 +400,8 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
     # ---------------------------------------------------------------- ask
 
     def run_question(state: Any, question: str, thread_id: str,
-                     push: Callable[[Optional[str], Dict[str, Any]], None]) -> None:
+                     push: Callable[[Optional[str], Dict[str, Any]], None],
+                     approval: Optional[Dict[str, Any]] = None) -> None:
         """The whole run, on a worker thread that owns the lock until it is over.
 
         The thread, not the response, owns the run: a browser that closes the tab ends
@@ -418,7 +430,12 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
                 # The question as typed, plus the thread it belongs to. Earlier turns are
                 # added by the loop itself from the store (memory.history), never pasted
                 # in here, so the browser and `main.py ask --thread` send the same thing.
-                result = loop.run(question, thread_id=thread_id)
+                if approval is None:
+                    result = loop.run(question, thread_id=thread_id)
+                else:
+                    # The approved fetch is an ordinary turn of the same thread, so the
+                    # history gives the agent the question it is to answer (D26).
+                    result = loop.run(question, thread_id=thread_id, approval=approval)
             except Exception as exc:  # the loop is meant not to raise; a page must not hang
                 result = {"error": "loop_crashed", "detail": f"{type(exc).__name__}: {exc}",
                           "thread_id": thread_id}
@@ -451,12 +468,30 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
         Every question belongs to a thread (docs/DECISIONS.md D12). Without a thread_id a
         new one is created, named after the question, and the first frame says which.
         Frames: `thread`, `step`*, `answer` | `failed`, `memory`?, `done`; or `busy`, `done`.
+
+        `approve_fetch: {query}` instead of a question runs the fetch the user approved,
+        in the thread whose answer proposed it. All of it is checked before the stream
+        opens, so a bad approval is a plain 400, not a frame.
         """
-        question = body.question.strip()
+        state = request.app.state
+        question = (body.question or "").strip()
+        approval: Optional[Dict[str, Any]] = None
+        if body.approve_fetch is not None:
+            if question:
+                return _err(400, "question_and_approval",
+                            "send a question or an approved fetch, not both")
+            if body.thread_id is None:
+                return _err(400, "approval_needs_thread",
+                            "an approved fetch continues the chat that proposed it; send its thread_id")
+            from agent.fetch_proposal import approval_request
+
+            approval = approval_request(body.approve_fetch.query, state.config)
+            if "error" in approval:
+                return _err(400, approval["error"], approval.get("detail", ""))
+            question = approval["question"]
         if not question:
             return _err(400, "empty_question", "type a question first")
 
-        state = request.app.state
         if state.store is None:
             return _no_store()
         thread_id, title = body.thread_id, ""
@@ -508,7 +543,7 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             # No await between acquiring and starting, so nothing can cancel us in the
             # gap and leave the lock held with no thread to release it.
             try:
-                threading.Thread(target=run_question, args=(state, question, target, push),
+                threading.Thread(target=run_question, args=(state, question, target, push, approval),
                                  name="agent-run", daemon=True).start()
             except BaseException:
                 state.running_thread = None
