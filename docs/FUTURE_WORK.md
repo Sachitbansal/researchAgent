@@ -71,7 +71,7 @@ is to propose the condensed subject of the *question*, not the last query.
 Both answer the same signal: the corpus cannot answer this. `coverage_gap.suggested_next`
 says which, and `src/prompts/system.md` tells the agent to follow it. Nothing enforces the
 "one reworded retrieve" or the ban on searching unasked; only the eval checks them. The
-user approves every fetch (`docs/DECISIONS.md` D14–D18, D30–D33), so whether the agent
+user approves every fetch (`docs/DECISIONS.md` D14–D18, D24–D27), so whether the agent
 *would* choose to search well on its own is no longer tested.
 
 ## Long-term memory is unevaluated, and its NLI filter is strict

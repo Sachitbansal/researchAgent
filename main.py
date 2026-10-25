@@ -113,7 +113,7 @@ def cmd_index(args: argparse.Namespace) -> int:
 def _approval(args: argparse.Namespace, config: Any) -> Dict[str, Any]:
     """The approved fetch `--approve-fetch` asks for, or an error dict.
 
-    The same checks and the same prompt file as the web server's `approve_fetch` (D32):
+    The same checks and the same prompt file as the web server's `approve_fetch` (D26):
     it continues an existing thread, so the agent's history holds the question to answer.
     """
     from agent.fetch_proposal import approval_request

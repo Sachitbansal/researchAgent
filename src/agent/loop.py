@@ -194,7 +194,7 @@ class AgentLoop:
         Returns the fields merged into the run's result: thread_id and turn_seq, plus
         thread_error if the store refused the write (the answer is still returned). An
         approval run is stored under its short readable question, and says in its stats
-        which fetch it approved, so a reloaded chat knows that proposal was acted on (D32).
+        which fetch it approved, so a reloaded chat knows that proposal was acted on (D26).
         """
         failed = "error" in result
         body = (result.get("partial") or {}) if failed else result

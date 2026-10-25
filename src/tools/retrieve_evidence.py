@@ -221,7 +221,7 @@ class EvidenceRetriever:
         by which scorer actually ran, for the same reason the threshold is: a logit
         margin applied to cosines would label every bi-encoder miss a near miss.
         `filtered` says the search was narrowed by topic_filter or chunk_types, so its
-        failure says nothing about the corpus as a whole (D30): no proposal comes of it.
+        failure says nothing about the corpus as a whole (D24): no proposal comes of it.
         """
         margin = float(
             self.config.retrieval.rephrase_margin if cross_encoder_ran

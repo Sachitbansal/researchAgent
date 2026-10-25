@@ -3,8 +3,8 @@ Offline tests for CRAG phase 2: filtered gaps ignored, the approval round-trip, 
 
 In:  synthetic trace records, a tmp corpus with stub embedder/reranker, a ThreadStore on
      tmp_path and a scripted LLM, and main.py with its model-loading imports stubbed.
-Out: assertions that only the last unfiltered retrieve decides the proposal (D30), that
-     the approval's wording comes from its prompt files and is validated (D32), that turn
+Out: assertions that only the last unfiltered retrieve decides the proposal (D24), that
+     the approval's wording comes from its prompt files and is validated (D26), that turn
      stats carry the proposal and the approval, and the CLI's flag and proposal line.
 """
 

@@ -179,7 +179,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **By:** user: "otherwise it keeps adding to memory and never forgets old memories, and the user has to go through the pain of deleting what they don't care about. It should be handled automatically by the new context and new results the agent produces."
 - **Paths:** superseded (a confident contradiction from a newer finding); stale (a cited chunk's hash changed or the chunk is gone; checked at read time and in the sweep); decay plus cap (`strength = (1 + ln use_count) × 0.5^(days/half_life)`, below `min_strength` or past `max_active`, weakest first, swept after each write); refresh (a re-finding resets recency); and a manual delete as override. Everything is soft-deleted with a reason and hard-purged after `purge_after_days`.
 - **A use** is injected **and** cited. Injected but uncited does not count. Being found counts as the first use.
-- **Tentative (Claude, pending the user):** `half_life_days` 30, `max_active` 500, `min_strength` 0.125 (= 0.5^(90/30): used once and untouched for 90 days), `purge_after_days` 180.
+- **Confirmed by the user (2026-10-25):** `half_life_days` 30, `max_active` 500, `min_strength` 0.125 (= 0.5^(90/30): used once and untouched for 90 days), `purge_after_days` 180.
 
 ## D21 — Grounding checks the passage-worded claim; the stored claim names its paper
 
@@ -200,7 +200,19 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Write trigger:** "the gate passed" means some `retrieve_evidence` call returned `sufficient_evidence: true` with chunks. An answer that cites only injected chunks still counts its uses but writes nothing new.
 - **Deleting a chat keeps its memories** (`source_thread_id` has no foreign key). Memory is meant to outlive the chat.
 
-## D30 — CRAG phase 2: filtered gaps are ignored (option A)
+## D23 — A Memories page: the user sees, edits, adds, deletes and restores memories
+
+*2026-10-25 · `frontend/src/components/MemoriesView.tsx`, `UserMenu.tsx`, `web/api.py`, `src/memory/longterm.py`, `memory_store.py` · DATA_SCHEMA §10*
+
+- **By:** user: "Like Claude, I should be able to edit and see my memories … have a memories option where the person can see all memories and edit or delete them himself." It is reached from a user menu at the bottom left (one user, no auth), which also holds the theme.
+- **Edit:** the text is re-embedded on the passage side (no query prefix). Editing is not a use. A finding is re-grounded with the writer's own `ground()`, with the edited text as the hypothesis. Entailed → `verified`, and the chunk hashes it was checked against are stored. Not entailed → **saved anyway**, with `verified=false` and `user_edited=true`. It is still injected, and the memory block marks it "(edited by user, unverified)" (`memory_block.md` says what that means). **Tentative (Claude), user to confirm.** Measured on the smoke run: an edit that keeps the paper's name but copies the passage's wording was entailed (0.98), while "0.01" for the passage's "1e-2" was not (0.0006). So attributed or paraphrased edits often come back unverified (D21).
+- **Add:** preferences only (`POST /api/memories`). They are settled like extracted ones: a restatement refreshes, a contradiction supersedes. Findings can't be added by hand, because they need cited chunk evidence.
+- **Restore:** clears `forgotten_at`/`invalidated_at`, the reason and `superseded_by`, and resets `last_used_at` to now. Refused (409) for a finding whose passage hash still differs, because the next recall would only invalidate it again. Restoring a superseded finding leaves both sides of the contradiction active; that is the user's call. Hard-purged rows are gone.
+- **Schema:** `origin`, `user_edited`, `verified`, `edited_at` and `forget_detail` (`below_min_strength` | `over_cap`, so the page can say "over the cap"). Each is added by `ALTER TABLE ADD COLUMN` when missing, tolerating a concurrent opener. Old rows read as agent-made, unedited and verified.
+- **Concurrency:** an edit or an add is refused (409 `agent_busy`) while a question runs, because it would share the run's embedder and NLI model (the fast tokenizer is not thread-safe). Delete and restore touch no model and stay open.
+- **Rejected:** blocking unverified edits (the user owns their memory); re-running reconciliation on an edit (it would let an edit silently supersede other memories).
+
+## D24 — CRAG phase 2: filtered gaps are ignored (option A)
 
 *2026-10-25 · `src/agent/fetch_proposal.py`, `src/tools/retrieve_evidence.py`*
 
@@ -210,18 +222,18 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **`coverage_gap.filtered: bool`** is added so the agent and the UI can tell. The derivation reads filtering from the call's arguments, because a passing call has no gap.
 - **Resolved by Claude:** an unfiltered `empty_index` also proposes a fetch of its query. Without this, the cold start would be unreachable: no scorer runs, so there is no gap, no button, and the agent may not search on its own.
 
-## D31 — The prompt rule: describe the gap, never fetch unasked
+## D25 — The prompt rule: describe the gap, never fetch unasked
 
 *2026-10-25 · `src/prompts/system.md`, `src/prompts/tools/retrieve_evidence.md`, `search_literature.md`*
 
 - **By:** user. The agent acts on `suggested_next`. On `rephrase` it makes one reworded retrieve. On `propose_fetch` it does not call `search_literature`: it says what it searched for, which held topics came closest, and that the "Fetch papers" button fetches, and it never answers from its own knowledge.
 - **`search_literature` only after approval,** which the approval message states explicitly. After fetching, the agent retrieves again and answers the original question with citations.
 - **Lines that contradicted the rule were edited, not appended to:** "use `search_literature` when the corpus lacks the subject" (system prompt and both tool descriptions).
-- **Resolved by Claude:** two clauses beyond the spec. If `coverage_gap.filtered` is true, retry once unfiltered; otherwise the agent would mention a button that D30 never shows. On `arxiv_coverage: "poor"`, say arXiv does not cover the subject well.
+- **Resolved by Claude:** two clauses beyond the spec. If `coverage_gap.filtered` is true, retry once unfiltered; otherwise the agent would mention a button that D24 never shows. On `arxiv_coverage: "poor"`, say arXiv does not cover the subject well.
 - **Resolved by Claude, after the end-to-end check:** `search_literature`'s description now says to leave `categories` unset. In the live run the agent passed `["cs.CV","cs.LG"]`, which were ANDed onto the planner's own category filter (the `.claude/CLAUDE.md` pitfall). It was harmless there only because the sets matched.
 - **Consequence:** the system prompt, and so the eval's prompt, changed. Measured in `docs/EVALUATION.md` (CRAG phase 2).
 
-## D32 — Approval is a structured `approve_fetch`, worded by a server-side template
+## D26 — Approval is a structured `approve_fetch`, worded by a server-side template
 
 *2026-10-25 · `web/api.py`, `main.py`, `src/agent/fetch_proposal.py`, `src/agent/loop.py`, `src/prompts/fetch_approval*.md`*
 
@@ -231,7 +243,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Stored:** the turn's question is the short form from `fetch_approval_title.md` ("Fetch papers on "…""). It is a prompt file too, because later turns replay it to the model as history. Its stats carry `approved_fetch: {query}`. Every turn's stats carry `fetch_proposal`, which is also in the `answer` frame, so a reloaded chat still shows the button. The CLI prints `--- fetch proposal: "<query>"  (re-ask with --approve-fetch)`.
 - **Resolved by Claude:** an approval run whose retrieval still fails re-derives the same proposal ("as now"). The edges ignore it: no card in the UI and no CLI line on a turn that carries `approved_fetch`. Long-term memory sees the template text as the turn's question.
 
-## D33 — The "Fetch papers" card
+## D27 — The "Fetch papers" card
 
 *2026-10-25 · `frontend/src/components/FetchCard.tsx`, `ChatView.tsx`, `format.ts`*
 

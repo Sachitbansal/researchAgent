@@ -1,11 +1,13 @@
-/* The client for web/api.py: the corpus, chat threads, long-term memories, and one
-   streamed question.
+/* The client for web/api.py: the corpus, chat threads, long-term memories (list, edit,
+   add, delete, restore), and one streamed question.
    In:  a question, the thread it belongs to (or none, to start one), a callback per frame;
-        or an approved fetch for a thread, whose wording the server builds (D32).
+        or an approved fetch for a thread, whose wording the server builds.
    Out: parsed JSON, or an ApiError carrying the server's {error, detail}. Asking is a POST
         read as a stream, not an EventSource, which would silently re-run on reconnect. */
 
-import type { Corpus, MemoryRecord, ThreadDetail, ThreadSummary } from "./types";
+import type {
+  Corpus, MemoryAddResult, MemoryEditResult, MemoryRecord, MemorySettings, ThreadDetail, ThreadSummary,
+} from "./types";
 
 export class ApiError extends Error {
   constructor(public code: string, public detail: string) {
@@ -45,6 +47,28 @@ export const listMemories = (all = false) =>
 /** Manual forget: soft, reason "user", never injected again. */
 export const deleteMemory = (id: string) =>
   fetch(`/api/memories/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => json<{ forgotten: string }>(r));
+
+/** Every memory with what the Memories page shows, plus the forgetting settings (D23). */
+export const memoryCatalogue = () =>
+  fetch("/api/memories?all=1").then((r) => json<{ memories: MemoryRecord[]; settings?: MemorySettings }>(r));
+
+const sendJson = (method: string, body: unknown): RequestInit => ({
+  method,
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
+
+/** Reword a memory. A finding is re-checked against its passages; see `verification`. */
+export const editMemory = (id: string, text: string) =>
+  fetch(`/api/memories/${encodeURIComponent(id)}`, sendJson("PATCH", { text })).then((r) => json<MemoryEditResult>(r));
+
+/** Add a preference by hand. Findings need evidence, so they cannot be added this way. */
+export const addPreference = (text: string) =>
+  fetch("/api/memories", sendJson("POST", { kind: "preference", text })).then((r) => json<MemoryAddResult>(r));
+
+/** Bring back a forgotten or replaced memory; it counts as just used. */
+export const restoreMemory = (id: string) =>
+  fetch(`/api/memories/${encodeURIComponent(id)}/restore`, { method: "POST" }).then((r) => json<{ memory: MemoryRecord }>(r));
 
 type OnFrame = (event: string, data: unknown) => void;
 

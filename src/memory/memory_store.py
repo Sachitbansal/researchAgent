@@ -5,7 +5,8 @@ In:  the database path (config `paths.threads_db`, shared with ThreadStore), and
      memory its kind, text, supporting chunk_ids with their content_hashes, a float32
      passage embedding and where it came from. Tables: docs/DATA_SCHEMA.md §10.
 Out: plain dicts. Never raises: errors come back as {"error": ..., "detail": ...}.
-     Rows are soft-deleted (invalidated_at / forgotten_at plus a reason) and purged later.
+     Rows are soft-deleted (invalidated_at / forgotten_at plus a reason) and purged later;
+     the Memories page (D23) edits their text and restores them.
 """
 
 from __future__ import annotations
@@ -26,6 +27,8 @@ KINDS = ("finding", "preference")
 # Why a memory stopped being active. superseded/stale set invalidated_at; decay/user set
 # forgotten_at. Either way it is never injected again (D20).
 REASONS = ("superseded", "stale", "decay", "user")
+# Who made a memory: the writer, from a grounded answer, or the user on the Memories page.
+ORIGINS = ("agent", "user")
 
 # CREATE ... IF NOT EXISTS is the whole migration: a threads file written before this
 # table existed gains it on first open, and its threads and turns are untouched.
@@ -45,15 +48,32 @@ CREATE TABLE IF NOT EXISTS memories (
     invalidated_at      REAL,
     superseded_by       TEXT,
     forgotten_at        REAL,
-    forget_reason       TEXT
+    forget_reason       TEXT,
+    forget_detail       TEXT,
+    origin              TEXT NOT NULL DEFAULT 'agent',
+    user_edited         INTEGER NOT NULL DEFAULT 0,
+    verified            INTEGER NOT NULL DEFAULT 1,
+    edited_at           REAL
 );
 CREATE INDEX IF NOT EXISTS memories_by_state ON memories (invalidated_at, forgotten_at);
 """
 
+# Columns added after the table first shipped (D23), as `ALTER TABLE ... ADD COLUMN` for a
+# file written before them. Defaults describe the rows already there: every one was made by
+# the writer, none was edited, and every finding passed NLI when it was written.
+ADDED_COLUMNS = (
+    ("forget_detail", "TEXT"),
+    ("origin", "TEXT NOT NULL DEFAULT 'agent'"),
+    ("user_edited", "INTEGER NOT NULL DEFAULT 0"),
+    ("verified", "INTEGER NOT NULL DEFAULT 1"),
+    ("edited_at", "REAL"),
+)
+
 ACTIVE = "invalidated_at IS NULL AND forgotten_at IS NULL"
 COLUMNS = ("id, kind, text, chunk_ids_json, content_hashes_json, embedding, source_thread_id, "
            "source_question, created_at, last_used_at, use_count, invalidated_at, "
-           "superseded_by, forgotten_at, forget_reason")
+           "superseded_by, forgotten_at, forget_reason, forget_detail, origin, user_edited, "
+           "verified, edited_at")
 
 
 def _error(code: str, detail: str) -> Dict[str, Any]:
@@ -70,6 +90,26 @@ def _load(text: Optional[str], fallback: Any) -> Any:
     except (TypeError, ValueError):
         return fallback
     return value if isinstance(value, type(fallback)) else fallback
+
+
+def _add_missing_columns(conn: sqlite3.Connection) -> None:
+    """Bring a memories table from before D23 up to SCHEMA. Idempotent, and safe against
+    the CLI and the web server opening the file at once: a column the other process just
+    added is a "duplicate column" error here, which means the work is already done."""
+    have = {row[1] for row in conn.execute("PRAGMA table_info(memories)")}
+    for name, decl in ADDED_COLUMNS:
+        if name in have:
+            continue
+        try:
+            conn.execute(f"ALTER TABLE memories ADD COLUMN {name} {decl}")
+        except sqlite3.OperationalError as exc:
+            if "duplicate column" not in str(exc).lower():
+                raise
+
+
+def clean_text(text: Any) -> str:
+    """Whitespace collapsed to single spaces: how memory text is stored, whoever wrote it."""
+    return " ".join(str(text or "").split())
 
 
 class _Missing(Exception):
@@ -100,6 +140,7 @@ class MemoryStore:
         conn.row_factory = sqlite3.Row
         if not self._ready:
             conn.executescript(SCHEMA)
+            _add_missing_columns(conn)
             self._ready = True
         return conn
 
@@ -137,6 +178,14 @@ class MemoryStore:
             "superseded_by": row["superseded_by"],
             "forgotten_at": row["forgotten_at"],
             "forget_reason": row["forget_reason"],
+            # Why a decay happened: below_min_strength or over_cap. None for older rows.
+            "forget_detail": row["forget_detail"],
+            "origin": row["origin"] or "agent",
+            "user_edited": bool(row["user_edited"]),
+            # Whether NLI found the text supported by its passages. Findings only: a
+            # preference rests on no passage, so there is nothing to verify.
+            "verified": bool(row["verified"]) if row["kind"] == "finding" else None,
+            "edited_at": row["edited_at"],
             "active": row["invalidated_at"] is None and row["forgotten_at"] is None,
         }
         if with_embedding:
@@ -186,10 +235,13 @@ class MemoryStore:
 
     def add(self, kind: str, text: str, chunk_ids: Sequence[str],
             content_hashes: Mapping[str, str], embedding: Any,
-            source_thread_id: Optional[str], source_question: str) -> Dict[str, Any]:
+            source_thread_id: Optional[str], source_question: str,
+            origin: str = "agent") -> Dict[str, Any]:
         """A new active memory with use_count 1 (being found counts as its first use)."""
         if kind not in KINDS:
             return _error("bad_memory_kind", f"kind must be one of {list(KINDS)}, got {kind!r}")
+        if origin not in ORIGINS:
+            return _error("bad_origin", f"origin must be one of {list(ORIGINS)}, got {origin!r}")
         vector = np.asarray(embedding, dtype=np.float32).reshape(-1)
         if vector.shape[0] != self.dim:
             return _error("bad_embedding", f"expected {self.dim} values, got {vector.shape[0]}")
@@ -202,9 +254,10 @@ class MemoryStore:
             conn.execute(
                 "INSERT INTO memories (id, kind, text, chunk_ids_json, content_hashes_json, "
                 "embedding, source_thread_id, source_question, created_at, last_used_at, "
-                "use_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)",
+                "use_count, origin) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?)",
                 (memory_id, kind, str(text), json.dumps(ids), json.dumps(hashes),
-                 vector.tobytes(), source_thread_id, str(source_question or ""), stamp, stamp))
+                 vector.tobytes(), source_thread_id, str(source_question or ""), stamp, stamp,
+                 origin))
             row = conn.execute(f"SELECT {COLUMNS} FROM memories WHERE id = ?",
                                (memory_id,)).fetchone()
             return {"memory": self._row(row, with_embedding=False)}
@@ -265,17 +318,20 @@ class MemoryStore:
             return {"invalidated": done, "reason": reason}
         return self._run(work, write=True)
 
-    def forget(self, ids: Iterable[str], reason: str) -> Dict[str, Any]:
-        """decay (weak or over the cap) or user (deleted by hand)."""
+    def forget(self, ids: Iterable[str], reason: str,
+               detail: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
+        """decay (weak or over the cap) or user (deleted by hand). `detail` maps an id to
+        why it decayed (below_min_strength / over_cap), kept for the Memories page."""
         if reason not in ("decay", "user"):
             return _error("bad_reason", f"forget reason must be decay or user, got {reason!r}")
         wanted = [i for i in dict.fromkeys(ids) if valid_memory_id(i)]
+        why = dict(detail or {})
         stamp = float(self.now())
 
         def work(conn: sqlite3.Connection) -> Dict[str, Any]:
             done = [i for i in wanted if conn.execute(
-                f"UPDATE memories SET forgotten_at = ?, forget_reason = ? WHERE id = ? AND {ACTIVE}",
-                (stamp, reason, i)).rowcount]
+                f"UPDATE memories SET forgotten_at = ?, forget_reason = ?, forget_detail = ? "
+                f"WHERE id = ? AND {ACTIVE}", (stamp, reason, why.get(i), i)).rowcount]
             return {"forgotten": done, "reason": reason}
         return self._run(work, write=True)
 
@@ -289,6 +345,63 @@ class MemoryStore:
         if not result["forgotten"]:
             return _error("memory_not_found", f"no active memory {memory_id}")
         return {"forgotten": memory_id, "reason": reason}
+
+    def update_text(self, memory_id: str, text: str, embedding: Any,
+                    verified: Optional[bool] = None,
+                    content_hashes: Optional[Mapping[str, str]] = None) -> Dict[str, Any]:
+        """A user's edit (D23): new text and its passage embedding, user_edited set,
+        edited_at stamped. `verified` is the NLI verdict on the new text (findings; None
+        leaves it as it was), `content_hashes` the chunk hashes that verdict was reached
+        against. Not a use: last_used_at and use_count are untouched. Active rows only."""
+        if not valid_memory_id(memory_id):
+            return _error("bad_memory_id", f"expected a 32-character hex id, got {memory_id!r}")
+        body = clean_text(text)
+        if not body:
+            return _error("empty_text", "a memory needs some text")
+        vector = np.asarray(embedding, dtype=np.float32).reshape(-1)
+        if vector.shape[0] != self.dim:
+            return _error("bad_embedding", f"expected {self.dim} values, got {vector.shape[0]}")
+        stamp = float(self.now())
+
+        def work(conn: sqlite3.Connection) -> Dict[str, Any]:
+            row = conn.execute(f"SELECT {COLUMNS} FROM memories WHERE id = ? AND {ACTIVE}",
+                               (memory_id,)).fetchone()
+            if row is None:
+                raise _Missing(f"no active memory {memory_id}")
+            current = self._row(row, with_embedding=False)
+            hashes = dict(current["content_hashes"])
+            hashes.update({str(k): str(v) for k, v in (content_hashes or {}).items()})
+            flag = int(row["verified"]) if verified is None else int(bool(verified))
+            conn.execute("UPDATE memories SET text = ?, embedding = ?, user_edited = 1, "
+                         "verified = ?, edited_at = ?, content_hashes_json = ? WHERE id = ?",
+                         (body, vector.tobytes(), flag, stamp, json.dumps(hashes), memory_id))
+            row = conn.execute(f"SELECT {COLUMNS} FROM memories WHERE id = ?",
+                               (memory_id,)).fetchone()
+            return {"memory": self._row(row, with_embedding=False)}
+        return self._run(work, write=True)
+
+    def restore(self, memory_id: str) -> Dict[str, Any]:
+        """Undo a forget or an invalidation (D23): the reason fields cleared and recency
+        reset to now, so decay does not take it again in the next sweep. use_count is
+        kept. An error for a bad id, an active row, or a row already hard-purged."""
+        if not valid_memory_id(memory_id):
+            return _error("bad_memory_id", f"expected a 32-character hex id, got {memory_id!r}")
+        stamp = float(self.now())
+
+        def work(conn: sqlite3.Connection) -> Dict[str, Any]:
+            row = conn.execute(f"SELECT {COLUMNS} FROM memories WHERE id = ?",
+                               (memory_id,)).fetchone()
+            if row is None:
+                raise _Missing(f"no memory {memory_id}: it may have been deleted for good")
+            if row["invalidated_at"] is None and row["forgotten_at"] is None:
+                return _error("memory_active", f"memory {memory_id} is already active")
+            conn.execute("UPDATE memories SET invalidated_at = NULL, superseded_by = NULL, "
+                         "forgotten_at = NULL, forget_reason = NULL, forget_detail = NULL, "
+                         "last_used_at = ? WHERE id = ?", (stamp, memory_id))
+            row = conn.execute(f"SELECT {COLUMNS} FROM memories WHERE id = ?",
+                               (memory_id,)).fetchone()
+            return {"memory": self._row(row, with_embedding=False)}
+        return self._run(work, write=True)
 
     def purge(self, before: float) -> Dict[str, Any]:
         """Hard-delete rows that stopped being active before `before` (epoch seconds)."""

@@ -6,8 +6,9 @@ In:  a builder returning (AgentLoop, Config), called once at startup; the loop's
      memories. Then HTTP requests.
 Out: a FastAPI app. POST /api/ask streams a `thread` frame, the loop's own events as SSE,
      the answer, then a `memory` frame once memory is written (D12, D19); with
-     `approve_fetch` it runs the user's approved fetch instead (D32). Memories are listed
-     and deleted under /api/memories. Lives outside src/ and imports it, as eval/.
+     `approve_fetch` it runs the user's approved fetch instead. Memories are listed,
+     edited, added (preferences only), deleted and restored under /api/memories for the
+     Memories page (D23). Lives outside src/ and imports it, as eval/.
 """
 
 from __future__ import annotations
@@ -24,6 +25,7 @@ from typing import Any, AsyncIterator, Callable, Dict, Optional, Tuple
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
@@ -63,7 +65,7 @@ class AskBody(BaseModel):
     the model by name, and a local class would turn the body into a query parameter.
 
     Either a question, or `approve_fetch` with a thread_id. The approval's wording is
-    built here from src/prompts/fetch_approval.md, never sent by the page (D32)."""
+    built here from src/prompts/fetch_approval.md, never sent by the page (D26)."""
 
     question: Optional[str] = None
     thread_id: Optional[str] = None
@@ -72,6 +74,15 @@ class AskBody(BaseModel):
 
 class NewThreadBody(BaseModel):
     title: Optional[str] = None
+
+
+class MemoryEditBody(BaseModel):
+    text: str
+
+
+class NewMemoryBody(BaseModel):
+    kind: str
+    text: str
 
 
 Builder = Callable[[], Tuple[Any, Any]]
@@ -193,6 +204,13 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
         yield
 
     app = FastAPI(title="sciagent", lifespan=lifespan)
+
+    @app.exception_handler(RequestValidationError)
+    async def bad_body(request: Request, exc: RequestValidationError) -> JSONResponse:
+        # FastAPI's own 422 body is {"detail": [...]}; every error here is {error, detail}.
+        problems = "; ".join(f"{'.'.join(str(p) for p in e.get('loc', ()))}: {e.get('msg')}"
+                             for e in exc.errors())
+        return _err(422, "bad_request", problems or "the request body is not valid")
     # One agent, one question at a time. The retriever's dedup state and the loop's
     # on_event slot are both per-run, so two runs at once would interleave their events
     # into each other's streams. Acquired without blocking: a second asker is told the
@@ -271,15 +289,61 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
     # ---------------------------------------------------------------- long-term memory
 
     def _memory_status(result: Dict[str, Any]) -> int:
-        return {"bad_memory_id": 400, "memory_not_found": 404}.get(result.get("error"), 503)
+        return {"bad_memory_id": 400, "empty_text": 400, "text_too_long": 400,
+                "bad_memory_kind": 400, "findings_need_evidence": 400,
+                "memory_not_found": 404, "memory_inactive": 409, "memory_active": 409,
+                "evidence_changed": 409}.get(result.get("error"), 503)
+
+    def _with_models(state: Any, work: Callable[[], Dict[str, Any]], status: int = 200) -> Any:
+        """Run an edit or an add, which embed (and NLI-check) on the run's own models, only
+        while no run holds them: the fast tokenizer is not safe to share across threads,
+        and a collision would break the run's retrieval, not just the edit. Refused, not
+        queued, as a second question is (D23)."""
+        if not state.lock.acquire(blocking=False):
+            return _err(409, "agent_busy", "the agent is answering a question; try again when it finishes")
+        try:
+            result = work()
+        finally:
+            state.lock.release()
+        return _memory_result(result, status(result) if callable(status) else status)
+
+    def _no_memory() -> JSONResponse:
+        return _err(503, "no_memory_store", "this server was started without long-term memory")
+
+    def _memory_result(result: Dict[str, Any], status: int = 200) -> Any:
+        if "error" in result:
+            return _err(_memory_status(result), result["error"], result.get("detail", ""))
+        return JSONResponse(result, status_code=status)
+
+    def _thread_ids(state: Any) -> Optional[set]:
+        """Ids of the chats that still exist, so a memory can link to its source chat.
+        None when they cannot be read: the page then shows the link without the check."""
+        store = state.store
+        if store is None:
+            return None
+        listed = store.list_threads()
+        if "error" in listed:
+            return None
+        return {t["id"] for t in listed.get("threads") or []}
 
     @app.get("/api/memories")
     def list_memories(request: Request, all: int = 0) -> Any:  # noqa: A002 - the query name
         """Active memories, most recently used first; `?all=1` adds the forgotten and
-        invalidated ones with their reasons. Strength is the decay score now (D20)."""
+        invalidated ones with their reasons. Strength is the decay score now (D20). With
+        a LongTermMemory behind it, each row also carries what the Memories page shows
+        (LongTermMemory.catalogue, D23) and the reply carries the forgetting `settings`."""
         state = request.app.state
         if state.memory_store is None:
-            return _err(503, "no_memory_store", "this server was started without long-term memory")
+            return _no_memory()
+        catalogue = getattr(state.memory, "catalogue", None)
+        if callable(catalogue):
+            result = catalogue(_thread_ids(state))
+            if "error" in result:
+                return _err(503, result["error"], result.get("detail", ""))
+            rows = result["memories"]
+            if not all:
+                rows = [m for m in rows if m.get("active")]
+            return {"memories": rows, "settings": result.get("settings", {})}
         result = state.memory_store.list(include_inactive=bool(all))
         if "error" in result:
             return _err(503, result["error"], result.get("detail", ""))
@@ -290,12 +354,44 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             strengths = strength_of([m for m in memories if m.get("active")])
         return {"memories": [{**m, "strength": strengths.get(m["id"])} for m in memories]}
 
+    @app.post("/api/memories")
+    def add_memory(request: Request, body: NewMemoryBody) -> Any:
+        """A preference typed by the user. Findings cannot be added by hand: a finding
+        is only ever a claim NLI found in the passages it cites (D19, D23)."""
+        state = request.app.state
+        if state.memory_store is None or state.memory is None:
+            return _no_memory()
+        if body.kind == "finding":
+            return _err(400, "findings_need_evidence",
+                        "findings are kept only from answers their passages support; add a preference instead")
+        if body.kind != "preference":
+            return _err(400, "bad_memory_kind", f"kind must be preference, got {body.kind!r}")
+        return _with_models(state, lambda: state.memory.add_preference(body.text),
+                            lambda r: 201 if r.get("outcome") == "added" else 200)
+
+    @app.patch("/api/memories/{memory_id}")
+    def edit_memory(request: Request, memory_id: str, body: MemoryEditBody) -> Any:
+        """The user's rewording. A finding is re-checked against its passages by NLI; an
+        unsupported edit is kept, marked unverified (D23). Not a use."""
+        state = request.app.state
+        if state.memory_store is None or state.memory is None:
+            return _no_memory()
+        return _with_models(state, lambda: state.memory.edit(memory_id, body.text))
+
+    @app.post("/api/memories/{memory_id}/restore")
+    def restore_memory(request: Request, memory_id: str) -> Any:
+        """Undo a forget or an invalidation; recency resets to now (D23)."""
+        state = request.app.state
+        if state.memory_store is None or state.memory is None:
+            return _no_memory()
+        return _memory_result(state.memory.restore(memory_id))
+
     @app.delete("/api/memories/{memory_id}")
     def delete_memory(request: Request, memory_id: str) -> Any:
         """Manual forget: soft, with reason `user`, never injected again (D20)."""
         state = request.app.state
         if state.memory_store is None:
-            return _err(503, "no_memory_store", "this server was started without long-term memory")
+            return _no_memory()
         result = state.memory_store.forget_one(memory_id, "user")
         if "error" in result:
             return _err(_memory_status(result), result["error"], result.get("detail", ""))
@@ -338,7 +434,7 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
                     result = loop.run(question, thread_id=thread_id)
                 else:
                     # The approved fetch is an ordinary turn of the same thread, so the
-                    # history gives the agent the question it is to answer (D32).
+                    # history gives the agent the question it is to answer (D26).
                     result = loop.run(question, thread_id=thread_id, approval=approval)
             except Exception as exc:  # the loop is meant not to raise; a page must not hang
                 result = {"error": "loop_crashed", "detail": f"{type(exc).__name__}: {exc}",

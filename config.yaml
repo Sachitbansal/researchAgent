@@ -346,7 +346,7 @@ analysis:
   cluster_k_range: [2, 8]   # silhouette score picks k within this range
   tfidf_top_terms: 8        # terms used to label each cluster
 
-# ---- long-term research memory (docs/DECISIONS.md D19-D22) -----------------------------
+# ---- long-term research memory (docs/DECISIONS.md D19-D23) -----------------------------
 # Grounded findings and explicit preferences remembered ACROSS chats, in the memories
 # table of paths.threads_db. Only thread runs read or write it; thread_id=None (the eval,
 # plain `ask`) never does. MEASURED values come from scripts/tune_memory.py ->
@@ -391,11 +391,19 @@ memory:
                             # >= 0.75 (either: 0 of 8, 6 of 30). 0 of 32 paraphrases flagged
                             # (either: 2 of 32).
   # -- forgetting (D20). strength = (1 + ln(use_count)) * 0.5 ** (days_unused / half_life)
-  half_life_days: 30        # TENTATIVE (Claude), user to confirm
-  max_active: 500           # TENTATIVE: findings over this, weakest first, are forgotten
-  min_strength: 0.125       # TENTATIVE: = 0.5 ** (90 / 30), so a finding used once and
-                            # untouched for 90 days falls below it (forgetting.min_strength_for)
-  purge_after_days: 180     # TENTATIVE: forgotten/invalidated rows are hard-deleted after this
+  half_life_days: 30        # confirmed by user 2026-10-25
+  max_active: 500           # confirmed by user 2026-10-25: findings over this, weakest first,
+                            # are forgotten
+  min_strength: 0.125       # confirmed by user 2026-10-25: = 0.5 ** (90 / 30), so a finding used
+                            # once and untouched for 90 days falls below it
+                            # (forgetting.min_strength_for)
+  purge_after_days: 180     # confirmed by user 2026-10-25: forgotten/invalidated rows are
+                            # hard-deleted after this, and can no longer be restored
+  # -- the Memories page (D23)
+  max_text_chars: 1000      # longest memory text the user may type when editing or adding.
+                            # Extracted findings are one sentence; this only stops a paste.
+  fading_soon_days: 14      # the page flags an active finding that decay takes within this
+                            # many days if it goes unused. Display only; changes no verdict.
 
 agent:
   max_calls_per_tool: 10    # Each tool may be DISPATCHED at most this many times per
@@ -446,7 +454,7 @@ agent:
                             # question, cut at a word boundary to this many characters
   fetch_query_max_chars: 300
                             # cap on the query a user approves for fetching ("Fetch
-                            # papers" button, `ask --approve-fetch`; D32). It is pasted
+                            # papers" button, `ask --approve-fetch`; D26). It is pasted
                             # into the approval prompt and planned into an arXiv query, so
                             # a pasted essay is refused, not sent. Not measured: the
                             # proposed query is the agent's retrieve query, well under it.

@@ -262,7 +262,7 @@ derives a `fetch_proposal` from the run's last *unfiltered* retrieval, and the U
 into a **Fetch papers** button. The click comes back as `approve_fetch`, a thread turn
 worded by `src/prompts/fetch_approval.md`. Only then does the agent call
 `search_literature`, whose admission gate scores abstracts before anything is downloaded
-(`docs/DECISIONS.md` D14–D18, D30–D33).
+(`docs/DECISIONS.md` D14–D18, D24–D27).
 
 **Neighbor expansion.** Adjacent chunks (`±1` within the same paper) are attached to
 selected chunks, recovering information severed at chunk boundaries without
@@ -358,6 +358,15 @@ and citation cards resolve them, and the eval's citation resolution unions
 The UI's delete is a manual override. Everything is soft (a timestamp plus a reason),
 never injected again, and hard-purged after `purge_after_days`. Preferences are exempt
 from decay and the cap.
+
+**The Memories page (D23).** `#/memories` in the browser UI lists every memory
+(`LongTermMemory.catalogue`), and lets the user edit text, add preferences, delete, and
+restore. An edit re-embeds the text on the passage side. For a finding, it re-runs
+`ground()` with the edited text as the hypothesis. An unsupported edit is kept, with
+`verified=false` and `user_edited=true`, and the memory block marks it "(edited by user,
+unverified)". Findings can't be added by hand. Restore resets recency, and is refused for
+a finding whose evidence is still stale. None of this is a tool, and none of it runs
+inside an agent run.
 
 ## 8. ML / data-analysis components
 

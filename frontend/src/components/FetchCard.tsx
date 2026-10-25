@@ -1,4 +1,4 @@
-/* The "Fetch papers" card under an answer whose corpus lacked the subject (D14, D33).
+/* The "Fetch papers" card under an answer whose corpus lacked the subject (D14, D27).
    In:  the answer's fetch_proposal, the corpus (topic tags to labels), and its state:
         actionable, approved (fetching or fetched), or superseded by a later question.
    Out: the gap in a sentence, closest topics held, and a primary button that sends the

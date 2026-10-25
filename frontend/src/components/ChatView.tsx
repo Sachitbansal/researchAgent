@@ -2,7 +2,7 @@
    In:  the displayed messages (the thread's stored turns plus the live run), the corpus,
         callbacks. Out: rendered turns. Answers are rendered markdown with numbered
         citations; a running answer shows what the agent is doing right now; an answer
-        that found a gap in the corpus carries the "Fetch papers" card (D33). */
+        that found a gap in the corpus carries the "Fetch papers" card (D27). */
 
 import { useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from "react";
 import type { AssistantMessage, Corpus, Message, Paper } from "../types";

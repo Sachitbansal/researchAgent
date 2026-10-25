@@ -5,7 +5,7 @@ In:  the run's trace records, in call order (agent.trace.TraceWriter.records); o
      approval, the query the user approved plus the config (prompt files, length cap).
 Out: {"query", "searched_for", "best_score", "closest_topics"} or None; and the approval
      as {"query", "question", "display"} or an error dict. The loop never runs
-     search_literature on its own: the user approves (docs/DECISIONS.md D14, D30-D33).
+     search_literature on its own: the user approves (docs/DECISIONS.md D14, D24-D27).
 """
 
 from __future__ import annotations
@@ -48,7 +48,7 @@ def _empty_index(record: Dict[str, Any]) -> bool:
 def derive_fetch_proposal(records: Sequence[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     """The proposal for this run, or None.
 
-    Read from the LAST UNFILTERED retrieve_evidence call only (D30). A filtered call is
+    Read from the LAST UNFILTERED retrieve_evidence call only (D24). A filtered call is
     skipped entirely, failing or passing: a figure-only search that finds no figure says
     nothing about whether the corpus covers the subject. So a later unfiltered retrieval
     that passed clears an earlier gap, and a later filtered one changes nothing.
@@ -90,7 +90,7 @@ def approval_request(query: Any, config: Config = CFG) -> Dict[str, Any]:
     """The run that carries out an approved fetch: {"query", "question", "display"}.
 
     `question` is what the agent is sent, from src/prompts/fetch_approval.md, so the
-    wording lives in one prompt file and not in the browser or the CLI (D32). `display`
+    wording lives in one prompt file and not in the browser or the CLI (D26). `display`
     is the short form stored as the turn's question (fetch_approval_title.md); it is
     replayed to the model as history in later turns, so it is a prompt file too.
     Never raises: a missing, empty or over-long query is an error dict.

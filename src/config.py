@@ -111,11 +111,11 @@ def _validate_memory(memory: Any, config_path: Path) -> None:
         raise ConfigError(f"{config_path} memory section must be a mapping")
     for key in ("inject_k", "inject_tokens", "passage_chars", "max_preferences",
                 "max_findings", "max_conflict_checks", "max_active",
-                "premise_sentences_per_chunk"):
+                "premise_sentences_per_chunk", "max_text_chars"):
         if not _is_positive_int(memory.get(key)):
             raise ConfigError(
                 f"{config_path}: memory.{key} must be a positive integer, got {memory.get(key)!r}")
-    for key in ("half_life_days", "purge_after_days"):
+    for key in ("half_life_days", "purge_after_days", "fading_soon_days"):
         value = memory.get(key)
         if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
             raise ConfigError(f"{config_path}: memory.{key} must be a positive number, got {value!r}")

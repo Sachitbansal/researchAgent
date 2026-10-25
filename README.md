@@ -186,7 +186,9 @@ A thread run also uses **long-term memory** (`docs/ARCHITECTURE.md` §7.2). Afte
 the claims it cites that NLI finds entailed by their passages are remembered, along with
 preferences you stated outright ("only papers from 2024 onward"). A later chat on the same
 subject is given the relevant ones with their passages, to check and cite. Memories fade
-when unused and are replaced when contradicted. `ask` prints a `--- memory:` line.
+when unused and are replaced when contradicted. `ask` prints a `--- memory:` line. In the
+browser UI you can see, edit, add (preferences only), delete and restore them on the
+**Memories** page.
 
 While it runs, each step is printed to **stderr** as it happens — the model thinking,
 every tool call with its arguments, what came back and how long it took:
@@ -296,8 +298,25 @@ It also shows how many earlier turns were sent with the question. *Memory* has t
 answer, each with its chunk citations and whether it was cited, and those written from it
 (new, seen again, replaced). Below them are every active memory, with uses, when last
 used, strength and a delete button, and a collapsed *Forgotten* list giving why each one
-went. *In this chat* is the short-term part: the tool-call notes a later question in this
-chat is shown. On narrow screens the panel becomes a drawer.
+went, plus a *Manage memories* link. *In this chat* is the short-term part: the tool-call
+notes a later question in this chat is shown. On narrow screens the panel becomes a drawer.
+
+**Memories (`#/memories`).** Open it from the user menu at the bottom left ("You"; there is
+one user and no sign-in), which also holds the theme. It lists every long-term memory
+(`docs/DECISIONS.md` D23), with a filter over the text:
+
+- *Preferences*: add one ("Only consider papers from 2024 onward"), or edit or delete one.
+  A restatement of an existing preference refreshes it instead of adding a copy.
+- *Findings*: each with its passages as chips (they open the citation card), its uses,
+  when it was last used, a strength meter with how many days it has left unused, and the
+  chat it came from. Edit or delete one. An edit is re-checked by NLI against the
+  finding's passages. If they don't support the new wording, it is kept but flagged
+  "Edited by you; not supported by its passages", and the agent is told so. Findings
+  can't be added by hand: each must rest on passages an answer cited.
+- *Forgotten and replaced* (collapsed): why each one went (faded, over the cap, replaced
+  by a newer finding, its passage changed, deleted by you), when it is deleted for good,
+  and a *Restore* button. Restore counts as a use. A finding whose passage has changed
+  can't be restored, and a row past `purge_after_days` is gone.
 
 It needs Python, the models and an index, so it cannot be hosted as a static site. Run it
 on the machine that has the corpus. It holds one agent and answers one question at a time.
@@ -326,7 +345,10 @@ to run an approved fetch (SSE; the `answer` frame carries `fetch_proposal`: `thr
 no `thread_id` was sent; then `step`…, then `answer` or `failed`, then `memory`
 `{written, refreshed, invalidated, used, forgotten, dropped}`, then `done`; or else
 `busy`, `done`); `GET`/`POST /api/threads`; `GET`/`DELETE /api/threads/<id>`;
-`GET /api/memories` (`?all=1` adds the forgotten, with reasons); `DELETE /api/memories/<id>`;
+`GET /api/memories` (`?all=1` adds the forgotten, with reasons; each row carries strength,
+days left, passages and whether its chat still exists, plus the forgetting `settings`);
+`POST /api/memories` `{"kind": "preference", "text": ...}`; `PATCH /api/memories/<id>`
+`{"text": ...}`; `DELETE /api/memories/<id>`; `POST /api/memories/<id>/restore`;
 `GET /api/figures/<paper_id>/<file>`; and `GET /api/status`.
 
 ## Results in brief
@@ -408,7 +430,8 @@ produced it. The ones most worth knowing:
 | `paths.threads_db` | `data/threads.sqlite3` | conversation threads and long-term memories, shared by the CLI and the browser UI |
 | `memory.inject_k` / `inject_min_cosine` / `inject_tokens` | 4 / 0.60 / 2500 | findings recalled per thread run, with their passages; cosine measured on 11 questions |
 | `memory.duplicate_cosine` / `related_cosine` | 0.85 / 0.80 | refresh vs NLI conflict check; contradiction wins, because swaps sit closer than paraphrases |
-| `memory.half_life_days` / `min_strength` / `max_active` | 30 / 0.125 / 500 | decay: used once and unused for 90 days is forgotten. Tentative, user to confirm |
+| `memory.half_life_days` / `min_strength` / `max_active` | 30 / 0.125 / 500 | decay: used once and unused for 90 days is forgotten. Confirmed by the user |
+| `memory.purge_after_days` | 180 | forgotten and replaced memories are deleted for good after this, and can't be restored. Confirmed by the user |
 | `nli.min_pair_similarity` | 0.75 | below it, NLI scores unrelated sentences as confident contradictions |
 
 Models are set per role (`agent_model`, `vision_model`, `utility_model`). The agent

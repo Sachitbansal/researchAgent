@@ -8,7 +8,7 @@ sequenced by the system.
 1. **Tools never call other tools.** All control flow goes through the agent. If
    `retrieve_evidence` returns `sufficient_evidence: false`, it does *not* trigger a
    fetch — it reports the gap, the agent describes it, and the user approves a fetch
-   with the "Fetch papers" button (`docs/DECISIONS.md` D14, D30–D33). Automating that
+   with the "Fetch papers" button (`docs/DECISIONS.md` D14, D24–D27). Automating that
    away would recreate a fixed pipeline, and fetch into a shared corpus unasked.
 2. **Tools never raise.** Every failure path returns `{"error": "...", "detail": ...}`
    so a bad PDF or a dead API degrades the loop instead of killing it.
@@ -181,7 +181,7 @@ fetches nothing; the agent describes the gap and the user decides whether to fet
   "suggested_next": "'rephrase' | 'propose_fetch'",
   "proposed_query": "string — what to hand search_literature; today the query itself,
                      since search_literature plans its own arXiv syntax",
-  "filtered":       "bool — the call set topic_filter or chunk_types (D30)"
+  "filtered":       "bool — the call set topic_filter or chunk_types (D24)"
 }
 ```
 
@@ -196,14 +196,14 @@ fetches nothing; the agent describes the gap and the user decides whether to fet
   None of those is a gap in the literature, and in the first two no scorer ran.
 
 The agent loop reads the **last unfiltered** `retrieve_evidence` call of a run (no
-`topic_filter`, no `chunk_types`; filtered calls neither propose nor clear, D30). If its
+`topic_filter`, no `chunk_types`; filtered calls neither propose nor clear, D24). If its
 `coverage_gap` says `propose_fetch`, or it hit an `empty_index`, and `search_literature`
 was not called after it, the run result carries `fetch_proposal: {query, searched_for,
 best_score, closest_topics}` (else `null`) for the user to approve
 (`src/agent/fetch_proposal.py`). It rides in the web `answer` frame and the turn's
 stats. The approval is `POST /api/ask` with `approve_fetch: {query}` and a `thread_id`,
 or `main.py ask --thread ID --approve-fetch "<query>"`. Either way the agent's message
-comes from `src/prompts/fetch_approval.md` (D32).
+comes from `src/prompts/fetch_approval.md` (D26).
 
 **Note on figure chunks:** these come back with the *stored description plus
 caption*, not the image. If detail is needed that the description does not carry,

@@ -354,7 +354,10 @@ function Memory({ message, sample, version, onShowSource }: {
           )}
 
           <section className="mem-section">
-            <div className="detail-label">All memories{all ? ` (${active.length})` : ""}</div>
+            <div className="mem-head">
+              <div className="detail-label">All memories{all ? ` (${active.length})` : ""}</div>
+              <a className="mem-manage" href="#/memories">Manage memories</a>
+            </div>
             {listError && <p className="small mem-error">{listError}</p>}
             {all === null && !listError && <p className="quiet small">Loading…</p>}
             {all !== null && active.length === 0 && <p className="quiet small">None yet. Grounded findings are kept after each answer in a chat.</p>}

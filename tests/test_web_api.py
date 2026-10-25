@@ -123,7 +123,7 @@ def _config(tmp_path: Path) -> SimpleNamespace:
         paths=SimpleNamespace(manifest=index / "manifest.json", figures=figures, logs=tmp_path / "logs"),
         agent=SimpleNamespace(trace_text_chars=50, thread_title_chars=24,
                               fetch_query_max_chars=40),
-        # The real prompt files: the approval's wording must come from them (D32).
+        # The real prompt files: the approval's wording must come from them (D26).
         prompt=lambda name: (ROOT / "src" / "prompts" / f"{name}.md").read_text(encoding="utf-8"),
     )
 
@@ -535,7 +535,7 @@ def test_memories_routes_need_long_term_memory(setup):
     assert setup.client.delete("/api/memories/" + "a" * 32).status_code == 503
 
 
-# ---------------------------------------------------------------- approved fetch (D32)
+# ---------------------------------------------------------------- approved fetch (D26)
 
 def _approve(client, body: Dict[str, Any]):
     return client.post("/api/ask", json=body)

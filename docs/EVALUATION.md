@@ -112,13 +112,13 @@ The generation-side metrics hold up on held-out data. The retrieval-side ones dr
 
 ### CRAG phase 2 (2026-10-25)
 
-The tuning split was run once with the phase-2 prompt rule (`docs/DECISIONS.md` D30–D33),
+The tuning split was run once with the phase-2 prompt rule (`docs/DECISIONS.md` D24–D27),
 written to `eval/results/tuning_split_crag2.json`. The cited `tuning_split.json` is
 untouched. This is now 12 questions, with af01 and af02 added. The run uses per-tool limits
 (D4), not the old 8-iteration cap, so the comparison is not like for like. To guarantee
 the eval made no arXiv calls, it ran on a throwaway copy of the data with an arXiv
 cooldown planted. `search_literature` was called **0 times** in all 12 runs. Afterwards,
-`search_literature`'s description gained one sentence (leave `categories` unset, D31).
+`search_literature`'s description gained one sentence (leave `categories` unset, D25).
 That text is sent with every request, but the tool was never called here, so no rerun
 was made.
 
@@ -136,7 +136,7 @@ was made.
 - **ni02 got no proposal, and the cause is the gate, not the derivation.** Its last
   unfiltered retrieve ("vision transformer quantization accuracy") passed, on chunks from
   the corpus's LLM-quantization papers. One earlier retrieve did return `propose_fetch` at
-  −3.83, but a later passing call clears it, as D18 and D30 intend. The answer abstains
+  −3.83, but a later passing call clears it, as D18 and D24 intend. The answer abstains
   correctly but still tells the user to use the "Fetch papers" button, which does not
   appear without a proposal. The prompt rule leaks into abstentions that have none. The baseline run of ni02 also cited 6 chunks
   from those papers. The relevance gate cannot tell "quantization of ViTs" from
