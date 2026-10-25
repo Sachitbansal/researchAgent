@@ -25,6 +25,7 @@ type Theme = "system" | "light" | "dark";
 interface Run {
   chatId: string | null; // null until the server's `thread` frame names the new chat
   question: string;
+  approval?: string; // the query of an approved fetch (D32); its answer's card shows progress
   steps: Step[];
   startedAt: number;
 }
@@ -196,7 +197,10 @@ export function App() {
     const base = sample ? [...sample.messages] : threadId ? [...(loaded[threadId] ?? [])] : [];
     if (run && run.chatId === chatId) {
       base.push({ role: "user", content: run.question, ts: run.startedAt });
-      base.push({ role: "assistant", status: "running", content: "", steps: run.steps, ts: run.startedAt });
+      base.push({
+        role: "assistant", status: "running", content: "", steps: run.steps, ts: run.startedAt,
+        stats: run.approval ? { approved_fetch: { query: run.approval } } : undefined,
+      });
     }
     return base;
   }, [sample, threadId, loaded, run, chatId]);
@@ -213,19 +217,22 @@ export function App() {
 
   // ------------------------------------------------------------------ actions
 
-  const send = useCallback(async (raw: string) => {
+  /* A question, or (approval set) the user's "Fetch papers" click on the latest answer. An
+     approval continues this thread and leaves the composer's draft alone. */
+  const send = useCallback(async (raw: string, approval?: string) => {
     const question = raw.trim();
     if (!question || runRef.current) return;
+    if (approval !== undefined && !threadId) return;
     setNotice(null);
     setCite(null);
-    setDraft("");
+    if (approval === undefined) setDraft("");
 
     // A sample is a fixture, not a thread, so asking from one starts a new chat.
     if (!threadId) go("#/");
     let target: string | null = threadId;
     const startedAt = Date.now() / 1000;
     const steps: Step[] = [];
-    setRun({ chatId: target, question, steps: [], startedAt });
+    setRun({ chatId: target, question, steps: [], startedAt, approval });
     setSelected(null);
     setTab("calls");
 
@@ -237,7 +244,9 @@ export function App() {
     };
 
     try {
-      await api.ask(question, target, (event, data) => {
+      const streamed = (onFrame: (event: string, data: unknown) => void) =>
+        approval !== undefined && target ? api.approveFetch(approval, target, onFrame) : api.ask(question, target, onFrame);
+      await streamed((event, data) => {
         if (event === "thread") {
           // Always the first frame of a run: which thread this question belongs to.
           const t = data as ThreadEvent;
@@ -266,7 +275,7 @@ export function App() {
           finish({
             status: "answered",
             content: a.answer ?? "",
-            stats: { iterations: a.iterations, tool_calls: a.tool_calls, context_tokens: a.context_tokens, stopped_because: a.stopped_because, run_id: a.run_id },
+            stats: { iterations: a.iterations, tool_calls: a.tool_calls, context_tokens: a.context_tokens, stopped_because: a.stopped_because, run_id: a.run_id, fetch_proposal: a.fetch_proposal, approved_fetch: a.approved_fetch },
           });
         } else if (event === "failed") {
           const f = data as FailedEvent;
@@ -283,7 +292,7 @@ export function App() {
     }
 
     if (busy) {
-      setDraft(question);
+      if (approval === undefined) setDraft(question);
       setNotice("The agent is answering another question, in another tab or window. Try again once it finishes.");
     } else if (target) {
       // The server's copy is the record: it carries the stored notes and stats. If it
@@ -299,7 +308,7 @@ export function App() {
       loadThreads();
     } else {
       // No thread was named, so the server refused before the run (its store failed).
-      setDraft(question);
+      if (approval === undefined) setDraft(question);
       setNotice(final ? `The question was not run: ${final.error?.detail || final.error?.error}` : "The question was not run.");
     }
     setRun(null);
@@ -407,6 +416,7 @@ export function App() {
             draft={draft}
             setDraft={setDraft}
             onSend={send}
+            onApproveFetch={(query, shown) => send(shown, query)}
             notice={notice ?? missingNotice}
             onDismissNotice={() => {
               setNotice(null);

@@ -1,0 +1,689 @@
+{
+  "n_questions": 12,
+  "rows": [
+    {
+      "question_id": "sp01",
+      "category": "single_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.16666666666666666,
+        "3": 0.16666666666666666,
+        "5": 0.5
+      },
+      "mrr": 1.0,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 4,
+        "resolved": 4,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 4,
+      "tool_calls": 3,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 3,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 31732,
+      "answer": "The paper you're referring to is **\"Sparse Backpropagation for MoE Training\"** (Liu et al., Microsoft Research, arXiv:2310.00811).\n\n## The Problem\n\nIn Mixture-of-Experts (MoE) models, only a small subset of experts is activated per token for efficiency. However, the standard approach to computing gradients—the **Straight-Through (ST) estimator**—requires activating **all experts** during backpropagation to compute the gradient terms for expert routing. This defeats the purpose of sparse MoE computation.\n\nAs a result, typical MoE training simply **neglects the gradient for routing entirely** (setting it to zero), trading certain training signals for scalability. This trade-off can lead to slow convergence and improperly trained expert routers.\n\n## The Proposed Fix: SparseMixer\n\nThe paper proposes **SparseMixer**, a scalable gradient estimator built on a **numerical ODE framework**. Its key innovations are:\n\n1. **Second-order accuracy via the mid-point method**: Instead of using first-order ST estimators, SparseMixer employs the mid-point method—a second-order ODE solver—to approximate the routing gradient. This matches the Taylor expansion of the gradient to second order **without requiring the Hessian matrix or any second-order derivatives** [2310_00811v1__c0003][2310_00811v1__c0032].\n\n2. **Sparse computation maintained**: Unlike ST estimators that need outputs from all experts, SparseMixer's approximations only require the output of the **one activated expert**, preserving the efficiency gains of MoE [2310_00811v1__c0013].\n\n3. **Balanced training/inference**: A variant called `SparseMixer-2rd` provides better gradient estimates but creates a gap between training and inference (since it changes the MoE output formula). To resolve this, the final SparseMixer blends the two estimators: it uses the second-order version when the sampled expert differs from the argmax-selected expert, and the first-order version otherwise [2310_00811v1__c0015].\n\n## Results\n\nApplied to Switch Transformer on pre-training and machine translation tasks, SparseMixer **accelerated training convergence by up to 2×** and enabled MoE models to **consistently outperform their dense counterparts**, whereas the original Switch Transformer underperformed dense models across all settings [2310_00811v1__c0003][2310_00811v1__c0032].",
+      "run_id": "605e77817da0"
+    },
+    {
+      "question_id": "sp02",
+      "category": "single_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.16666666666666666,
+        "3": 0.16666666666666666,
+        "5": 0.5
+      },
+      "mrr": 1.0,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "4/4",
+      "citations": {
+        "total": 5,
+        "resolved": 5,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 2,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 29724,
+      "answer": "Based on the indexed literature (specifically the MiLoRA framework), here is why adapter-based fine-tuning slows down in multi-tenant settings and the routing change proposed to fix it:\n\n### Why Adapter Methods Become Slow\nIn multi-tenant environments, parameter-efficient fine-tuning (PEFT) methods like LoRA must attach adapter modules to multiple linear weight matrices across each Transformer layer. When using Mixture-of-Experts (MOE) styles to route different tenants to different adapters, a router network must be invoked to decide which expert/module to activate. \n\nThe bottleneck arises because **these router and adapter calculations are executed for every single newly generated token** during autoregressive decoding. Running multiple router evaluations and module activations at every generation step accumulates significant computational overhead, which can reduce inference throughput (tokens per second) by roughly 20%.\n\n### Suggested Routing Change: Prompt-Aware Routing\nTo eliminate this per-token overhead, the literature proposes a **prompt-aware routing mechanism** with two key structural changes:\n\n1. **One-Time Routing Calculation:** Instead of recalculating routing decisions for every new token, the router processes the input prompt's hidden states exactly once—right before generating the first new token. The resulting expert activation decisions are then cached and reused identically for all subsequent tokens in that generation sequence `[2410_18035v1__c0013][2410_18035v1__c0007]`.\n2. **Layer-Level Expert Granularity:** Rather than decomposing a single LoRA module into multiple sub-experts (which would require multiple routers per layer), the method treats an entire LoRA module as a single expert. This means each Transformer layer only requires one lightweight router to select one active expert per layer, drastically simplifying the routing graph `[2410_18035v1__c0012][2410_18035v1__c0006]`.\n\nBy decoupling routing from the token-generation loop and reducing router count per layer, this approach maintains competitive fine-tuning performance while significantly lowering multi-tenant inference latency `[2410_18035v1__c0005][2410_18035v1__c0007]`.",
+      "run_id": "96d61c3aff8e"
+    },
+    {
+      "question_id": "sp03",
+      "category": "single_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.0,
+        "3": 0.3333333333333333,
+        "5": 0.3333333333333333
+      },
+      "mrr": 0.5,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 11,
+      "tool_calls": 8,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 8,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 133273,
+      "answer": "Based on the indexed corpus, the method that brings a lower-precision numeric format into the pruning process itself is **QPruner** (specifically through its integration of **mixed-precision quantization** with structured pruning). \n\nBy introducing quantization (converting high-precision parameters like 32-bit floats into lower-bit representations such as 4-bit or 8-bit) directly into the compression framework, QPruner aims to save **memory** (specifically GPU memory/VRAM and computational resources) during both the fine-tuning and inference phases. This allows for efficient adaptation of pruned models on resource-constrained devices without the prohibitive memory costs associated with full-parameter fine-tuning.\n\nAnother related approach in the corpus is **PBS2P** (Progressive Binarization with Semi-Structured Pruning), which integrates binarization (1-bit precision) with semi-structured pruning to similarly reduce memory overhead and computational demands while preserving model performance.",
+      "run_id": "36e48bc58e79"
+    },
+    {
+      "question_id": "mp01",
+      "category": "multi_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.0,
+        "3": 0.0,
+        "5": 0.3333333333333333
+      },
+      "mrr": 0.25,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 12,
+        "resolved": 12,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 2,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 2,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 26787,
+      "answer": "Based on the compression papers in the corpus, here are the main strategies used to avoid expensive retraining after parameter removal:\n\n## 1. Pre-pruning Regularization (Knowledge Migration)\n\n**TRSP (Two-Stage Regularization-Based Structured Pruning)** achieves a fully retraining-free pipeline by migrating knowledge *before* removing parameters rather than trying to recover afterward [2505_18232v4__c0001]. The method applies two stages of regularization on a small calibration dataset:\n\n- **First stage**: Each transformer layer's output is multiplied by a learnable weight, which is iteratively updated with an ℓ₁-norm regularization term added to the loss function [2505_18232v4__c0003].\n- **Second stage**: Additional regularization is applied to the difference between the output and input of layers identified as having smaller weights, forcing important knowledge to shift into the preserved layers [2505_18232v4__c0003].\n\nThis pre-pruning knowledge transfer means the model can maintain good language modeling capability after direct parameter elimination, eliminating the need for costly fine-tuning [2505_18232v4__c0001][2505_18232v4__c0004].\n\n## 2. Post-Training Frameworks (No Backpropagation)\n\n**PBS2P (Progressive Binarization with Semi-Structured Pruning)** operates entirely in a post-training setting, avoiding gradient-based retraining altogether [2502_01705v4__c0002]. Its key innovations:\n\n- **Stepwise semi-structured Pruning with Binarization Optimization (SPBO)**: Progressively introduces sparsity at each step while *jointly optimizing* the binarized parameters, reducing both pruning and quantization error simultaneously [2502_01705v4__c0005][2502_01705v4__c0045].\n- **Coarse-to-Fine Search (CFS)**: First allocates pruning ratios globally, then refines individual element selection, improving compression efficiency without iterative fine-tuning [2502_01705v4__c0002].\n\nBy combining binarization and semi-structured pruning in a unified post-training framework, PBS2P avoids the severe performance degradation that naïve combinations cause, while remaining faster and less resource-demanding than training-based approaches [2502_01705v4__c0009].\n\n## 3. Parameter-Efficient Fine-Tuning (PEFT) as Lightweight Recovery\n\nWhen some form of adaptation is still needed, several papers adopt PEFT methods instead of full-parameter fine-tuning:\n\n- **LoRA (Low-Rank Adaptation)** is used by multiple frameworks as a quick, memory-efficient recovery mechanism after pruning [2412_11629v1__c0006][2505_18232v4__c0018]. For example, QPruner adopts LoRA for fast post-pruning recovery, and HOLA combines \"LoRA-based structured pruning with mixed-precision quantization\" for minimal retraining overhead [2506_18952v2__c0004].\n- **LoftQ** extends LoRA to quantized models by iteratively updating low-rank matrices so that the quantized approximation $Q + AB$ matches the full-precision matrix $W$, improving fine-tuning performance particularly in low-bit regimes [2412_11629v1__c0006].\n\nThese PEFT approaches drastically reduce the memory and compute costs compared to full-parameter fine-tuning, though they still involve some training rather than being truly retraining-free.\n\n## 4. Joint Error Mitigation via Combined Compression\n\nRather than treating pruning and quantization as separate steps requiring independent recovery, some frameworks integrate them to mitigate cumulative errors:\n\n- **QPruner** combines structured pruning with mixed-precision quantization in a single pipeline, using Bayesian optimization to allocate different quantization precisions per layer based on their contribution to the target task [2412_11629v1__c0003][2412_11629v1__c0028]. By allowing critical layers to maintain higher precision, this approach better controls overall performance and reduces the severity of errors that would otherwise require extensive fine-tuning [2412_11629v1__c0003].\n\n---\n\nIn summary, the most effective retraining-free strategy is **pre-pruning regularization** (as in TRSP), which proactively redistributes knowledge before parameter removal. **Post-training frameworks** (as in PBS2P) avoid backpropagation entirely by jointly optimizing compression parameters during a calibration phase. When some adaptation is unavoidable, **PEFT methods like LoRA** provide a much cheaper alternative to full fine-tuning, and **integrated compression pipelines** reduce the total error budget that needs to be recovered.",
+      "run_id": "3448eb6ba077"
+    },
+    {
+      "question_id": "mp02",
+      "category": "multi_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.0,
+        "3": 0.0,
+        "5": 0.16666666666666666
+      },
+      "mrr": 0.25,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 7,
+        "resolved": 7,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "analyze_corpus",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "check_evidence_consistency"
+        ],
+        "missing": [],
+        "unexpected": [
+          "analyze_corpus",
+          "check_evidence_consistency"
+        ],
+        "matched": true
+      },
+      "iterations": 14,
+      "tool_calls": 12,
+      "tool_call_counts": {
+        "analyze_corpus": 1,
+        "check_evidence_consistency": 1,
+        "inspect_figure": 0,
+        "retrieve_evidence": 10,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 155413,
+      "answer": "The routing papers in the corpus attribute expert assignment unreliability to three distinct root causes, locating the problem in different places rather than agreeing on a single source.\n\n**1. Context Incompleteness (MCF-MOE)**\nThe MCF-MOE paper argues that existing routers condition expert selection on shallow or isolated token representations, which produce unstable and semantically inconsistent routing decisions across layers [2607_16427v1__c0001]. They measure both global cross-layer consistency and local semantic consistency, finding extremely low values that suggest \"the underlying representations lack sufficient contextual completeness and fail to capture semantic information consistently across layers\" [2607_16427v1__c0003]. The paper explicitly states that \"the root cause lies not merely in the selection mechanism itself, but more fundamentally in under[complete representations]\" [2607_16427v1__c0003], locating the problem in the quality and depth of the input representations fed to the router rather than in the gating function itself.\n\n**2. Pre-training Data Imbalance (Low-Resource LLMs)**\nThe Low-Resource LLMs paper locates the problem in training data distribution rather than architecture. It finds that \"deep-layer routing collapse\" occurs for underrepresented languages like Hebrew and Japanese, where usage entropy drops sharply in the final layers and tokens concentrate among a narrow subset of experts [2605_17598v1__c0000][2605_17598v1__c0021]. The paper attributes this to pre-training exposure statistics: \"For Hebrew, which constitutes a small fraction of the pre-training data, the model has encountered far fewer diverse contexts requiring Hebrew-specific output computation\" [2605_17598v1__c0054]. This creates \"routing path dependence in which limited pre-training exposure constrains the diversity of learned routing solutions\" [2605_17598v1__c0054]. The problem is thus located in the statistical properties of the training corpus, not in the router design.\n\n**3. Gradient Estimation Incompatibility (Sparse Backpropagation)**\nThe Sparse Backpropagation paper identifies a different failure mode: the incompatibility between discrete expert routing and backpropagation. It notes that \"all existing ST [Straight-Through] estimators are incompatible with MoE, since they require activating all experts for gradient computing, thereby eliminating all the efficiency improvements of MoE\" [2310_00811v1__c0002]. Consequently, \"typical MoE training strategically neglects the gradient computation for routing, trading certain training signals for sparse computation\" [2310_00811v1__c0003]. This leads to \"slow convergence and improperly trained models\" [2310_00811v1__c0003]. Here the problem is located in the optimization/training methodology—specifically, the inability to properly train the router due to the discrete nature of routing decisions.\n\n**Do they agree?**\nNo. The papers locate the problem in three different places:\n- **MCF-MOE**: insufficient context in the representations fed to the router\n- **Low-Resource LLMs**: imbalanced pre-training data distributions\n- **Sparse Backpropagation**: incompatible gradient estimation methods\n\nThese are complementary diagnoses addressing different aspects of the same system—the first focuses on inference-time representation quality, the second on training-data statistics, and the third on optimization mechanics. None of the papers dispute the others; rather, they identify distinct bottlenecks that can each independently degrade routing reliability.",
+      "run_id": "ee135a9bd214"
+    },
+    {
+      "question_id": "mp03",
+      "category": "multi_paper",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.16666666666666666,
+        "3": 0.16666666666666666,
+        "5": 0.3333333333333333
+      },
+      "mrr": 1.0,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 8,
+        "resolved": 8,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "analyze_corpus",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "check_evidence_consistency"
+        ],
+        "missing": [],
+        "unexpected": [
+          "analyze_corpus",
+          "check_evidence_consistency"
+        ],
+        "matched": true
+      },
+      "iterations": 6,
+      "tool_calls": 8,
+      "tool_call_counts": {
+        "analyze_corpus": 1,
+        "check_evidence_consistency": 1,
+        "inspect_figure": 0,
+        "retrieve_evidence": 6,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 63622,
+      "answer": "The two groups achieve cost reduction through fundamentally different mechanisms:\n\n## Sparse Mixture-of-Experts (MoE): Dynamic per-token skipping\n\nMoE models keep all parameters in memory but **skip expert computations dynamically, per token**. Each layer contains many experts (e.g., 128), but for each input token, only a small subset is activated (e.g., top-6 out of 128) [2605_17598v1__c0009][2607_16427v1__c0001]. The remaining experts' feed-forward networks are never called — their weights are read from memory but no computation is performed on them for that token. All layers still process every token; only which expert FFN is used within those layers changes based on the router's decision. This means the model has large total parameter capacity (e.g., Qwen3-30B-A3B has 30.5B total parameters) but low per-token active computation (~3.3B active) [2605_17598v1__c0009].\n\n**What gets skipped:** Expert feed-forward computations for non-selected experts, per token, per layer.\n\n## Structured Pruning and Quantization: Permanent structural reduction\n\nThese methods **permanently remove or shrink actual parameters** from the model architecture:\n\n- **Structured pruning** removes entire neurons, channels, or even whole transformer layers [2505_18232v4__c0001][2412_11629v1__c0003]. For example, LLM-Pruner identifies and eliminates coupled neuron structures [2412_11629v1__c0012], while TRSP removes entire transformer layers by evaluating their importance [2505_18232v4__c0001]. These parameters cease to exist in the pruned model.\n\n- **Quantization** reduces the bit-width of remaining parameters — converting 16-bit floats to 4-bit, 2-bit, or even 1-bit binary representations [2412_11629v1__c0004][2502_01705v4__c0002]. The parameters still exist but consume less memory and require fewer bits to compute with.\n\nSome frameworks combine both: prune first, then quantize the already-pruned model [2412_11629v1__c0001][2502_01705v4__c0002].\n\n**What gets removed/shrunk:** Actual weight values (entire neurons/channels/layers) and/or their numerical precision.\n\n## Key distinction\n\nMoE keeps all parameters available but selectively computes with them — the routing gate decides at inference time which experts to call. Pruning and quantization permanently alter the model's structure and parameter storage, reducing the model size itself regardless of input.",
+      "run_id": "73b6cbbfcec0"
+    },
+    {
+      "question_id": "cf01",
+      "category": "conflicting",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.2,
+        "3": 0.2,
+        "5": 0.4
+      },
+      "mrr": 1.0,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 5,
+        "resolved": 5,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "check_evidence_consistency",
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "check_evidence_consistency"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 1,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 26220,
+      "answer": "The papers **agree** on the general principle but differ in what's possible with novel techniques:\n\n**Consensus: Direct parameter removal typically requires retraining.**\n\nBoth papers state that conventional structured pruning—where unimportant parameters or layers are directly removed—causes knowledge loss or performance degradation that necessitates retraining:\n\n- *\"Prior structured pruning methods directly remove unimportant parameters based on certain metrics, which often causes knowledge loss and necessitates extensive retraining\"* [2505_18232v4__c0001].\n- *\"Structured pruning... removes entire components to enhance efficiency but often causes performance drops, requiring retraining\"* [2502_01705v4__c0013].\n\n**Divergence: One paper proposes a retraining-free alternative.**\n\nThe TRSP paper [2505_18232v4] argues that its two-stage regularization approach avoids this need entirely. By iteratively learning weights and transferring knowledge from layers destined for removal to preserved layers *before* pruning, TRSP is *\"retraining free after pruning\"* [2505_18232v4__c0005] and *\"significantly lowering computational overhead and dependence on retraining\"* [2505_18232v4__c0035]. For fair comparison, the authors still retrained baseline methods using LoRA [2505_18232v4__c0018].\n\n**In short:** All the papers agree that naive parameter removal forces retraining. The TRSP paper adds that careful pre-pruning regularization can eliminate that requirement.",
+      "run_id": "95865b1796e0"
+    },
+    {
+      "question_id": "cf02",
+      "category": "conflicting",
+      "expect_abstention": false,
+      "abstained": false,
+      "abstention_correct": true,
+      "recall": {
+        "1": 0.16666666666666666,
+        "3": 0.16666666666666666,
+        "5": 0.16666666666666666
+      },
+      "mrr": 1.0,
+      "gold_paper_hit": true,
+      "fact_coverage": 1.0,
+      "facts_covered": "3/3",
+      "citations": {
+        "total": 1,
+        "resolved": 1,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "check_evidence_consistency",
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence"
+        ],
+        "missing": [
+          "check_evidence_consistency"
+        ],
+        "unexpected": [],
+        "matched": false
+      },
+      "iterations": 2,
+      "tool_calls": 1,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 14773,
+      "answer": "Based on the indexed papers, expert specialisation is described as **unstable** rather than a coherent, structured behaviour. \n\nWhile the ideal goal is \"consistent and semantically coherent expert specialization,\" the evidence indicates that existing Mixture-of-Experts (MoE) models struggle to achieve this. Specifically, research highlights the following characteristics of current expert specialisation:\n\n*   **Unstable Patterns:** Expert assignments exhibit \"extremely low cross-layer consistency,\" meaning the same token or concept does not reliably activate the same experts across different layers of the network. \n*   **Fragmentation:** This inconsistency leads to \"fragmented expert utilization\" and explicitly results in **\"unstable specialization patterns\"** [2607_16427v1__c0003].\n*   **Lack of Semantic Coherence:** Within individual sequences, semantic coherence remains \"limited and inconsistent across architectures,\" indicating that token representations often fail to encode the fine-grained contextual relationships necessary for stable expert behavior [2607_16427v1__c0003].\n\nIn short, rather than settling into a stable, structured division of labor, expert specialisation in these models is characterized by fragmentation and sensitivity to context, requiring new routing strategies to force consistency.",
+      "run_id": "f551580166b4"
+    },
+    {
+      "question_id": "ni01",
+      "category": "not_in_corpus",
+      "expect_abstention": true,
+      "abstained": true,
+      "abstention_correct": true,
+      "recall": {
+        "1": NaN,
+        "3": NaN,
+        "5": NaN
+      },
+      "mrr": NaN,
+      "gold_paper_hit": false,
+      "fact_coverage": NaN,
+      "facts_covered": "0/0",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": null,
+      "fetch_proposal": {
+        "query": "sourdough starter fermentation temperature rise flavor",
+        "searched_for": "sourdough starter fermentation temperature rise flavor",
+        "best_score": -10.6001,
+        "closest_topics": [
+          "structured_pruning_and_quantization_for_efficient_transforme",
+          "sparse_mixture_of_experts_routing_in_transformer_models"
+        ]
+      },
+      "fetch_proposed": true,
+      "fetch_proposal_correct": null,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "analyze_corpus"
+        ],
+        "missing": [],
+        "unexpected": [
+          "analyze_corpus"
+        ],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 1,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 13453,
+      "answer": "The indexed corpus does not contain any evidence on sourdough starter fermentation temperatures or their effects on rise and flavor. The corpus holds 11 papers published between 2023–2026 covering only two topics: **sparse mixture of experts routing in transformer models** and **structured pruning and quantization for efficient transformers**.\n\nTo answer your question about sourdough, you would need to fetch relevant literature first using the \"Fetch papers\" button. Once fetched, I could search the new papers for details on optimal fermentation temperatures, how temperature affects yeast/bacterial activity and dough rise, and how different temperature ranges shift the balance of acids (acetic vs. lactic) that determine flavor profile.",
+      "run_id": "eec7db76c223"
+    },
+    {
+      "question_id": "ni02",
+      "category": "absent_fetchable",
+      "expect_abstention": true,
+      "abstained": true,
+      "abstention_correct": true,
+      "recall": {
+        "1": NaN,
+        "3": NaN,
+        "5": NaN
+      },
+      "mrr": NaN,
+      "gold_paper_hit": false,
+      "fact_coverage": NaN,
+      "facts_covered": "0/0",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": true,
+      "fetch_proposal": null,
+      "fetch_proposed": false,
+      "fetch_proposal_correct": false,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence"
+        ],
+        "missing": [],
+        "unexpected": [],
+        "matched": true
+      },
+      "iterations": 5,
+      "tool_calls": 4,
+      "tool_call_counts": {
+        "analyze_corpus": 0,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 4,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 32934,
+      "answer": "Based on my search of the indexed corpus, there is currently **no evidence** regarding the top-1 accuracy of four-bit quantization on Vision Transformers (ViTs) evaluated on ImageNet. \n\nI searched for `\"four-bit quantization vision transformer ImageNet accuracy\"` and `\"quantization vision transformer ImageNet\"`, but the index returned no relevant results. The closest topics covered in the corpus are related to structured pruning and quantization for efficient transformers (focused on Large Language Models like LLaMA) and sparse mixture-of-experts routing in transformer models.\n\nIf you would like me to find this information, you can use the **\"Fetch papers\"** button to download and index new literature on arXiv specifically covering 4-bit quantization for Vision Transformers on ImageNet. Once fetched, I can retrieve the exact accuracy numbers for you.",
+      "run_id": "e885c3d59aad"
+    },
+    {
+      "question_id": "af01",
+      "category": "absent_fetchable",
+      "expect_abstention": true,
+      "abstained": true,
+      "abstention_correct": true,
+      "recall": {
+        "1": NaN,
+        "3": NaN,
+        "5": NaN
+      },
+      "mrr": NaN,
+      "gold_paper_hit": false,
+      "fact_coverage": NaN,
+      "facts_covered": "0/0",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": true,
+      "fetch_proposal": {
+        "query": "image generation diffusion model distillation one step two step four step sampling",
+        "searched_for": "image generation diffusion model distillation one step two step four step sampling",
+        "best_score": -8.3657,
+        "closest_topics": [
+          "structured_pruning_and_quantization_for_efficient_transforme",
+          "sparse_mixture_of_experts_routing_in_transformer_models"
+        ]
+      },
+      "fetch_proposed": true,
+      "fetch_proposal_correct": true,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "retrieve_evidence",
+          "analyze_corpus"
+        ],
+        "missing": [],
+        "unexpected": [
+          "analyze_corpus"
+        ],
+        "matched": true
+      },
+      "iterations": 5,
+      "tool_calls": 4,
+      "tool_call_counts": {
+        "analyze_corpus": 1,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 3,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 27453,
+      "answer": "I cannot answer this question from the available evidence. The indexed corpus contains 11 papers focused exclusively on **sparse mixture-of-experts routing in transformer models** and **structured pruning/quantization for efficient transformers**. It does not hold any literature on diffusion models, iterative denoising, or few-step sampling techniques for image generation.\n\nTo get an answer, you would need to fetch papers on this topic (e.g., consistency models, distillation-based samplers like DMD/DPO, predictor-corrector methods, or advanced ODE solvers) using the **\"Fetch papers\"** button.",
+      "run_id": "6a652d50b4fb"
+    },
+    {
+      "question_id": "af02",
+      "category": "absent_fetchable",
+      "expect_abstention": true,
+      "abstained": true,
+      "abstention_correct": true,
+      "recall": {
+        "1": NaN,
+        "3": NaN,
+        "5": NaN
+      },
+      "mrr": NaN,
+      "gold_paper_hit": false,
+      "fact_coverage": NaN,
+      "facts_covered": "0/0",
+      "citations": {
+        "total": 0,
+        "resolved": 0,
+        "unresolved": []
+      },
+      "expect_fetch_proposal": true,
+      "fetch_proposal": {
+        "query": "why do node representations become indistinguishable deep graph networks over-smoothing prevention",
+        "searched_for": "why do node representations become indistinguishable deep graph networks over-smoothing prevention",
+        "best_score": -6.6393,
+        "closest_topics": [
+          "sparse_mixture_of_experts_routing_in_transformer_models",
+          "structured_pruning_and_quantization_for_efficient_transforme"
+        ]
+      },
+      "fetch_proposed": true,
+      "fetch_proposal_correct": true,
+      "tools": {
+        "expected": [
+          "retrieve_evidence"
+        ],
+        "used": [
+          "retrieve_evidence",
+          "analyze_corpus"
+        ],
+        "missing": [],
+        "unexpected": [
+          "analyze_corpus"
+        ],
+        "matched": true
+      },
+      "iterations": 3,
+      "tool_calls": 2,
+      "tool_call_counts": {
+        "analyze_corpus": 1,
+        "check_evidence_consistency": 0,
+        "inspect_figure": 0,
+        "retrieve_evidence": 1,
+        "search_literature": 0
+      },
+      "stopped_because": "answered",
+      "elapsed_ms": 13691,
+      "answer": "I cannot answer this question from the available evidence. The indexed corpus does not contain any literature on Graph Neural Networks (GNNs) or the over-smoothing phenomenon. \n\nMy search covered why node representations become indistinguishable in deep graph networks and methods to prevent it, but the index returned no relevant results. The corpus currently only holds 11 papers focused on:\n- Sparse mixture-of-experts routing in transformer models\n- Structured pruning and quantization for efficient transformers\n\nIf you would like me to retrieve current research on GNN over-smoothing, you can use the **\"Fetch papers\"** button to download relevant arXiv papers into the corpus, after which I can provide a detailed, cited answer.",
+      "run_id": "1cb732171c40"
+    }
+  ],
+  "errors": 0,
+  "recall": {
+    "1": 0.1083,
+    "3": 0.15,
+    "5": 0.3417
+  },
+  "mrr": 0.75,
+  "gold_paper_hit_rate": 1.0,
+  "fact_coverage": 1.0,
+  "abstention_accuracy": 1.0,
+  "abstention_on_absent": 1.0,
+  "false_abstention_on_answerable": 0.0,
+  "citations_resolved": 1.0,
+  "tool_trace_matched": 0.9167,
+  "fetch_proposal_on_fetchable": 0.6667,
+  "fetch_proposal_on_answerable": 0.0,
+  "mean_iterations": 5.0833,
+  "median_elapsed_ms": 29724
+}

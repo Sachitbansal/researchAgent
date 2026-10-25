@@ -24,7 +24,7 @@ from typing import Any, Dict, Iterable, List, Optional
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-PATH_KEYS = ("data_dir", "papers_dir", "index_dir", "cache_dir", "logs_dir")
+PATH_KEYS = ("data_dir", "papers_dir", "index_dir", "cache_dir", "logs_dir", "threads_db")
 
 
 # ---- isolation: pure path checks, no src import -------------------------------------
@@ -75,6 +75,8 @@ def write_scratch_config(scratch: Path) -> Path:
         "cache_dir": str(data / "cache"),
         "logs_dir": str(scratch / "logs"),
         "prompts_dir": str(ROOT / "src" / "prompts"),
+        # Required by config.load_config since D12; a chat started on the copy stays there.
+        "threads_db": str(data / "threads.sqlite3"),
     }
     path = scratch / "config.yaml"
     path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")

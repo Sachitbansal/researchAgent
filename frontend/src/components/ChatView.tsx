@@ -1,14 +1,36 @@
 /* Centre pane: the conversation, the empty state, and the composer.
    In:  the displayed messages (the thread's stored turns plus the live run), the corpus,
         callbacks. Out: rendered turns. Answers are rendered markdown with numbered
-        citations; a running answer shows what the agent is doing right now. */
+        citations; a running answer shows what the agent is doing right now; an answer
+        that found a gap in the corpus carries the "Fetch papers" card (D33). */
 
 import { useEffect, useMemo, useRef, type KeyboardEvent, type MouseEvent } from "react";
 import type { AssistantMessage, Corpus, Message, Paper } from "../types";
 import { renderMarkdown } from "../markdown";
 import { excerpts, figures, humanise, liveStatus, plural, secs, who } from "../format";
 import type { CiteTarget } from "./CitationCard";
+import { FetchCard, type FetchState } from "./FetchCard";
 import { Icon } from "../icons";
+
+// Mirrors config.yaml agent.fetch_query_max_chars. The server checks it; this only stops
+// the input from accepting what the server would refuse.
+const FETCH_QUERY_MAX = 300;
+
+/* What the card under answer `i` can do. Only the latest answer of a real chat can be
+   fetched from: the approval asks the agent to answer "my previous question". */
+function fetchState(messages: Message[], i: number, sample: boolean, running: boolean): { state: FetchState; query?: string } | null {
+  const m = messages[i] as AssistantMessage;
+  // An approval turn whose retrieval still failed re-derives the same proposal; offering
+  // the fetch that just ran again would be noise, so it gets no card.
+  if (sample || !m.stats?.fetch_proposal || m.stats.approved_fetch) return null;
+  const next = messages.slice(i + 1).find((x): x is AssistantMessage => x.role === "assistant");
+  if (next?.stats?.approved_fetch) {
+    const state = next.status === "running" ? "fetching" : next.status === "failed" ? "stopped" : "approved";
+    return { state, query: next.stats.approved_fetch.query };
+  }
+  if (next) return { state: "superseded" };
+  return { state: running ? "busy" : "actionable" };
+}
 
 interface Props {
   messages: Message[];
@@ -21,6 +43,8 @@ interface Props {
   draft: string;
   setDraft: (s: string) => void;
   onSend: (q: string) => void;
+  // The "Fetch papers" click: the approved query, and the user bubble shown while it runs.
+  onApproveFetch: (query: string, shown: string) => void;
   notice: string | null;
   onDismissNotice: () => void;
   selected: number | null;
@@ -73,6 +97,9 @@ export function ChatView(p: Props) {
                   selected={p.selected === i}
                   onSelect={p.onSelect}
                   onCite={p.onCite}
+                  fetch={fetchState(p.messages, i, p.sample, p.running)}
+                  corpus={p.corpus}
+                  onApproveFetch={p.onApproveFetch}
                 />
               ),
             )
@@ -147,13 +174,16 @@ function Composer({ draft, setDraft, onSend, running }: {
 
 // ------------------------------------------------------------------ an answer
 
-function Answer({ index, message, papersById, selected, onSelect, onCite }: {
+function Answer({ index, message, papersById, selected, onSelect, onCite, fetch, corpus, onApproveFetch }: {
   index: number;
   message: AssistantMessage;
   papersById: Map<string, Paper>;
   selected: boolean;
   onSelect: (i: number) => void;
   onCite: (t: CiteTarget) => void;
+  fetch: { state: FetchState; query?: string } | null;
+  corpus: Corpus | null;
+  onApproveFetch: (query: string, shown: string) => void;
 }) {
   const { html, refs } = useMemo(() => renderMarkdown(message.content), [message.content]);
   const found = useMemo(() => excerpts(message.steps), [message.steps]);
@@ -203,6 +233,18 @@ function Answer({ index, message, papersById, selected, onSelect, onCite }: {
       )}
 
       {figs.length > 0 && <Figures figs={figs} />}
+
+      {fetch && message.stats?.fetch_proposal && (
+        <FetchCard
+          proposal={message.stats.fetch_proposal}
+          corpus={corpus}
+          state={fetch.state}
+          approvedQuery={fetch.query}
+          maxChars={FETCH_QUERY_MAX}
+          // The bubble while it runs; the stored turn's own wording replaces it after.
+          onApprove={(q) => onApproveFetch(q, `Fetch papers on "${q}"`)}
+        />
+      )}
 
       {refs.length > 0 && (
         <ol className="refs">
@@ -285,12 +327,13 @@ function EmptyState({ corpus, error, onPick }: { corpus: Corpus | null; error: s
       ) : n ? (
         <p className="empty-lede">
           {plural(n, "paper")} indexed, across {plural(topics.length, "topic")}. Every claim in an answer is cited,
-          and each citation opens the passage behind it. If the papers don't cover your question, the agent says so, or
-          searches arXiv and reads more.
+          and each citation opens the passage behind it. If the papers don't cover your question, the agent says so and
+          offers to fetch papers on it from arXiv, which you approve with a button.
         </p>
       ) : (
         <p className="empty-lede">
-          Nothing is indexed yet. Ask anyway: the agent will search arXiv and read the papers first, which takes a few minutes.
+          Nothing is indexed yet. Ask anyway: the agent will say so and offer to fetch papers from arXiv, which takes a few
+          minutes once you approve it.
         </p>
       )}
       {examples.length > 0 && <p className="examples-head">Or try one of these, built from the indexed topics:</p>}

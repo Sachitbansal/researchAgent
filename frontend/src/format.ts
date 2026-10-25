@@ -31,7 +31,15 @@ export function outcome(result?: Record<string, unknown>): string {
   if (Array.isArray(r.chunks)) {
     return plural(r.chunks.length, "passage") + (r.sufficient_evidence === false ? ", not enough to answer" : "");
   }
-  if (Array.isArray(r.papers_added)) return `${plural(r.papers_added.length, "paper")} added, ${plural(r.chunks_added || 0, "chunk")}`;
+  if (Array.isArray(r.papers_added)) {
+    // The admission gate's verdict is part of the outcome: what it turned away, and when
+    // it turned away everything, that arXiv does not cover the subject well (D16).
+    const rejected = Array.isArray(r.papers_rejected) ? r.papers_rejected.length : 0;
+    const parts = [`${plural(r.papers_added.length, "paper")} added`, plural(r.chunks_added || 0, "chunk")];
+    if (rejected) parts.push(`${rejected} rejected by the admission gate`);
+    if (r.arxiv_coverage === "poor") parts.push("arXiv covers this poorly");
+    return parts.join(", ");
+  }
   if (Array.isArray(r.claims)) {
     return `${plural(r.claims.length, "claim")} checked, ${Math.round((r.grounded_ratio || 0) * 100)}% grounded`;
   }

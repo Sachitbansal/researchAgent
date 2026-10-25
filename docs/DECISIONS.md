@@ -200,6 +200,46 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Write trigger:** "the gate passed" means some `retrieve_evidence` call returned `sufficient_evidence: true` with chunks. An answer that cites only injected chunks still counts its uses but writes nothing new.
 - **Deleting a chat keeps its memories** (`source_thread_id` has no foreign key). Memory is meant to outlive the chat.
 
+## D30 — CRAG phase 2: filtered gaps are ignored (option A)
+
+*2026-10-25 · `src/agent/fetch_proposal.py`, `src/tools/retrieve_evidence.py`*
+
+- **By:** user, choosing option A of the two fixes `docs/FUTURE_WORK.md` listed.
+- **Rule:** the proposal is derived from the run's last **unfiltered** `retrieve_evidence` (no `topic_filter`, no `chunk_types`). Filtered calls are skipped entirely: they neither propose nor clear. If that call passed, or there was none, there is no proposal. A `search_literature` after it clears the proposal, as before.
+- **Why:** a filtered search failing says nothing about whether the corpus as a whole lacks the subject. A figure-only search that finds no figure would otherwise put a fetch button under a question the corpus covers.
+- **`coverage_gap.filtered: bool`** is added so the agent and the UI can tell. The derivation reads filtering from the call's arguments, because a passing call has no gap.
+- **Resolved by Claude:** an unfiltered `empty_index` also proposes a fetch of its query. Without this, the cold start would be unreachable: no scorer runs, so there is no gap, no button, and the agent may not search on its own.
+
+## D31 — The prompt rule: describe the gap, never fetch unasked
+
+*2026-10-25 · `src/prompts/system.md`, `src/prompts/tools/retrieve_evidence.md`, `search_literature.md`*
+
+- **By:** user. The agent acts on `suggested_next`. On `rephrase` it makes one reworded retrieve. On `propose_fetch` it does not call `search_literature`: it says what it searched for, which held topics came closest, and that the "Fetch papers" button fetches, and it never answers from its own knowledge.
+- **`search_literature` only after approval,** which the approval message states explicitly. After fetching, the agent retrieves again and answers the original question with citations.
+- **Lines that contradicted the rule were edited, not appended to:** "use `search_literature` when the corpus lacks the subject" (system prompt and both tool descriptions).
+- **Resolved by Claude:** two clauses beyond the spec. If `coverage_gap.filtered` is true, retry once unfiltered; otherwise the agent would mention a button that D30 never shows. On `arxiv_coverage: "poor"`, say arXiv does not cover the subject well.
+- **Resolved by Claude, after the end-to-end check:** `search_literature`'s description now says to leave `categories` unset. In the live run the agent passed `["cs.CV","cs.LG"]`, which were ANDed onto the planner's own category filter (the `.claude/CLAUDE.md` pitfall). It was harmless there only because the sets matched.
+- **Consequence:** the system prompt, and so the eval's prompt, changed. Measured in `docs/EVALUATION.md` (CRAG phase 2).
+
+## D32 — Approval is a structured `approve_fetch`, worded by a server-side template
+
+*2026-10-25 · `web/api.py`, `main.py`, `src/agent/fetch_proposal.py`, `src/agent/loop.py`, `src/prompts/fetch_approval*.md`*
+
+- **By:** user. `POST /api/ask` takes `approve_fetch: {query}` with a `thread_id`, in place of a question. The server builds the agent's message from `src/prompts/fetch_approval.md`. It is a normal thread turn, so short-term memory (D12) gives the agent the question it is to answer. The CLI has the same thing: `main.py ask --thread ID --approve-fetch "<query>"`.
+- **Why a template, not UI text:** the wording lives in one prompt file and is diffed like every other prompt. The browser and the CLI cannot drift apart.
+- **Validation** (`approval_request`, shared): a thread is required, the query is whitespace-collapsed, must be non-empty, and is capped at `agent.fetch_query_max_chars` (300). Sending both a question and an approval is refused (`question_and_approval`). All of it is checked before the stream opens, so errors are a 400, not a frame.
+- **Stored:** the turn's question is the short form from `fetch_approval_title.md` ("Fetch papers on "…""). It is a prompt file too, because later turns replay it to the model as history. Its stats carry `approved_fetch: {query}`. Every turn's stats carry `fetch_proposal`, which is also in the `answer` frame, so a reloaded chat still shows the button. The CLI prints `--- fetch proposal: "<query>"  (re-ask with --approve-fetch)`.
+- **Resolved by Claude:** an approval run whose retrieval still fails re-derives the same proposal ("as now"). The edges ignore it: no card in the UI and no CLI line on a turn that carries `approved_fetch`. Long-term memory sees the template text as the turn's question.
+
+## D33 — The "Fetch papers" card
+
+*2026-10-25 · `frontend/src/components/FetchCard.tsx`, `ChatView.tsx`, `format.ts`*
+
+- **By:** user. It sits under an answer with a `fetch_proposal`. It says "The corpus has no papers on *X*. Closest topics held: …" (tags mapped to their corpus labels). It has an editable query with a visible label, a primary **Fetch papers** button, and a note that fetching takes a minute or more and adds papers to the corpus permanently.
+- **Click = approval.** It sends `approve_fetch` in the same chat. While it runs, the card says it is fetching, and the streamed steps show `search_literature`. Afterwards it says the fetch was approved, and the button is gone for good, because the next turn's stats carry `approved_fetch`.
+- **Resolved by Claude:** the card is actionable only on the **latest** answer of a real (non-sample) chat while nothing runs, since the approval asks the agent to answer "my previous question". On an older answer it says a later question followed. While another run is going, the button is disabled with a reason. If the approval run failed, the card says so and to ask again, rather than claiming success. The stored turn still carries `approved_fetch`, so the button stays gone.
+- **Admission verdict in the step summary:** `search_literature`'s outcome line now shows how many papers the gate rejected and "arXiv covers this poorly" when `arxiv_coverage` is `poor`.
+
 ---
 
 ## Benched questions

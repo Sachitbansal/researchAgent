@@ -5,9 +5,10 @@ In:  a question, an LLMClient, a ToolRegistry, an optional on_event observer, an
      optionally a ThreadStore plus a thread_id (short-term memory, D12) and a
      LongTermMemory (memories across chats, D19), which only a thread run touches.
 Out: {"answer", "iterations", "tool_calls", "tool_call_counts", "run_id",
-     "stopped_because", "thread_id", "turn_seq", "memory_injected", ...}, plus a live event
-     per step to on_event; remember(result) writes memory after the answer. Bounded by
-     per-tool limits and two backstops (D4). No thread: nothing read or persisted.
+     "stopped_because", "thread_id", "turn_seq", "memory_injected", "fetch_proposal",
+     ...}, plus a live event per step to on_event; remember(result) writes memory after
+     the answer. Bounded by per-tool limits and two backstops (D4). No thread: nothing
+     read or persisted.
 """
 
 from __future__ import annotations
@@ -186,11 +187,14 @@ class AgentLoop:
         )
 
     def _save_turn(self, thread_id: str, question: str, result: Dict[str, Any],
-                   tracer: TraceWriter, history: Dict[str, Any]) -> Dict[str, Any]:
+                   tracer: TraceWriter, history: Dict[str, Any],
+                   approval: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Append this run as the thread's next turn; failed runs too, with their error.
 
         Returns the fields merged into the run's result: thread_id and turn_seq, plus
-        thread_error if the store refused the write (the answer is still returned).
+        thread_error if the store refused the write (the answer is still returned). An
+        approval run is stored under its short readable question, and says in its stats
+        which fetch it approved, so a reloaded chat knows that proposal was acted on (D32).
         """
         failed = "error" in result
         body = (result.get("partial") or {}) if failed else result
@@ -206,7 +210,11 @@ class AgentLoop:
             stats.update(error=result.get("error"), detail=result.get("detail"))
         else:
             stats.update({key: result.get(key) for key in (
-                "tool_calls", "tool_call_counts", "context_tokens", "stopped_because")})
+                "tool_calls", "tool_call_counts", "context_tokens", "stopped_because",
+                "fetch_proposal")})
+        if approval is not None:
+            stats["approved_fetch"] = {"query": approval.get("query")}
+            question = str(approval.get("display") or question)
         saved = self.store.append_turn(
             thread_id, question, str(body.get("answer") or ""), stats=stats,
             notes=build_notes(tracer.records, int(self.config.agent.thread_note_arg_chars)),
@@ -277,12 +285,16 @@ class AgentLoop:
         return report
 
     def run(self, question: str, question_id: Optional[str] = None,
-            run_id: Optional[str] = None, thread_id: Optional[str] = None) -> Dict[str, Any]:
+            run_id: Optional[str] = None, thread_id: Optional[str] = None,
+            approval: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Answer `question`, calling tools as the model chooses.
 
         With `thread_id`, the thread's earlier turns are prepended (memory.history) and
         this run is appended to it afterwards, answered or failed. Without one, exactly
         the single-question behaviour: a fresh conversation, nothing read or written.
+        `approval` (agent.fetch_proposal.approval_request) marks a thread run as the
+        user's approved fetch: `question` is then its prompt-file text, and the turn is
+        stored under approval["display"] with `approved_fetch` in its stats.
 
         Termination, without an iteration cap: each tool is dispatched at most its limit,
         so at most sum(limits) turns make progress, and `max_no_progress_turns`
@@ -325,9 +337,12 @@ class AgentLoop:
             elif "error" not in result:
                 result["memory_injected"] = None
             if thread_id is not None:
-                result.update(self._save_turn(thread_id, question, result, tracer, history))
+                result.update(self._save_turn(thread_id, question, result, tracer, history,
+                                              approval=approval))
             else:
                 result.update(thread_id=None, turn_seq=None)
+            if approval is not None and "error" not in result:
+                result["approved_fetch"] = {"query": approval.get("query")}
         finally:
             self._steps = None
         return result

@@ -203,6 +203,15 @@ The answer itself goes to stdout, so `ask "..." > answer.txt` still captures the
 alone. Afterwards it prints the iteration count, tool-call count, context size, why the
 loop stopped, the calls made per tool, and the path to a full JSONL trace of every tool call under `logs/traces/`.
 
+**When the corpus lacks the subject**, the agent does not fetch on its own. It says what
+it searched for and which held topics came closest, and the run ends with a line like
+`--- fetch proposal: "<query>"  (re-ask with --approve-fetch)`. To approve, continue the
+same thread (`docs/DECISIONS.md` D30–D33):
+
+```bash
+python main.py ask --thread <id> --approve-fetch "<query>"   # fetch, then answer the previous question
+```
+
 ### Run the eval
 
 ```bash
@@ -210,6 +219,7 @@ python main.py eval               # the 10-question tuning split
 python main.py eval --held-out    # the 5 held-out questions
 python main.py eval --limit 3     # a quick smoke run (saved separately, so it
                                   # cannot overwrite a full run's results)
+python main.py eval --out NAME    # write eval/results/NAME.json instead
 ```
 
 Results land in `eval/results/`. Full write-up in
@@ -295,15 +305,24 @@ A second question asked meanwhile is told straight away that the agent is busy. 
 the tab does not cancel a run. The question finishes, and its trace is written, before the
 agent takes another.
 
-If a question makes the agent call `search_literature`, that step can sit in the timeline
-for minutes: fetching PDFs, extracting them, describing figures and embedding all happen
-inside that one tool call. For a demo, index the topic beforehand.
+**The Fetch papers button.** When the corpus has no papers on what you asked, the answer
+says so, and a card under it names the gap and the closest topics the corpus holds. The
+card has an editable query and a **Fetch papers** button. Clicking it is your approval:
+nothing is ever fetched without it. The fetch runs as the chat's next turn. The agent calls
+`search_literature`, an admission gate drops arXiv results that do not match the query (the
+step says how many), and it then answers your original question with citations to the new
+papers. Once used, the button is gone. Only the latest answer's card can fetch.
+
+That `search_literature` step can sit in the timeline for minutes: fetching PDFs,
+extracting them, describing figures and embedding all happen inside that one tool call.
+Fetched papers stay in the corpus. For a demo, index the topic beforehand.
 
 `web/` and `frontend/` sit outside `src/`. `web/` imports `src/`, exactly as `eval/` does.
 Nothing in `src/` knows either exists: the system being evaluated is still the CLI.
 
 API, for reference: `GET /api/papers` (the corpus); `POST /api/ask` with
-`{"question": ..., "thread_id"?: ...}` (SSE: `thread` first, naming the chat, which is new if
+`{"question": ..., "thread_id"?: ...}`, or `{"thread_id": ..., "approve_fetch": {"query": ...}}`
+to run an approved fetch (SSE; the `answer` frame carries `fetch_proposal`: `thread` first, naming the chat, which is new if
 no `thread_id` was sent; then `step`…, then `answer` or `failed`, then `memory`
 `{written, refreshed, invalidated, used, forgotten, dropped}`, then `done`; or else
 `busy`, `done`); `GET`/`POST /api/threads`; `GET`/`DELETE /api/threads/<id>`;

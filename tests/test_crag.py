@@ -130,7 +130,7 @@ def retrieve(cfg, query="what is missing", reranker=None, **kwargs):
 # ------------------------------------------------------------------- coverage_gap
 
 GAP_KEYS = {"searched_for", "best_score", "threshold", "scorer", "closest_topics",
-            "suggested_next", "proposed_query"}
+            "suggested_next", "proposed_query", "filtered"}
 
 
 def test_a_gate_failure_carries_a_structured_coverage_gap(corpus):
@@ -143,6 +143,7 @@ def test_a_gate_failure_carries_a_structured_coverage_gap(corpus):
     assert gap["threshold"] == float(corpus.retrieval.relevance_threshold)
     assert gap["scorer"] == "cross_encoder"
     assert gap["suggested_next"] == "propose_fetch"
+    assert gap["filtered"] is False
     json.dumps(result)  # tool results are JSON-serialisable, gap included
 
 
