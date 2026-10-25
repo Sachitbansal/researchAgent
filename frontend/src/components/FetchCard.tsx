@@ -25,7 +25,9 @@ export function FetchCard({ proposal, corpus, state, approvedQuery, maxChars, on
   const noteId = useId();
   const labels = new Map((corpus?.topics ?? []).map((t) => [t.tag, t.label]));
   const closest = proposal.closest_topics.map((t) => labels.get(t) ?? t.replace(/_/g, " "));
-  const subject = proposal.searched_for || proposal.query;
+  // The rewritten query names what the user asked; the agent's own search wording can
+  // drift (D28), so prefer the rewrite whenever there is one.
+  const subject = proposal.query_source === "rewritten" ? proposal.query : proposal.searched_for || proposal.query;
   const trimmed = query.trim();
   const canSend = state === "actionable" && trimmed.length > 0 && trimmed.length <= maxChars;
 
@@ -55,7 +57,9 @@ export function FetchCard({ proposal, corpus, state, approvedQuery, maxChars, on
             if (canSend) onApprove(trimmed);
           }}
         >
-          <label className="fetch-label" htmlFor={inputId}>Search arXiv for</label>
+          <label className="fetch-label" htmlFor={inputId}>
+            Search arXiv for{proposal.query_source === "rewritten" && " (suggested from your question)"}
+          </label>
           <div className="fetch-row">
             <input
               id={inputId}

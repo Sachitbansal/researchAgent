@@ -258,11 +258,13 @@ actual mechanism, and is what the *not in corpus* eval category tests.
 `coverage_gap` hint: the best score, the closest held topics, whether the call was
 filtered, and `suggested_next` (`rephrase` | `propose_fetch`). The agent acts on it by
 prompt rule. It rewords once, or describes the gap and never fetches on its own. The loop
-derives a `fetch_proposal` from the run's last *unfiltered* retrieval, and the UI turns it
+derives a `fetch_proposal` from the run's last *unfiltered* retrieval. One small LLM call
+rewrites the user's question into the proposal's keyword query, because the agent's own
+queries drift, and the agent's query is the fallback (D28). The UI turns the proposal
 into a **Fetch papers** button. The click comes back as `approve_fetch`, a thread turn
 worded by `src/prompts/fetch_approval.md`. Only then does the agent call
 `search_literature`, whose admission gate scores abstracts before anything is downloaded
-(`docs/DECISIONS.md` D14–D18, D24–D27).
+(`docs/DECISIONS.md` D14–D18, D24–D28).
 
 **Neighbor expansion.** Adjacent chunks (`±1` within the same paper) are attached to
 selected chunks, recovering information severed at chunk boundaries without

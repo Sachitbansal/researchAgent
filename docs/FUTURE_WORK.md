@@ -54,17 +54,10 @@ Both are measured, and both are thin. Distance below the gate does not separate 
 wording" from "missing literature": the one answerable miss sits further down than four
 absent topics. So the margin is held under the nearest absent miss (0.27 logits) rather
 than fitted. The admission gate separates topic-shaped queries perfectly on 11 + 11
-pairs, but question-shaped queries lose 38% of their positives at the chosen −3.0. If
-phase 2 hands `search_literature` long questions, either the proposed query should be
-condensed to a topic phrase first or the threshold re-swept on that shape.
-
-The proposed query also drifts. It is the last unfiltered retrieve's query, and the agent's
-rewordings can lose the point of the question. In the phase-2 end-to-end check, "How do
-recent methods quantize vision transformers to 4 bits after training?" proposed
-`vision image classification transformer ViT`, without "quantization". Fetched unedited,
-that would have admitted generic ViT papers, since the admission gate scores against the
-same query. The fetch worked only because the query was edited in the card first. One fix
-is to propose the condensed subject of the *question*, not the last query.
+pairs, but question-shaped queries lose 38% of their positives at the chosen −3.0. The
+proposed query is now condensed to a keyword phrase from the user's question (D28), but a
+user who edits the card into a full question still meets that loss. Both values are
+confirmed by the user, and neither has been re-measured on more data.
 
 ## Rephrase vs. fetch is still a hint the model follows
 
