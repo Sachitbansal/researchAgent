@@ -8,7 +8,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import * as api from "./api";
 import type {
-  AnswerEvent, AssistantMessage, Chat, Corpus, FailedEvent, Message, Paper, Step, StoredTurn, ThreadEvent, ThreadSummary,
+  AnswerEvent, AssistantMessage, Chat, Corpus, FailedEvent, MemoryReport, Message, Paper, Step, StoredTurn, ThreadEvent,
+  ThreadSummary,
 } from "./types";
 import { Sidebar } from "./components/Sidebar";
 import { ChatView } from "./components/ChatView";
@@ -57,6 +58,7 @@ function turnMessages(turn: StoredTurn): Message[] {
       error: s.error ? { error: s.error, detail: s.detail ?? "" } : undefined,
       elapsed_ms: s.elapsed_ms,
       notes: turn.notes ?? [],
+      memory: s.memory,
       ts: turn.created_at,
     },
   ];
@@ -102,6 +104,8 @@ export function App() {
   const [tab, setTab] = useState<InspectorTab>("calls");
   const [highlight, setHighlight] = useState<string | null>(null);
   const [cite, setCite] = useState<CiteTarget | null>(null);
+  // Bumped after every run, so the Memory tab re-reads the long-term list (D19).
+  const [memoryVersion, setMemoryVersion] = useState(0);
   // Only the theme choice is kept in the browser (docs/DECISIONS.md, D8). Chats are kept
   // by the server.
   const [theme, setTheme] = useState<Theme>(readTheme);
@@ -267,6 +271,9 @@ export function App() {
         } else if (event === "failed") {
           const f = data as FailedEvent;
           finish({ status: "failed", content: f.answer ?? "", error: { error: f.error, detail: f.detail }, stats: { run_id: f.run_id } });
+        } else if (event === "memory") {
+          // After the answer: what long-term memory wrote from it. Also stored on the turn.
+          if (final) final = { ...final, memory: data as MemoryReport };
         }
       });
     } catch (e) {
@@ -296,6 +303,7 @@ export function App() {
       setNotice(final ? `The question was not run: ${final.error?.detail || final.error?.error}` : "The question was not run.");
     }
     setRun(null);
+    setMemoryVersion((v) => v + 1);
     if (papersAdded) loadCorpus();
   }, [threadId, loadCorpus, loadThread, loadThreads]);
 
@@ -425,6 +433,8 @@ export function App() {
           tab={tab}
           setTab={setTab}
           highlight={highlight}
+          memoryVersion={memoryVersion}
+          onShowSource={showInSources}
           onClose={() => setInspectorOpen(false)}
         />
       )}

@@ -443,8 +443,9 @@ def _calls(tree):
 
 
 def test_the_eval_harness_never_runs_inside_a_thread():
-    """Eval questions must each be answered alone: no store handed to the loop, no thread
-    passed to run, and no thread module imported, anywhere under eval/."""
+    """Eval questions must each be answered alone: no store or long-term memory handed to
+    the loop, no thread passed to run, no memory written, and no thread or memory module
+    imported, anywhere under eval/ (D12, D19)."""
     files = sorted((ROOT / "eval").glob("*.py"))
     assert any(f.name == "runner.py" for f in files)
     for path in files:
@@ -454,10 +455,15 @@ def test_the_eval_harness_never_runs_inside_a_thread():
             keywords = {k.arg for k in node.keywords}
             if name == "AgentLoop":
                 assert "store" not in keywords, f"{path.name} gives AgentLoop a store"
+                assert "memory" not in keywords, f"{path.name} gives AgentLoop long-term memory"
                 assert len(node.args) < 6, f"{path.name} passes AgentLoop a positional store"
             if name == "run":
                 assert "thread_id" not in keywords, f"{path.name} passes run a thread_id"
-        assert "memory.threads" not in source and "ThreadStore" not in source, path.name
+            assert name not in ("remember", "after_run", "recall", "build_long_term_memory"), \
+                f"{path.name} calls long-term memory ({name})"
+        for banned in ("memory.threads", "ThreadStore", "memory.longterm", "LongTermMemory",
+                       "memory.memory_store", "MemoryStore"):
+            assert banned not in source, f"{path.name} mentions {banned}"
 
 
 # ===================================================================== seen = still visible

@@ -79,6 +79,11 @@ def run_split(
                 if chunk_id not in retrieved:
                     retrieved.append(chunk_id)
         papers = [c.rsplit("__c", 1)[0] for c in retrieved]
+        # Chunks injected from long-term memory are in view too, so a citation of one
+        # resolves (D19). Eval runs are never in a thread, so this is always empty here;
+        # it is kept so the rule holds if that ever changes. Recall is not credited.
+        in_view = retrieved + [c for c in ((result.get("memory_injected") or {}).get("chunk_ids") or [])
+                               if c not in retrieved]
         gold = question["gold_chunk_ids"]
         answer = result["answer"]
 
@@ -98,7 +103,7 @@ def run_split(
             "gold_paper_hit": any_gold_paper_hit(papers, question["gold_paper_ids"]),
             "fact_coverage": coverage["ratio"],
             "facts_covered": f"{coverage['covered']}/{coverage['total']}",
-            "citations": count_citations(answer, retrieved),
+            "citations": count_citations(answer, in_view),
             "expect_fetch_proposal": question.get("expect_fetch_proposal"),
             "fetch_proposal": result.get("fetch_proposal"),
             "fetch_proposed": proposed,

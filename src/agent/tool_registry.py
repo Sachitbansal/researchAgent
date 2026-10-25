@@ -160,6 +160,7 @@ def build_full_registry(
     retriever=None,
     config: Config = CFG,
     client=None,
+    nli=None,
 ) -> "ToolRegistry":
     """All five tools, per docs/TOOLS.md.
 
@@ -199,6 +200,7 @@ def build_full_registry(
     registry.register(
         "check_evidence_consistency",
         CHECK_CONSISTENCY_PARAMETERS,
-        ConsistencyChecker(config, client=client).check,
+        # `nli` lets a caller share one loaded NLI model with long-term memory (D19).
+        ConsistencyChecker(config, client=client, nli=nli).check,
     )
     return registry

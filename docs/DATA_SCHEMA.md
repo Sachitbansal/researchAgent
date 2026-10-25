@@ -5,7 +5,7 @@ described here, it does not exist. Every module reads and writes these shapes �
 not invent local variants.
 
 All ids are strings. All timestamps are ISO 8601 UTC, except in the threads database
-(§9), which stores epoch seconds as SQLite `REAL` so it can sort by them.
+(§9, §10), which stores epoch seconds as SQLite `REAL` so it can sort by them.
 
 **Topic naming.** Three similar names appear across records and tool surfaces. They are
 not interchangeable, and the plural/singular distinction is load-bearing:
@@ -235,7 +235,8 @@ data/
     descriptions.json       # { "<image_hash>": "<description>" }
     arxiv_queries.json      # { "<sha256(topic)>": "<planned arxiv query>" }
     clusters.json           # { "<manifest_hash>": { /* cluster result */ } }
-  threads.sqlite3           # conversation threads (§9). Not a cache: deleting it deletes every chat
+  threads.sqlite3           # conversation threads (§9) and long-term memories (§10). Not a cache:
+                            # deleting it deletes every chat and everything remembered
 ```
 
 `embeddings.npy` is kept alongside the FAISS index because `analyze_corpus` needs raw
@@ -343,7 +344,8 @@ turns(
   answer      TEXT NOT NULL,      -- verbatim, citations included; "" if the run failed first
   stats_json  TEXT NOT NULL,      -- iterations, tool_calls, tool_call_counts, context_tokens,
                                   -- stopped_because, run_id, elapsed_ms, history_turns,
-                                  -- history_turns_dropped, history_tokens; error, detail if failed
+                                  -- history_turns_dropped, history_tokens; error, detail if failed;
+                                  -- memory: the long-term write report, merged in after the answer
   notes_json  TEXT NOT NULL,      -- ["retrieve_evidence(query=\"…\") → 5 chunks [id, …]", ...]
   steps_json  TEXT NOT NULL,      -- the loop's step events, results summarised as in a trace
                                   -- (§7), each with t_ms; redraws the page's timeline
@@ -357,3 +359,34 @@ turns(
 and `answer`. `steps_json` is only for redrawing, and the agent never sees it. Every
 write is one `BEGIN IMMEDIATE` transaction. A JSON column that will not parse comes back
 as its empty value rather than failing the whole thread.
+
+## 10. Long-term memories
+
+Same file, `memories` table, written only by `memory.memory_store.MemoryStore`
+(docs/DECISIONS.md D19, D20). `CREATE TABLE IF NOT EXISTS` on first open is the migration,
+so a threads file from before D19 gains the table and keeps its threads.
+
+```sql
+memories(
+  id                  TEXT PRIMARY KEY,  -- uuid4 hex, 32 chars; validated before any query
+  kind                TEXT NOT NULL,     -- 'finding' | 'preference'
+  text                TEXT NOT NULL,     -- the finding as remembered, naming its paper/method
+  chunk_ids_json      TEXT NOT NULL,     -- ["<chunk_id>", ...]; [] for a preference
+  content_hashes_json TEXT NOT NULL,     -- {"<chunk_id>": "<content_hash>"} when it was checked
+  embedding           BLOB NOT NULL,     -- float32 x embedding.dim, passage side (no query prefix)
+  source_thread_id    TEXT,              -- the chat it was found in; no foreign key, so
+                                         -- deleting the chat keeps the memory
+  source_question     TEXT NOT NULL,
+  created_at          REAL NOT NULL,     -- epoch seconds
+  last_used_at        REAL NOT NULL,     -- created, refreshed, or injected AND cited
+  use_count           INTEGER NOT NULL,  -- 1 at creation
+  invalidated_at      REAL,              -- superseded or stale
+  superseded_by       TEXT,              -- the newer memory that contradicted it
+  forgotten_at        REAL,              -- decay or user
+  forget_reason       TEXT               -- 'superseded' | 'stale' | 'decay' | 'user'
+)
+```
+
+A memory is active when both `invalidated_at` and `forgotten_at` are NULL. Only active rows
+are matched or injected. A row is hard-deleted `memory.purge_after_days` after it stops
+being active. A blob with the wrong length (after a model swap) is listed but never matched.

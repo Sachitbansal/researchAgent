@@ -346,6 +346,57 @@ analysis:
   cluster_k_range: [2, 8]   # silhouette score picks k within this range
   tfidf_top_terms: 8        # terms used to label each cluster
 
+# ---- long-term research memory (docs/DECISIONS.md D19-D22) -----------------------------
+# Grounded findings and explicit preferences remembered ACROSS chats, in the memories
+# table of paths.threads_db. Only thread runs read or write it; thread_id=None (the eval,
+# plain `ask`) never does. MEASURED values come from scripts/tune_memory.py ->
+# eval/results/memory_thresholds.json: 12 cited eval answers, 93 extracted claims, 32 of
+# them NLI-entailed, one LLM paraphrase and one contradicting swap per entailed claim. Small
+# samples (32 pairs, 496 distinct pairs, 11 questions): every one needs user confirmation.
+memory:
+  enabled: true
+  # -- reading: injected at a thread run's start, before the question
+  inject_k: 4               # at most this many findings per run (brief: 3-5)
+  inject_min_cosine: 0.60   # MEASURED. Question (WITH the BGE query prefix) vs memory
+                            # (passage side). A question's best own claim cleared 0.55 / 0.60
+                            # / 0.65 / 0.70 for 11 / 6 / 2 / 2 of 11 questions; claims from the
+                            # other answers cleared them 52% / 25% / 9% / 4% of the time. The
+                            # corpus is narrow, so the two overlap. 0.60 favours recall: a
+                            # wrong injection costs tokens (the block says verify first), a
+                            # missed one loses the memory.
+  inject_tokens: 2500       # the block's own budget, counted like the context. A finding is
+                            # added whole (text + every passage) or not at all.
+  passage_chars: 1200       # each attached chunk is clipped to this before injection
+  max_preferences: 5        # active preferences, newest first, injected every thread run
+  # -- writing: after the answer, NLI-entailed findings only
+  max_findings: 12          # findings kept from one extraction call
+  premise_sentences_per_chunk: 64
+                            # candidate premises per cited chunk for the grounding check.
+                            # Not nli.max_sentences_per_chunk (8): NLI still scores only the
+                            # premises_per_claim most similar, so this costs embeddings, not
+                            # NLI pairs, and the supporting sentence was past the 8th in the
+                            # first smoke answer (sentences 9-11 of a 12-sentence chunk).
+  duplicate_cosine: 0.85    # MEASURED. Claim vs memory, both passage side: refresh, don't add.
+                            # Paraphrases: min 0.66, median 0.86, 18/32 at or above 0.85.
+                            # Distinct claims: 0 of 496 pairs above 0.85 (max 0.85). Swaps
+                            # (contradictions) sit HIGHER, median 0.91, 28/32 above 0.85: so
+                            # a contradiction is checked first and wins over a refresh (D22).
+  related_cosine: 0.80      # MEASURED. At or above: NLI both ways. 31/32 swaps are >= 0.80;
+                            # 8 of 496 distinct pairs reach it.
+  max_conflict_checks: 5    # nearest related memories NLI-checked per new claim
+  contradiction_threshold: 0.6   # nli.contradiction_threshold's value, reused
+  contradiction_both_directions: true
+                            # MEASURED. Both directions caught 27/32 swaps (either: 27/32 too)
+                            # and falsely flagged 0 of the 8 distinct pairs >= 0.80, 2 of 30
+                            # >= 0.75 (either: 0 of 8, 6 of 30). 0 of 32 paraphrases flagged
+                            # (either: 2 of 32).
+  # -- forgetting (D20). strength = (1 + ln(use_count)) * 0.5 ** (days_unused / half_life)
+  half_life_days: 30        # TENTATIVE (Claude), user to confirm
+  max_active: 500           # TENTATIVE: findings over this, weakest first, are forgotten
+  min_strength: 0.125       # TENTATIVE: = 0.5 ** (90 / 30), so a finding used once and
+                            # untouched for 90 days falls below it (forgetting.min_strength_for)
+  purge_after_days: 180     # TENTATIVE: forgotten/invalidated rows are hard-deleted after this
+
 agent:
   max_calls_per_tool: 10    # Each tool may be DISPATCHED at most this many times per
                             # question. Replaces the old global max_iterations: 8, which a

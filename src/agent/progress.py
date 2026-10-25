@@ -126,6 +126,12 @@ class ConsoleReporter:
         elif kind == "answering":
             self._close_line()
             self._write(f"{tag} answering")
+        elif kind == "memory":
+            self._close_line()
+            found = len(event.get("memories") or [])
+            prefs = len(event.get("preferences") or [])
+            self._write(f"{tag} ↳ recalled {_plural(found, 'finding')} and "
+                        f"{_plural(prefs, 'preference')} from earlier chats")
         elif kind == "cap":
             self._close_line()
             why = CAP_REASONS.get(event.get("reason"), "loop stopped")

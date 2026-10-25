@@ -2,10 +2,11 @@
 The browser UI's HTTP API: the corpus, figure images, chat threads, one streamed question.
 
 In:  a builder returning (AgentLoop, Config), called once at startup; the loop's
-     ThreadStore (`loop.store`) holds the threads. Then HTTP requests.
+     ThreadStore (`loop.store`) holds the threads, its LongTermMemory (`loop.memory`) the
+     memories. Then HTTP requests.
 Out: a FastAPI app. POST /api/ask streams a `thread` frame, the loop's own events as SSE,
-     then the answer; the loop appends the turn to the thread (docs/DECISIONS.md D12).
-     Lives outside src/ and imports it, as eval/ does.
+     the answer, then a `memory` frame once memory is written (D12, D19). Memories are
+     listed and deleted under /api/memories. Lives outside src/ and imports it, as eval/.
 """
 
 from __future__ import annotations
@@ -175,6 +176,9 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
         app.state.config = config
         # One store, owned by the loop: the loop appends turns, these routes read them.
         app.state.store = getattr(loop, "store", None)
+        # Long-term memory: the loop reads and writes it; these routes list and delete.
+        app.state.memory = getattr(loop, "memory", None)
+        app.state.memory_store = getattr(app.state.memory, "store", None)
         yield
 
     app = FastAPI(title="sciagent", lifespan=lifespan)
@@ -253,6 +257,39 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             return _err(_store_status(result), result["error"], result.get("detail", ""))
         return result
 
+    # ---------------------------------------------------------------- long-term memory
+
+    def _memory_status(result: Dict[str, Any]) -> int:
+        return {"bad_memory_id": 400, "memory_not_found": 404}.get(result.get("error"), 503)
+
+    @app.get("/api/memories")
+    def list_memories(request: Request, all: int = 0) -> Any:  # noqa: A002 - the query name
+        """Active memories, most recently used first; `?all=1` adds the forgotten and
+        invalidated ones with their reasons. Strength is the decay score now (D20)."""
+        state = request.app.state
+        if state.memory_store is None:
+            return _err(503, "no_memory_store", "this server was started without long-term memory")
+        result = state.memory_store.list(include_inactive=bool(all))
+        if "error" in result:
+            return _err(503, result["error"], result.get("detail", ""))
+        memories = result["memories"]
+        strengths = {}
+        strength_of = getattr(state.memory, "strengths", None)
+        if callable(strength_of):
+            strengths = strength_of([m for m in memories if m.get("active")])
+        return {"memories": [{**m, "strength": strengths.get(m["id"])} for m in memories]}
+
+    @app.delete("/api/memories/{memory_id}")
+    def delete_memory(request: Request, memory_id: str) -> Any:
+        """Manual forget: soft, with reason `user`, never injected again (D20)."""
+        state = request.app.state
+        if state.memory_store is None:
+            return _err(503, "no_memory_store", "this server was started without long-term memory")
+        result = state.memory_store.forget_one(memory_id, "user")
+        if "error" in result:
+            return _err(_memory_status(result), result["error"], result.get("detail", ""))
+        return result
+
     # ---------------------------------------------------------------- ask
 
     def run_question(state: Any, question: str, thread_id: str,
@@ -261,8 +298,13 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
 
         The thread, not the response, owns the run: a browser that closes the tab ends
         the stream but not the question, which finishes (and writes its trace, as every
-        run does) before the agent is freed. Release comes before the last frames, so a
-        client that asks again the moment it sees `done` is never told the agent is busy.
+        run does) before the agent is freed.
+
+        Order (D19): the answer frame goes out first, then long-term memory is written,
+        still under the lock so the next question cannot read memory halfway through a
+        write, then the `memory` frame. Release comes before `done`, so a client that
+        asks again the moment it sees `done` is never told the agent is busy. A memory
+        failure is reported in its frame and never turns an answered run into a failure.
         """
         loop, config = state.loop, state.config
         text_chars = int(config.agent.trace_text_chars)
@@ -273,6 +315,7 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             push("step", step_payload(event, text_chars, figures_root, started))
 
         kind, payload = "failed", {"error": "loop_crashed", "detail": "the run did not finish", "answer": ""}
+        sent = False
         try:
             loop.on_event = on_event
             try:
@@ -286,10 +329,21 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
             finally:
                 loop.on_event = None
             kind, payload = final_event(result)
+            push(kind, payload)
+            sent = True
+            remember = getattr(loop, "remember", None)
+            if callable(remember):
+                try:
+                    report = remember(result)
+                except Exception as exc:  # remember is meant not to raise
+                    report = {"error": "memory_write_failed", "detail": f"{type(exc).__name__}: {exc}"}
+                if report is not None:
+                    push("memory", report)
         finally:
             state.running_thread = None
             state.lock.release()
-            push(kind, payload)
+            if not sent:
+                push(kind, payload)
             push("done", {})
             push(None, {})
 
@@ -300,7 +354,7 @@ def create_app(builder: Builder, dist_dir: Path = DEFAULT_DIST) -> FastAPI:
 
         Every question belongs to a thread (docs/DECISIONS.md D12). Without a thread_id a
         new one is created, named after the question, and the first frame says which.
-        Frames: `thread`, `step`*, `answer` | `failed`, `done`; or `busy`, `done`.
+        Frames: `thread`, `step`*, `answer` | `failed`, `memory`?, `done`; or `busy`, `done`.
         """
         question = body.question.strip()
         if not question:

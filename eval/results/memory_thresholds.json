@@ -1,0 +1,258 @@
+{
+ "answers": 12,
+ "grounded_claims": 32,
+ "variant_pairs": 32,
+ "grounding": {
+  "extracted": 93,
+  "uncited": 0,
+  "entailed": 32,
+  "entailed_without_floor": 34,
+  "best_premise_similarity_of_entailed_without_floor": {
+   "n": 34,
+   "min": 0.7304,
+   "p5": 0.7468,
+   "p10": 0.7626,
+   "p25": 0.7923,
+   "p50": 0.8478,
+   "p75": 0.9148,
+   "p90": 0.948,
+   "p95": 0.9663,
+   "max": 0.9924
+  },
+  "preferences_extracted": 0
+ },
+ "cosine": {
+  "paraphrase": {
+   "n": 32,
+   "min": 0.6584,
+   "p5": 0.7751,
+   "p10": 0.7984,
+   "p25": 0.8293,
+   "p50": 0.8649,
+   "p75": 0.9084,
+   "p90": 0.9202,
+   "p95": 0.9278,
+   "max": 0.9352
+  },
+  "contradiction_swap": {
+   "n": 32,
+   "min": 0.7696,
+   "p5": 0.8029,
+   "p10": 0.8466,
+   "p25": 0.881,
+   "p50": 0.9094,
+   "p75": 0.9422,
+   "p90": 0.9678,
+   "p95": 0.9685,
+   "max": 0.9701
+  },
+  "distinct_same_answer": {
+   "n": 48,
+   "min": 0.5118,
+   "p5": 0.5428,
+   "p10": 0.5757,
+   "p25": 0.6288,
+   "p50": 0.6877,
+   "p75": 0.7524,
+   "p90": 0.7884,
+   "p95": 0.8105,
+   "max": 0.839
+  },
+  "distinct_cross_answer": {
+   "n": 448,
+   "min": 0.3999,
+   "p5": 0.478,
+   "p10": 0.5001,
+   "p25": 0.5376,
+   "p50": 0.5908,
+   "p75": 0.6434,
+   "p90": 0.6904,
+   "p95": 0.7275,
+   "max": 0.85
+  },
+  "question_vs_own_claims": {
+   "n": 32,
+   "min": 0.4697,
+   "p5": 0.5153,
+   "p10": 0.5423,
+   "p25": 0.5761,
+   "p50": 0.5879,
+   "p75": 0.6396,
+   "p90": 0.6937,
+   "p95": 0.7019,
+   "max": 0.7925
+  },
+  "question_vs_best_own_claim": {
+   "n": 11,
+   "min": 0.5851,
+   "p5": 0.5854,
+   "p10": 0.5857,
+   "p25": 0.592,
+   "p50": 0.6067,
+   "p75": 0.6411,
+   "p90": 0.7098,
+   "p95": 0.7512,
+   "max": 0.7925
+  },
+  "question_vs_other_claims": {
+   "n": 352,
+   "min": 0.3776,
+   "p5": 0.442,
+   "p10": 0.4609,
+   "p25": 0.5016,
+   "p50": 0.5519,
+   "p75": 0.6,
+   "p90": 0.649,
+   "p95": 0.6796,
+   "max": 0.8067
+  }
+ },
+ "nli": {
+  "threshold": 0.6,
+  "swap_detected_both": 27,
+  "swap_detected_either": 27,
+  "paraphrase_flagged_both": 0,
+  "paraphrase_flagged_either": 2,
+  "of": 32,
+  "false_contradictions_distinct": {
+   "0.7": {
+    "pairs": 60,
+    "both": 8,
+    "either": 15,
+    "examples_both": [
+     [
+      "BiLLM introduces a residual approximation strategy to enhance 1-bit LLM performance.",
+      "ARB-LLM adopts an alternating refinement approach to better align binarized weights with their full-precision counterparts."
+     ],
+     [
+      "BiLLM introduces a residual approximation strategy to enhance 1-bit LLM performance.",
+      "PBS2P employs a theoretically-grounded element selection criterion based on second-order Taylor approximation, using the pruning score s_q = w²_q / [H⁻¹]qq to minimize error increase under second-order approximation."
+     ],
+     [
+      "Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+      "Sparse Mixture-of-Experts routing increases total model capacity while keeping per-token active compute low."
+     ],
+     [
+      "Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+      "Paper 2505_18232v4 (TRSP) argues that its two-stage regularization approach transfers knowledge from layers being removed to the remaining layers before pruning, so the model can maintain good language modeling capability without post-pruning fine-tuning."
+     ],
+     [
+      "Low-Resource MoE attributes the problem to the training data distribution during pre-training, where limited representation diversity forces specialized routing pathways to rely on restricted expert pools.",
+      "The same routing collapse signature was observed in Japanese Mixture-of-Experts (MoE) models, suggesting it generalizes across low-resource languages rather than being specific to any single linguistic structure."
+     ]
+    ]
+   },
+   "0.75": {
+    "pairs": 30,
+    "both": 2,
+    "either": 6,
+    "examples_both": [
+     [
+      "Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+      "Sparse Mixture-of-Experts routing increases total model capacity while keeping per-token active compute low."
+     ],
+     [
+      "Low-Resource MoE attributes the problem to the training data distribution during pre-training, where limited representation diversity forces specialized routing pathways to rely on restricted expert pools.",
+      "The same routing collapse signature was observed in Japanese Mixture-of-Experts (MoE) models, suggesting it generalizes across low-resource languages rather than being specific to any single linguistic structure."
+     ]
+    ]
+   },
+   "0.8": {
+    "pairs": 8,
+    "both": 0,
+    "either": 0,
+    "examples_both": []
+   },
+   "0.85": {
+    "pairs": 0,
+    "both": 0,
+    "either": 0
+   }
+  }
+ },
+ "swap_above": {
+  "0.8": 31,
+  "0.85": 28,
+  "0.9": 18,
+  "0.92": 14,
+  "0.95": 6
+ },
+ "paraphrase_above": {
+  "0.85": 18,
+  "0.88": 14,
+  "0.9": 11,
+  "0.92": 4,
+  "0.95": 0
+ },
+ "distinct_above": {
+  "0.85": 0,
+  "0.88": 0,
+  "0.9": 0,
+  "0.92": 0,
+  "0.95": 0
+ },
+ "question_best_own_above": {
+  "0.55": 11,
+  "0.6": 6,
+  "0.65": 2,
+  "0.7": 2
+ },
+ "question_own_above": {
+  "0.55": 27,
+  "0.6": 12,
+  "0.65": 6,
+  "0.7": 2
+ },
+ "question_other_above": {
+  "0.55": 183,
+  "0.6": 88,
+  "0.65": 33,
+  "0.7": 15
+ },
+ "examples": {
+  "lowest_paraphrase": [
+   [
+    0.658,
+    "Sparse Mixture-of-Experts routing increases total model capacity while keeping per-token active compute low.",
+    "The MoE architecture expands overall model parameters yet maintains minimal computational load for each processed token."
+   ],
+   [
+    0.774,
+    "Paper 2505_18232v4 (TRSP) explicitly states that it is retraining free after pruning.",
+    "In Paper 2505_18232v4 (TRSP), the authors clearly declare that their methodology requires no additional training once the pruning step is completed."
+   ],
+   [
+    0.776,
+    "Paper 2502_01705v4 states that structured pruning removes entire components to enhance efficiency but often causes performance drops, requiring retraining.",
+    "According to Paper 2502_01705v4, eliminating whole structural blocks improves efficiency yet typically degrades accuracy, necessitating additional training phases."
+   ]
+  ],
+  "highest_distinct": [
+   [
+    0.85,
+    "Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+    "This deep-layer routing collapse pattern generalizes across architectures and appears to be a recurring property of MoE systems trained on imbalanced corpora."
+   ],
+   [
+    0.839,
+    "Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+    "Low-Resource MoE attributes the problem to the training data distribution during pre-training, where limited representation diversity forces specialized routing pathways to rely on restricted expert pools."
+   ],
+   [
+    0.838,
+    "Low-Resource MoE notes that the collapse pattern generalizes across typologically unrelated languages like Hebrew and Japanese, indicating it stems from pre-training underrepresentation rather than language-specific properties.",
+    "The same routing collapse signature was observed in Japanese Mixture-of-Experts (MoE) models, suggesting it generalizes across low-resource languages rather than being specific to any single linguistic structure."
+   ],
+   [
+    0.823,
+    "In the second stage of TRSP, additional regularization is applied to the difference between layer inputs and outputs for layers with smaller weights, which forces important knowledge to be transferred to the remaining layers.",
+    "Paper 2505_18232v4 (TRSP) argues that its two-stage regularization approach transfers knowledge from layers being removed to the remaining layers before pruning, so the model can maintain good language modeling capability without post-pruning fine-tuning."
+   ],
+   [
+    0.821,
+    "Paper 2412_11629v1 (QPruner) says most real-time systems require dynamic adaptation, which means that the pruned model must be fine-tuned to improve performance.",
+    "Paper 2412_11629v1 (QPruner) says fine-tuning is often used to recover the accuracy of pruned models."
+   ]
+  ]
+ }
+}

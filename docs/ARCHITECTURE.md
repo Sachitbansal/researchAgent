@@ -292,6 +292,63 @@ its text is in context. Elision releases the chunks it hides, and a run starts f
 chunks visible in its conversation. History carries no chunk text, so that set is
 empty and dedup spans the current question in practice.
 
+### 7.2 Long-term memory (across chats)
+
+Grounded findings, and preferences the user stated explicitly, are remembered across
+chats (`docs/DECISIONS.md` D19, D20). `memory.longterm.LongTermMemory` does the work, on the
+`memories` table in `paths.threads_db` (`docs/DATA_SCHEMA.md` §10). It is not a tool, and it
+only runs for a thread run. With `thread_id=None` (the eval, a plain `ask`) nothing is read
+or written.
+
+**Write, after the answer.** `AgentLoop.remember(result)` runs after the answer has been
+sent (web: after the `answer` frame, still under the run lock, then a `memory` frame).
+It needs a non-empty answer from a run where `retrieve_evidence` passed the relevance gate
+at least once, so nothing is written from an abstention. Then:
+
+1. One `utility` call (`src/prompts/memory_extract.md`) returns atomic findings and any
+   explicit preferences. Each finding comes as `text`, which names its paper (this is what
+   is stored), plus `check`, the same assertion worded as the passage states it.
+2. A finding may rest only on chunks that the answer cites for it, that were in view this
+   run, and that still exist.
+3. NLI must label `check` **entailed** against its chunks' sentences. Premises are the
+   top `premises_per_claim` by similarity, at or above `min_pair_similarity`. Anything
+   else is dropped.
+4. Reconcile against the active memories without an LLM. The claim is embedded on the
+   passage side. Every memory at or above `related_cosine` is NLI-checked in both
+   directions. A confident contradiction supersedes the old memory. Otherwise, at or above
+   `duplicate_cosine`, the old memory is refreshed (recency reset, `use_count` + 1, new
+   chunks merged). Otherwise the claim is added.
+5. Sweep (see Forgetting below). A failure is reported in the frame and never fails the run.
+
+**Read, at run start.** The question is embedded **with** the BGE query prefix. The top
+`inject_k` active findings at or above `inject_min_cosine` are taken, each re-checked
+against current `content_hash`es (stale → invalidated, not shown). Active preferences
+are always included. They form one labelled user message (`memory_block.md`), placed
+after the history and before the question, within `inject_tokens`. Each finding goes in
+whole with its chunks' **text**, so the agent cites real `[chunk_id]`s. The block itself says
+the memories are leads and the chunks are the evidence (`system.md` is unchanged). There is still no sixth tool.
+
+**Injected chunks are evidence in view.** `Conversation` tracks the block's chunk ids, so
+they are in `visible_chunk_ids()` and the retriever starts with them seen (D13).
+Elision takes the block out like any old tool result and releases its chunks. The loop
+emits a `memory` step whose `result.chunks` are those passages, so stored steps, Sources
+and citation cards resolve them, and the eval's citation resolution unions
+`memory_injected.chunk_ids`.
+
+**Forgetting is automatic.** It happens in four ways:
+
+- *Superseded*: a contradicting newer finding.
+- *Stale*: a cited chunk's hash changed or the chunk is gone. Checked at read time, and in
+  the sweep.
+- *Decay and cap*: `strength = (1 + ln use_count) × 0.5^(days unused / half_life_days)`.
+  A finding is forgotten below `min_strength`, and the weakest go when there are more than
+  `max_active`. A "use" is injected **and** cited.
+- *Refresh*: re-finding a memory keeps it alive.
+
+The UI's delete is a manual override. Everything is soft (a timestamp plus a reason),
+never injected again, and hard-purged after `purge_after_days`. Preferences are exempt
+from decay and the cap.
+
 ## 8. ML / data-analysis components
 
 **1. NLI-based evidence checking** (`check_evidence_consistency`), in two modes:

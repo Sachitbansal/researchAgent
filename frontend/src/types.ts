@@ -4,7 +4,7 @@
    arrives as an extra field and is ignored rather than breaking the page. */
 
 export interface Step {
-  kind: string; // thinking | answering | skipped | tool_start | tool_end | image | cap
+  kind: string; // thinking | answering | skipped | tool_start | tool_end | image | cap | memory
   iteration?: number;
   tool_name?: string;
   args?: Record<string, unknown>;
@@ -14,6 +14,54 @@ export interface Step {
   image_path?: string;
   image_url?: string | null;
   t_ms?: number;
+  // kind "memory" only: what long-term memory injected at the run's start (D19). Its
+  // passages ride in result.chunks, like a retrieval's, so Sources and cards find them.
+  memories?: InjectedMemory[];
+  preferences?: { id: string; text: string }[];
+  stale?: string[];
+  tokens?: number;
+}
+
+export interface InjectedMemory {
+  id: string;
+  label: string; // m1, m2, ... as the agent saw them
+  text: string;
+  chunk_ids: string[];
+  score: number;
+  use_count?: number;
+}
+
+/* What the writer did after an answer: the `memory` frame, also kept in the turn's stats. */
+export interface MemoryReport {
+  written: { id: string; kind: string; text: string; chunk_ids: string[] }[];
+  refreshed: { id: string; kind: string; text: string; similarity: number; chunk_ids_added: string[]; matched: string }[];
+  invalidated: { id: string; kind: string; text: string; reason: string; superseded_by?: string }[];
+  used: { id: string; text: string }[];
+  forgotten: { id: string; reason: string; why?: string }[];
+  dropped?: { uncited?: number; ungrounded?: number };
+  skipped?: string;
+  error?: string;
+  detail?: string;
+  recall_error?: string;
+}
+
+/* A row of GET /api/memories. */
+export interface MemoryRecord {
+  id: string;
+  kind: "finding" | "preference";
+  text: string;
+  chunk_ids: string[];
+  use_count: number;
+  created_at: number;
+  last_used_at: number;
+  active: boolean;
+  forget_reason: string | null;
+  invalidated_at: number | null;
+  forgotten_at: number | null;
+  superseded_by: string | null;
+  source_thread_id: string | null;
+  source_question: string;
+  strength: number | null;
 }
 
 export interface Stats {
@@ -29,6 +77,7 @@ export interface Stats {
   history_turns?: number;
   history_turns_dropped?: number;
   history_tokens?: number;
+  memory?: MemoryReport;
   error?: string;
   detail?: string;
 }
@@ -51,6 +100,9 @@ export interface AssistantMessage {
   elapsed_ms?: number;
   // The one-line tool-call notes later questions in the thread are shown (D12).
   notes?: string[];
+  // What long-term memory wrote after this answer (D19): the live `memory` frame, then
+  // the copy stored in the turn's stats.
+  memory?: MemoryReport;
 }
 
 export type Message = UserMessage | AssistantMessage;
