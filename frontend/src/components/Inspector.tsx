@@ -1,13 +1,16 @@
 /* Right pane: how the selected answer was made — tool calls, sources, and memory.
-   In:  one assistant message (stored or live) and the corpus's papers.
+   In:  one assistant message (stored or live), the corpus's papers, and the long-term
+        memory list from the API (re-read whenever memoryVersion changes).
    Out: a turn-by-turn timeline of the loop's events with the run's final stats; the
-        passages the answer cites; and what this answer leaves in the chat's short-term
-        memory (its tool-call notes) and how much earlier history it was given. */
+        passages the answer cites; long-term memory (what was used in and written from
+        this answer, every active memory, the forgotten ones and why); and what this
+        answer leaves in the chat's short-term memory. */
 
-import { useEffect, useMemo, useRef, useState } from "react";
-import type { AssistantMessage, Paper, Step } from "../types";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import * as api from "../api";
+import type { AssistantMessage, MemoryRecord, MemoryReport, Paper, Step } from "../types";
 import { renderMarkdown } from "../markdown";
-import { argLine, excerpts, humanise, outcome, plural, secs, who } from "../format";
+import { argLine, excerpts, humanise, outcome, plural, relTime, secs, who } from "../format";
 import { Icon } from "../icons";
 
 export type InspectorTab = "calls" | "sources" | "memory";
@@ -21,6 +24,8 @@ interface Props {
   tab: InspectorTab;
   setTab: (t: InspectorTab) => void;
   highlight: string | null;
+  memoryVersion: number;
+  onShowSource: (chunk: string) => void;
   onClose: () => void;
 }
 
@@ -40,7 +45,7 @@ export function Inspector(p: Props) {
       {p.message && !p.isLatest && <div className="inspector-scope">Showing an earlier answer in this chat.</div>}
       <div className="inspector-body">
         {p.tab === "memory" ? (
-          <Memory message={p.message} sample={p.sample} />
+          <Memory message={p.message} sample={p.sample} version={p.memoryVersion} onShowSource={p.onShowSource} />
         ) : !p.message ? (
           <p className="quiet">Ask a question and each step the agent takes shows up here as it happens.</p>
         ) : p.tab === "calls" ? (
@@ -57,7 +62,7 @@ export function Inspector(p: Props) {
 
 type Row =
   | { type: "tool"; start: Step; end?: Step }
-  | { type: "skipped" | "image" | "cap" | "answering"; step: Step };
+  | { type: "skipped" | "image" | "cap" | "answering" | "memory"; step: Step };
 
 function groupByTurn(steps: Step[]): { iteration: number; t_ms?: number; rows: Row[] }[] {
   const turns: { iteration: number; t_ms?: number; rows: Row[] }[] = [];
@@ -79,7 +84,7 @@ function groupByTurn(steps: Step[]): { iteration: number; t_ms?: number; rows: R
         | undefined;
       if (open) open.end = s;
       else t.rows.push({ type: "tool", start: { ...s, kind: "tool_start" }, end: s });
-    } else if (s.kind === "skipped" || s.kind === "image" || s.kind === "cap" || s.kind === "answering") {
+    } else if (s.kind === "skipped" || s.kind === "image" || s.kind === "cap" || s.kind === "answering" || s.kind === "memory") {
       t.rows.push({ type: s.kind, step: s });
     }
   }
@@ -170,6 +175,22 @@ function TimelineRow({ row }: { row: Row }) {
       </div>
     );
   }
+  if (row.type === "memory") {
+    const n = s.memories?.length ?? 0;
+    const prefs = s.preferences?.length ?? 0;
+    return (
+      <div className="row is-memory"><span className="row-dot" />
+        <div className="row-main">
+          <span className="row-name">recalled from earlier chats</span>
+          <div className="row-out">
+            {[n ? plural(n, "finding") : "", prefs ? plural(prefs, "preference") : ""].filter(Boolean).join(", ")}
+            {s.result && Array.isArray((s.result as any).chunks) && (s.result as any).chunks.length
+              ? `, with ${plural((s.result as any).chunks.length, "passage")}` : ""}
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (row.type === "cap") {
     return (
       <div className="row is-cap"><span className="row-dot" />
@@ -243,6 +264,7 @@ function Sources({ message, papersById, highlight }: { message: AssistantMessage
               {r.chunks.map((c) => (
                 <li key={c} ref={c === highlight ? marked : undefined} className={`passage${c === highlight ? " is-marked" : ""}`}>
                   <code className="passage-id">{c}</code>
+                  {found.get(c)?.tool === "memory" && <span className="mem-tag">from memory</span>}
                   <p className="passage-text">
                     {found.get(c)?.text ? <mark>{found.get(c)!.text}…</mark> : <span className="quiet">No excerpt in this run's steps.</span>}
                   </p>
@@ -263,14 +285,222 @@ function Sources({ message, papersById, highlight }: { message: AssistantMessage
 
 // ------------------------------------------------------------------ memory
 
+const FORGET_REASON: Record<string, string> = {
+  superseded: "Replaced by a newer finding that contradicts it",
+  stale: "Its passage changed or left the index",
+  decay: "Faded: not used for a long time",
+  user: "Deleted by you",
+};
+
+const SKIPPED: Record<string, string> = {
+  abstained: "Nothing written: no retrieval passed the relevance check, so the answer rests on no evidence.",
+  no_new_retrieval: "Nothing written: this answer ran no new retrieval, so it found nothing new to remember.",
+  run_failed: "Nothing written: the run failed.",
+  empty_answer: "Nothing written: the answer is empty.",
+};
+
+/* Long-term memory across chats (D19, D20), then this chat's short-term notes (D12). */
+function Memory({ message, sample, version, onShowSource }: {
+  message: AssistantMessage | null; sample: boolean; version: number; onShowSource: (chunk: string) => void;
+}) {
+  const [all, setAll] = useState<MemoryRecord[] | null>(null);
+  const [listError, setListError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    try {
+      setAll(await api.listMemories(true));
+      setListError(null);
+    } catch (e) {
+      setListError(e instanceof api.ApiError ? e.detail : "The memory list could not be loaded.");
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!sample) load();
+  }, [sample, version, load]);
+
+  const remove = async (id: string) => {
+    setConfirming(null);
+    try {
+      await api.deleteMemory(id);
+    } catch (e) {
+      setListError(e instanceof api.ApiError ? `Not deleted: ${e.detail}` : "Not deleted.");
+    }
+    load();
+  };
+
+  const injected = message?.steps.find((s) => s.kind === "memory");
+  const active = (all ?? []).filter((m) => m.active);
+  const inactive = (all ?? []).filter((m) => !m.active);
+
+  return (
+    <div className="memory">
+      <h3>Across chats</h3>
+      <p>
+        Findings from earlier answers that their own passages support are remembered across chats. A later question
+        on the same subject is given the relevant ones with those passages, to check and cite. Unused memories fade,
+        and a newer finding that contradicts one replaces it.
+      </p>
+      {sample ? (
+        <p className="quiet small">Samples are fixtures and are never sent to the agent.</p>
+      ) : (
+        <>
+          {message && (
+            <>
+              <UsedInAnswer step={injected} report={message.memory} onShowSource={onShowSource} />
+              <WrittenFromAnswer message={message} />
+            </>
+          )}
+
+          <section className="mem-section">
+            <div className="detail-label">All memories{all ? ` (${active.length})` : ""}</div>
+            {listError && <p className="small mem-error">{listError}</p>}
+            {all === null && !listError && <p className="quiet small">Loading…</p>}
+            {all !== null && active.length === 0 && <p className="quiet small">None yet. Grounded findings are kept after each answer in a chat.</p>}
+            <ul className="mem-list">
+              {active.map((m) => (
+                <li key={m.id} className="mem-item">
+                  {confirming === m.id ? (
+                    <div className="confirm">
+                      <span>Forget this?</span>
+                      <button className="confirm-yes" onClick={() => remove(m.id)}>Forget</button>
+                      <button className="confirm-no" onClick={() => setConfirming(null)}>Keep</button>
+                    </div>
+                  ) : (
+                    <div className="mem-row">
+                      <div className="mem-body">
+                        <p className="mem-text">{m.text}</p>
+                        <div className="mem-meta">
+                          {m.kind === "preference" ? "Preference" : `Used ${m.use_count}×`}, last {relTime(m.last_used_at)}
+                          {m.strength != null && m.kind === "finding" && <span title="use weight × recency; below the config minimum it is forgotten"> · strength {m.strength.toFixed(2)}</span>}
+                        </div>
+                      </div>
+                      <button className="icon-btn mem-delete" onClick={() => setConfirming(m.id)} aria-label={`Forget: ${m.text}`}>
+                        <Icon name="trash" size={15} />
+                      </button>
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {inactive.length > 0 && (
+              <details className="mem-forgotten">
+                <summary>Forgotten ({inactive.length})</summary>
+                <ul className="mem-list">
+                  {inactive.map((m) => (
+                    <li key={m.id} className="mem-item is-gone">
+                      <p className="mem-text">{m.text}</p>
+                      <div className="mem-meta">
+                        {FORGET_REASON[m.forget_reason ?? ""] ?? humanise(m.forget_reason)}, {relTime(m.forgotten_at ?? m.invalidated_at ?? m.last_used_at)}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            )}
+          </section>
+        </>
+      )}
+
+      <h3 className="mem-short">In this chat</h3>
+      <ShortTerm message={message} sample={sample} />
+    </div>
+  );
+}
+
+function ChunkLinks({ ids, onShowSource }: { ids: string[]; onShowSource: (chunk: string) => void }) {
+  return (
+    <span className="mem-chunks">
+      {ids.map((c) => (
+        <button key={c} className="link-btn mem-chunk" onClick={() => onShowSource(c)} title="Show in Sources">{c}</button>
+      ))}
+    </span>
+  );
+}
+
+function UsedInAnswer({ step, report, onShowSource }: { step?: Step; report?: MemoryReport; onShowSource: (chunk: string) => void }) {
+  const memories = step?.memories ?? [];
+  const prefs = step?.preferences ?? [];
+  const used = new Set((report?.used ?? []).map((u) => u.id));
+  return (
+    <section className="mem-section">
+      <div className="detail-label">Used in this answer</div>
+      {!memories.length && !prefs.length ? (
+        <p className="quiet small">Nothing: no remembered finding was close enough to this question.</p>
+      ) : (
+        <ul className="mem-list">
+          {memories.map((m) => (
+            <li key={m.id} className="mem-item">
+              <p className="mem-text">{m.text}</p>
+              <div className="mem-meta">
+                <code>{m.label}</code> · {used.has(m.id) ? "cited, so it counts as a use" : report ? "given but not cited, so not a use" : "given to the agent"}
+              </div>
+              <ChunkLinks ids={m.chunk_ids} onShowSource={onShowSource} />
+            </li>
+          ))}
+          {prefs.map((p) => (
+            <li key={p.id} className="mem-item">
+              <p className="mem-text">{p.text}</p>
+              <div className="mem-meta">Preference you stated earlier</div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function WrittenFromAnswer({ message }: { message: AssistantMessage }) {
+  const r = message.memory;
+  const rows: { tag: string; text: string; ids?: string[]; tone?: string }[] = [];
+  for (const w of r?.written ?? []) rows.push({ tag: w.kind === "preference" ? "New preference" : "New", text: w.text, ids: w.chunk_ids });
+  for (const f of r?.refreshed ?? []) rows.push({ tag: "Seen again", text: f.text, ids: f.chunk_ids_added });
+  for (const i of r?.invalidated ?? []) rows.push({ tag: "Replaced", text: i.text, tone: "is-gone" });
+  const dropped = (r?.dropped?.ungrounded ?? 0) + (r?.dropped?.uncited ?? 0);
+  return (
+    <section className="mem-section">
+      <div className="detail-label">Written from this answer</div>
+      {message.status === "running" ? (
+        <p className="quiet small">Written once the answer is finished.</p>
+      ) : !r ? (
+        <p className="quiet small">Nothing recorded for this answer.</p>
+      ) : (
+        <>
+          {r.error && <p className="small mem-error">Memory was not updated: {r.detail || humanise(r.error)}</p>}
+          {r.skipped && <p className="quiet small">{SKIPPED[r.skipped] ?? humanise(r.skipped)}</p>}
+          {!r.skipped && !r.error && rows.length === 0 && <p className="quiet small">Nothing new: no claim in this answer was both cited and supported by its passage.</p>}
+          {rows.length > 0 && (
+            <ul className="mem-list">
+              {rows.map((row, i) => (
+                <li key={i} className={`mem-item ${row.tone ?? ""}`}>
+                  <p className="mem-text"><span className="mem-tag">{row.tag}</span>{row.text}</p>
+                  {row.ids && row.ids.length > 0 && <div className="mem-meta"><code>{row.ids.join(" ")}</code></div>}
+                </li>
+              ))}
+            </ul>
+          )}
+          {dropped > 0 && (
+            <p className="quiet small">
+              {plural(dropped, "claim")} left out: {r.dropped?.ungrounded ? `${r.dropped.ungrounded} not supported by the passage it cites` : ""}
+              {r.dropped?.ungrounded && r.dropped?.uncited ? ", " : ""}
+              {r.dropped?.uncited ? `${r.dropped.uncited} without a citation to a passage this answer had` : ""}.
+            </p>
+          )}
+          {(r.forgotten?.length ?? 0) > 0 && <p className="quiet small">{plural(r.forgotten.length, "older memory", "older memories")} forgotten in the sweep after this answer.</p>}
+        </>
+      )}
+    </section>
+  );
+}
+
 /* Short-term memory, per chat (docs/DECISIONS.md D12). What a later question in this
    chat is sent from this answer: the question, the answer, and these notes. */
-function Memory({ message, sample }: { message: AssistantMessage | null; sample: boolean }) {
+function ShortTerm({ message, sample }: { message: AssistantMessage | null; sample: boolean }) {
   const notes = message?.notes ?? [];
   const s = message?.stats ?? {};
   return (
-    <div className="memory">
-      <h3>What later questions see</h3>
+    <>
       <p>
         Each new question in this chat is sent with the earlier questions and answers, and a one-line note for each tool
         call. The passages themselves are not carried over, so the agent retrieves them again. Once the history passes its
@@ -300,7 +530,6 @@ function Memory({ message, sample }: { message: AssistantMessage | null; sample:
           )}
         </>
       )}
-      <p className="quiet small">Nothing is remembered from one chat to another.</p>
-    </div>
+    </>
   );
 }

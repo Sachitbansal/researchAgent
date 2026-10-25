@@ -182,6 +182,12 @@ python main.py threads                    # id, turns, last updated, title
 Threads live in `data/threads.sqlite3`, shared with the browser UI, so a chat started in
 one can be continued in the other. The eval never uses them.
 
+A thread run also uses **long-term memory** (`docs/ARCHITECTURE.md` §7.2). After the answer,
+the claims it cites that NLI finds entailed by their passages are remembered, along with
+preferences you stated outright ("only papers from 2024 onward"). A later chat on the same
+subject is given the relevant ones with their passages, to check and cite. Memories fade
+when unused and are replaced when contradicted. `ask` prints a `--- memory:` line.
+
 While it runs, each step is printed to **stderr** as it happens — the model thinking,
 every tool call with its arguments, what came back and how long it took:
 
@@ -276,9 +282,12 @@ answer, live while it runs. For each call it shows the tool, its arguments, what
 (expandable to the summarised result) and how long it took, plus skipped calls and stops.
 It ends with the run's stats: turns, tool calls, context tokens, why it stopped, and the
 trace's run id. *Sources* lists the cited passages per paper, as retrieval returned them.
-It also shows how many earlier turns were sent with the question. *Memory* shows what a later
-question in the chat will be shown from the selected answer: its tool-call notes. Nothing
-carries over between chats. On narrow screens the panel becomes a drawer.
+It also shows how many earlier turns were sent with the question. *Memory* has two parts. *Across chats* lists the long-term memories used in the selected
+answer, each with its chunk citations and whether it was cited, and those written from it
+(new, seen again, replaced). Below them are every active memory, with uses, when last
+used, strength and a delete button, and a collapsed *Forgotten* list giving why each one
+went. *In this chat* is the short-term part: the tool-call notes a later question in this
+chat is shown. On narrow screens the panel becomes a drawer.
 
 It needs Python, the models and an index, so it cannot be hosted as a static site. Run it
 on the machine that has the corpus. It holds one agent and answers one question at a time.
@@ -295,8 +304,10 @@ Nothing in `src/` knows either exists: the system being evaluated is still the C
 
 API, for reference: `GET /api/papers` (the corpus); `POST /api/ask` with
 `{"question": ..., "thread_id"?: ...}` (SSE: `thread` first, naming the chat, which is new if
-no `thread_id` was sent; then `step`…, then `answer` or `failed`, then `done`; or else
+no `thread_id` was sent; then `step`…, then `answer` or `failed`, then `memory`
+`{written, refreshed, invalidated, used, forgotten, dropped}`, then `done`; or else
 `busy`, `done`); `GET`/`POST /api/threads`; `GET`/`DELETE /api/threads/<id>`;
+`GET /api/memories` (`?all=1` adds the forgotten, with reasons); `DELETE /api/memories/<id>`;
 `GET /api/figures/<paper_id>/<file>`; and `GET /api/status`.
 
 ## Results in brief
@@ -343,7 +354,7 @@ src/
   retrieval/           embedder, FAISS index, indexer, cross-encoder reranker
   tools/               the five agent-facing tools
   agent/               tool registry, conversation, trace, the loop
-  memory/              threads in SQLite, and history building for a thread's next question
+  memory/              threads in SQLite, history for a thread's next question, long-term memory
   analysis/            NLI
   prompts/             system prompt, thread-history prompts and tool descriptions, as files
 eval/                  question set, annotation, metrics, tuning, ablation
@@ -375,7 +386,10 @@ produced it. The ones most worth knowing:
 | `agent.max_no_progress_turns` | 3 | consecutive turns with every call refused → forced final answer |
 | `agent.max_context_tokens` | 60000 | past this the oldest tool results are elided |
 | `agent.thread_history_tokens` | 9000 | budget for a thread's earlier turns; the oldest go first, whole, so history cannot crowd out new evidence |
-| `paths.threads_db` | `data/threads.sqlite3` | conversation threads, shared by the CLI and the browser UI |
+| `paths.threads_db` | `data/threads.sqlite3` | conversation threads and long-term memories, shared by the CLI and the browser UI |
+| `memory.inject_k` / `inject_min_cosine` / `inject_tokens` | 4 / 0.60 / 2500 | findings recalled per thread run, with their passages; cosine measured on 11 questions |
+| `memory.duplicate_cosine` / `related_cosine` | 0.85 / 0.80 | refresh vs NLI conflict check; contradiction wins, because swaps sit closer than paraphrases |
+| `memory.half_life_days` / `min_strength` / `max_active` | 30 / 0.125 / 500 | decay: used once and unused for 90 days is forgotten. Tentative, user to confirm |
 | `nli.min_pair_similarity` | 0.75 | below it, NLI scores unrelated sentences as confident contradictions |
 
 Models are set per role (`agent_model`, `vision_model`, `utility_model`). The agent

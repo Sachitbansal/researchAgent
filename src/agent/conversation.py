@@ -1,11 +1,12 @@
 """
 The message array the loop re-sends on every call — the agent's working memory.
 
-In:  a system prompt, optional prior-turn messages (a thread's history), the user
-     question, assistant turns, and tool results.
+In:  a system prompt, optional prior-turn messages (a thread's history), an optional
+     memory block with the chunk ids it shows (long-term memory, D19), the user question,
+     assistant turns, and tool results.
 Out: `messages()`, the full conversation in provider wire format. Enforces the pairing
-     rules the API requires, and elides old tool content when the array outgrows budget,
-     reporting which chunk ids that took out of view (`last_released`).
+     rules the API requires, and elides old tool content (and the memory block) when the
+     array outgrows budget, reporting which chunk ids that took out of view.
 
 The provider is stateless. /chat/completions remembers nothing between requests, so the
 model "recalls" its own earlier tool call only because that call and its result are
@@ -16,11 +17,17 @@ from __future__ import annotations
 
 import copy
 import json
-from typing import Any, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence
 
 from common.tokenization import TokenCounter
 from config import CFG, Config
 from llm_client import LLMResponse, Message
+
+
+# What the memory block becomes once elided. Not a prompt to iterate on: a stand-in, like
+# the tool-result placeholder below.
+MEMORY_ELIDED = ("[earlier-chat memory elided: its {n} passage(s) are out of view and can be "
+                 "retrieved again]")
 
 
 class ConversationError(RuntimeError):
@@ -61,7 +68,8 @@ class Conversation:
     """
 
     def __init__(self, system_prompt: str, question: str, config: Config = CFG,
-                 history: Optional[Sequence[Message]] = None) -> None:
+                 history: Optional[Sequence[Message]] = None,
+                 memory_block: str = "", memory_chunk_ids: Sequence[str] = ()) -> None:
         self.config = config
         self.counter = TokenCounter(config)
         # Earlier turns of a thread go between the system prompt and the question, as
@@ -71,11 +79,16 @@ class Conversation:
         if any(m.get("role") not in ("user", "assistant") or m.get("tool_calls")
                for m in prior):
             raise ConversationError("history may hold only plain user/assistant messages")
-        self._messages: List[Message] = [
-            {"role": "system", "content": system_prompt},
-            *prior,
-            {"role": "user", "content": question},
-        ]
+        self._messages: List[Message] = [{"role": "system", "content": system_prompt}, *prior]
+        # Long-term memory (D19): one user message after the history and before the
+        # question, carrying earlier chats' findings with their chunks' text. It is
+        # evidence in view like a tool result, so its chunk ids count as visible and it
+        # is elided like one; but it is not a tool message, because no tool was called.
+        self._evidence: Dict[int, List[str]] = {}
+        if memory_block:
+            self._evidence[len(self._messages)] = [str(c) for c in memory_chunk_ids]
+            self._messages.append({"role": "user", "content": memory_block})
+        self._messages.append({"role": "user", "content": question})
         # Where this question starts. final_text() looks only after it, or a run that
         # fails before answering would report the previous turn's answer as its own.
         self._question_index = len(self._messages) - 1
@@ -124,10 +137,14 @@ class Conversation:
         text nor a way to get it back.
         """
         seen: List[str] = []
-        for message in self._messages:
-            if message.get("role") != "tool":
+        for index, message in enumerate(self._messages):
+            if index in self._evidence:
+                ids = self._evidence[index]
+            elif message.get("role") == "tool":
+                ids = _chunk_ids(message.get("content"))
+            else:
                 continue
-            for chunk_id in _chunk_ids(message.get("content")):
+            for chunk_id in ids:
                 if chunk_id not in seen:
                     seen.append(chunk_id)
         return seen
@@ -188,9 +205,17 @@ class Conversation:
         budget = int(self.config.agent.max_context_tokens)
         elided = 0
         released: List[str] = []
-        for message in self._messages:
+        for index, message in enumerate(self._messages):
             if self.token_estimate() <= budget:
                 break
+            if index in self._evidence:
+                # The memory block, oldest of all. Elided whole; its chunks are released.
+                if self._evidence[index]:
+                    released.extend(c for c in self._evidence[index] if c not in released)
+                    message["content"] = MEMORY_ELIDED.format(n=len(self._evidence[index]))
+                    self._evidence[index] = []
+                    elided += 1
+                continue
             if message.get("role") != "tool":
                 continue
             content = message.get("content")

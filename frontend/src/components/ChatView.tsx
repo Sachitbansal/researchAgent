@@ -91,7 +91,7 @@ export function ChatView(p: Props) {
         <p className="independence">
           {p.sample
             ? "Asking here starts a new chat. Samples are not sent to the agent."
-            : "The agent sees earlier questions and answers in this chat, and looks the passages up again."}
+            : "The agent sees this chat's earlier questions and answers, and checked findings from earlier chats with their passages."}
         </p>
       </div>
     </div>

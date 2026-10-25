@@ -1,0 +1,886 @@
+{
+ "extract:sp01": {
+  "findings": [
+   {
+    "text": "In \"Sparse Backpropagation for MoE Training\", SparseMixer-1st uses the forward Euler method to approximate the gradient term `g(πᵢfᵢ) − g(0)` as `g′(πᵢfᵢ) · πᵢfᵢ`, requiring only one expert's output.",
+    "check": "Uses the forward Euler method (first-order accuracy) to approximate the gradient term `g(πᵢfᵢ) − g(0)` as `g′(πᵢfᵢ) · πᵢfᵢ`, requiring only one expert's output.",
+    "chunk_ids": [
+     "2310_00811v1__c0012"
+    ]
+   },
+   {
+    "text": "In \"Sparse Backpropagation for MoE Training\", SparseMixer-2nd employs the mid-point method, a second-order ODE solver, which achieves higher accuracy without needing Hessian matrices or other second-order derivatives.",
+    "check": "Employs the mid-point method, a second-order ODE solver, which achieves higher accuracy without needing Hessian matrices or other second-order derivatives.",
+    "chunk_ids": [
+     "2310_00811v1__c0014"
+    ]
+   },
+   {
+    "text": "In \"Sparse Backpropagation for MoE Training\", the final SparseMixer estimator blends both approaches depending on whether the sampled expert matches the argmax expert, closing the gap between training and inference distributions.",
+    "check": "The final SparseMixer estimator blends both approaches depending on whether the sampled expert matches the argmax expert, closing the gap between training and inference distributions.",
+    "chunk_ids": [
+     "2310_00811v1__c0015"
+    ]
+   },
+   {
+    "text": "In \"Sparse Backpropagation for MoE Training\", applying SparseMixer to Switch Transformer accelerates training convergence by up to 2× and enables MoE models to consistently outperform their dense counterparts.",
+    "check": "Applied to Switch Transformer, SparseMixer accelerates training convergence by up to 2× and enables MoE models to consistently outperform their dense counterparts.",
+    "chunk_ids": [
+     "2310_00811v1__c0003",
+     "2310_00811v1__c0032"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:sp02": {
+  "findings": [
+   {
+    "text": "Standard adapter-based fine-tuning methods such as LoRA and its Mixture-of-Experts variants introduce significant latency in multi-tenant settings.",
+    "check": "Standard adapter-based fine-tuning methods introduce significant latency in multi-tenant settings.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   },
+   {
+    "text": "These adapter-based methods require adding both LoRA modules and MoE routers to multiple linear modules across the Transformer layers.",
+    "check": "The method requires adding both LoRA modules and MoE routers to multiple linear modules across the Transformer layers.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   },
+   {
+    "text": "Evaluating numerous small adapter and router components at every forward pass creates substantial computational overhead when many tenants share a single base model.",
+    "check": "Evaluating these numerous small adapter and router components at every forward pass creates substantial computational overhead.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   },
+   {
+    "text": "A prompt-aware routing mechanism is proposed to avoid this bottleneck.",
+    "check": "A prompt-aware routing mechanism is proposed.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   },
+   {
+    "text": "The prompt-aware routing mechanism calculates the expert routing assignments just once before generating the first new token.",
+    "check": "The mechanism calculates the expert routing assignments just once before generating the first new token.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   },
+   {
+    "text": "The prompt-aware routing mechanism reuses those exact routing results for all subsequent tokens in the sequence.",
+    "check": "It reuses those exact routing results for all subsequent tokens in the sequence.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   },
+   {
+    "text": "Reusing the routing results eliminates redundant per-token routing computations and significantly reduces inference latency.",
+    "check": "This eliminates redundant per-token routing computations and significantly reduces inference latency.",
+    "chunk_ids": [
+     "2410_18035v1__c0002"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:sp03": {
+  "findings": [
+   {
+    "text": "SPBO progressively prunes a subset of elements at each step while jointly optimizing binarized parameters.",
+    "check": "The method progressively prunes a subset of elements at each step while jointly optimizing the binarized parameters.",
+    "chunk_ids": [
+     "2502_01705v4__c0002",
+     "2502_01705v4__c0005"
+    ]
+   },
+   {
+    "text": "Binarization reduces weights to a single bit (±1), representing the most extreme form of quantization.",
+    "check": "Binarization reduces weights to a single bit (±1), which represents the most extreme form of quantization.",
+    "chunk_ids": [
+     "2502_01705v4__c0011"
+    ]
+   },
+   {
+    "text": "Large language models suffer from high computational and memory costs that hinder deployment on resource-constrained devices.",
+    "check": "Large language models suffer from high computational and memory costs that hinder deployment on resource-constrained devices.",
+    "chunk_ids": [
+     "2502_01705v4__c0002"
+    ]
+   },
+   {
+    "text": "PBS2P achieves an average bit-width of just 0.8 bits while maintaining strong performance, enabling efficient LLM deployment on resource-limited devices.",
+    "check": "By combining binarization with semi-structured pruning, PBS2P achieves an average bit-width of just 0.8 bits while maintaining strong performance, enabling efficient LLM deployment on resource-limited devices.",
+    "chunk_ids": [
+     "2502_01705v4__c0045",
+     "2502_01705v4__c0007"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:mp01": {
+  "findings": [
+   {
+    "text": "TRSP applies two-stage regularization before pruning to preserve model performance without retraining.",
+    "check": "Two-stage regularization is applied before pruning to preserve model performance without retraining.",
+    "chunk_ids": [
+     "2505_18232v4__c0001"
+    ]
+   },
+   {
+    "text": "In the first stage of TRSP, learnable weights multiply transformer layer outputs while their ℓ1-norm is incorporated as a regularization term in the loss function.",
+    "check": "Learnable weights multiply transformer layer outputs while their ℓ1-norm is incorporated as a regularization term in the loss function.",
+    "chunk_ids": [
+     "2505_18232v4__c0004"
+    ]
+   },
+   {
+    "text": "In the second stage of TRSP, additional regularization is applied to the difference between layer inputs and outputs for layers with smaller weights, which forces important knowledge to be transferred to the remaining layers.",
+    "check": "Additional regularization is applied to the difference between layer inputs and outputs for layers with smaller weights, forcing important knowledge to be transferred to the remaining layers.",
+    "chunk_ids": [
+     "2505_18232v4__c0004"
+    ]
+   },
+   {
+    "text": "TRSP is explicitly described as \"retraining free after pruning\" and ensures the model can maintain good language modeling capability.",
+    "check": "The approach is retraining free after pruning and ensures the model can maintain good language modeling capability.",
+    "chunk_ids": [
+     "2505_18232v4__c0004",
+     "2505_18232v4__c0035"
+    ]
+   },
+   {
+    "text": "BiLLM introduces a residual approximation strategy to enhance 1-bit LLM performance.",
+    "check": "A residual approximation strategy is introduced to enhance 1-bit LLM performance.",
+    "chunk_ids": [
+     "2502_01705v4__c0004"
+    ]
+   },
+   {
+    "text": "ARB-LLM adopts an alternating refinement approach to better align binarized weights with their full-precision counterparts.",
+    "check": "An alternating refinement approach is adopted to better align binarized weights with their full-precision counterparts.",
+    "chunk_ids": [
+     "2502_01705v4__c0004"
+    ]
+   },
+   {
+    "text": "Post-training quantization techniques eliminate the need for gradient backpropagation, making them faster and less resource-demanding than Quantization-Aware Training, though generally resulting in lower accuracy.",
+    "check": "These techniques eliminate the need for gradient backpropagation, making them faster and less resource-demanding than Quantization-Aware Training, though generally resulting in lower accuracy.",
+    "chunk_ids": [
+     "2412_11629v1__c0026",
+     "2502_01705v4__c0009"
+    ]
+   },
+   {
+    "text": "PBS2P uses Stepwise Semi-structured Pruning with Binarization Optimization (SPBO), which progressively prunes a subset of elements at each step while jointly optimizing binarized parameters.",
+    "check": "A stepwise semi-structured pruning approach progressively prunes a subset of elements at each step while jointly optimizing binarized parameters.",
+    "chunk_ids": [
+     "2502_01705v4__c0002",
+     "2502_01705v4__c0015"
+    ]
+   },
+   {
+    "text": "Because simultaneous optimization of the pruning mask and binarized parameters is NP-hard, SPBO adopts a greedy-style approximation where a small portion of elements is pruned and then the binarized parameters are updated to fit the current pruning ratio.",
+    "check": "Because simultaneous optimization of the pruning mask and binarized parameters is NP-hard, a greedy-style approximation is adopted where a small portion of elements is pruned and then the binarized parameters are updated to fit the current pruning ratio.",
+    "chunk_ids": [
+     "2502_01705v4__c0015",
+     "2502_01705v4__c0017"
+    ]
+   },
+   {
+    "text": "This step-by-step strategy distributes optimization across multiple pruning stages, reducing cumulative error from both pruning and binarization.",
+    "check": "This step-by-step strategy distributes optimization across multiple pruning stages, reducing cumulative error from both pruning and binarization.",
+    "chunk_ids": [
+     "2502_01705v4__c0007",
+     "2502_01705v4__c0017"
+    ]
+   },
+   {
+    "text": "PBS2P employs a theoretically-grounded element selection criterion based on second-order Taylor approximation, using the pruning score s_q = w²_q / [H⁻¹]qq to minimize error increase under second-order approximation.",
+    "check": "A theoretically-grounded element selection criterion based on second-order Taylor approximation is employed, using the pruning score s_q = w²_q / [H⁻¹]qq to minimize error increase under second-order approximation.",
+    "chunk_ids": [
+     "2502_01705v4__c0022"
+    ]
+   },
+   {
+    "text": "The method also uses a Coarse-to-Fine Search where layer importance determines pruning ratios per layer, followed by a Hessian-based metric to identify the most redundant elements within each layer.",
+    "check": "A Coarse-to-Fine Search is used where layer importance determines pruning ratios per layer, followed by a Hessian-based metric to identify the most redundant elements within each layer.",
+    "chunk_ids": [
+     "2502_01705v4__c0002",
+     "2502_01705v4__c0007"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:mp02": {
+  "findings": [
+   {
+    "text": "MCF-MOE states that expert assignments exhibit extremely low cross-layer consistency and unstable semantic routing behavior because existing routers condition expert selection on shallow or isolated token representations.",
+    "check": "Expert assignments exhibit extremely low cross-layer consistency and unstable semantic routing behavior because existing routers condition expert selection on shallow or isolated token representations.",
+    "chunk_ids": [
+     "2607_16427v1__c0001",
+     "2607_16427v1__c0002"
+    ]
+   },
+   {
+    "text": "MCF-MOE locates the root cause in under-specified contextual representations, identifying context incompleteness as a bottleneck that limits effective expert specialization.",
+    "check": "The root cause is under-specified contextual representations, identifying context incompleteness as a bottleneck that limits effective expert specialization.",
+    "chunk_ids": [
+     "2607_16427v1__c0004"
+    ]
+   },
+   {
+    "text": "MCF-MOE argues that routers require multi-level contextual evidence, combining global cross-layer semantic alignment with local token-level stability, instead of relying on single-layer representations or compact memory states.",
+    "check": "Routers require multi-level contextual evidence, combining global cross-layer semantic alignment with local token-level stability, instead of relying on single-layer representations or compact memory states.",
+    "chunk_ids": [
+     "2607_16427v1__c0026"
+    ]
+   },
+   {
+    "text": "Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+    "check": "Pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.",
+    "chunk_ids": [
+     "2605_17598v1__c0000",
+     "2605_17598v1__c0021"
+    ]
+   },
+   {
+    "text": "Low-Resource MoE observes that this routing collapse manifests as reduced entropy, elevated Gini coefficients, and decreased cosine similarity across evaluation metrics.",
+    "check": "This routing collapse manifests as reduced entropy, elevated Gini coefficients, and decreased cosine similarity across evaluation metrics.",
+    "chunk_ids": [
+     "2605_17598v1__c0021"
+    ]
+   },
+   {
+    "text": "Low-Resource MoE attributes the problem to the training data distribution during pre-training, where limited representation diversity forces specialized routing pathways to rely on restricted expert pools.",
+    "check": "The problem is attributed to the training data distribution during pre-training, where limited representation diversity forces specialized routing pathways to rely on restricted expert pools.",
+    "chunk_ids": [
+     "2605_17598v1__c0021"
+    ]
+   },
+   {
+    "text": "Low-Resource MoE notes that the collapse pattern generalizes across typologically unrelated languages like Hebrew and Japanese, indicating it stems from pre-training underrepresentation rather than language-specific properties.",
+    "check": "The collapse pattern generalizes across typologically unrelated languages like Hebrew and Japanese, indicating it stems from pre-training underrepresentation rather than language-specific properties.",
+    "chunk_ids": [
+     "2605_17598v1__c0035",
+     "2605_17598v1__c0004"
+    ]
+   },
+   {
+    "text": "Bilingual MoE finds that without structured exposure, routing specialization concentrates heavily on a single language due to an initialization lottery where random seeds determine which language dominates.",
+    "check": "Without structured exposure, routing specialization concentrates heavily on a single language due to an initialization lottery where random seeds determine which language dominates.",
+    "chunk_ids": [
+     "2608_15102v2__c0001",
+     "2608_15102v2__c0003"
+    ]
+   },
+   {
+    "text": "Bilingual MoE clarifies that while the no-curriculum baseline shows strong aggregate specialisation, per-language analysis reveals it is actually a single-language phenomenon decided by the random seed.",
+    "check": "While the no-curriculum baseline shows strong aggregate specialisation, per-language analysis reveals it is actually a single-language phenomenon decided by the random seed.",
+    "chunk_ids": [
+     "2608_15102v2__c0019",
+     "2608_15102v2__c0020"
+    ]
+   },
+   {
+    "text": "Bilingual MoE demonstrates that staged L1–L2 exposure replaces the initialization lottery with a stable, language-balanced bilingual specialisation profile by reducing single-language dominance.",
+    "check": "Staged L1–L2 exposure replaces the initialization lottery with a stable, language-balanced bilingual specialisation profile by reducing single-language dominance.",
+    "chunk_ids": [
+     "2608_15102v2__c0003",
+     "2608_15102v2__c0026"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:mp03": {
+  "findings": [
+   {
+    "text": "Sparse Mixture-of-Experts routing papers select only a small subset of experts to process each input token via a router.",
+    "check": "Only a small subset of experts is selected to process each input token via a router.",
+    "chunk_ids": [
+     "2607_16427v1__c0001",
+     "2605_17598v1__c0002"
+    ]
+   },
+   {
+    "text": "Sparse Mixture-of-Experts routing increases total model capacity while keeping per-token active compute low.",
+    "check": "Total model capacity increases while per-token active compute stays low.",
+    "chunk_ids": [
+     "2605_17598v1__c0002"
+    ]
+   },
+   {
+    "text": "In Sparse Mixture-of-Experts routing, the memory footprint grows because all expert weights must be stored, but actual FLOPs per token drop proportionally to sparsity.",
+    "check": "The memory footprint grows because all expert weights must be stored, but actual FLOPs per token drop proportionally to sparsity.",
+    "chunk_ids": [
+     "2605_17598v1__c0002"
+    ]
+   },
+   {
+    "text": "Sparse Mixture-of-Experts routing papers improve token routing using techniques like multi-level context fusion, sparse backpropagation for training, or analyzing routing collapse in low-resource languages.",
+    "check": "Token routing is improved using techniques like multi-level context fusion, sparse backpropagation for training, or analyzing routing collapse in low-resource languages.",
+    "chunk_ids": [
+     "2607_16427v1__c0001",
+     "2310_00811v1__c0001",
+     "2605_17598v1__c0000"
+    ]
+   },
+   {
+    "text": "Structured pruning papers remove entire neurons, channels, or layers based on importance scores.",
+    "check": "Entire neurons, channels, or layers are removed based on importance scores.",
+    "chunk_ids": [
+     "2607_08027v1__c0002",
+     "2505_18232v4__c0005"
+    ]
+   },
+   {
+    "text": "LLM-Pruner identifies coupled neuron structures and eliminates them.",
+    "check": "Coupled neuron structures are identified and eliminated.",
+    "chunk_ids": [
+     "2412_11629v1__c0012"
+    ]
+   },
+   {
+    "text": "Some structured pruning methods use regularization to shift knowledge to preserved layers rather than directly deleting parameters.",
+    "check": "Regularization is used to shift knowledge to preserved layers rather than directly deleting parameters.",
+    "chunk_ids": [
+     "2505_18232v4__c0001"
+    ]
+   },
+   {
+    "text": "Quantization papers reduce the bit-width of remaining weights from 16-bit down to 8-bit, 4-bit, or 1-bit.",
+    "check": "The bit-width of remaining weights is reduced from 16-bit down to 8-bit, 4-bit, or 1-bit.",
+    "chunk_ids": [
+     "2502_01705v4__c0009",
+     "2412_11629v1__c0003"
+    ]
+   },
+   {
+    "text": "Many structured pruning and quantization papers combine both techniques by pruning first to reduce size, then quantizing the pruned model with layer-wise mixed precision.",
+    "check": "Both techniques are combined by pruning first to reduce size, then quantizing the pruned model with layer-wise mixed precision.",
+    "chunk_ids": [
+     "2412_11629v1__c0001",
+     "2506_18952v2__c0009"
+    ]
+   },
+   {
+    "text": "HOLA combines speculative decoding, which skips full-model verification for confident tokens, with Lo-Bi optimization, which uses pruning and quantization.",
+    "check": "Speculative decoding skips full-model verification for confident tokens, and Lo-Bi optimization uses pruning and quantization.",
+    "chunk_ids": [
+     "2506_18952v2__c0006",
+     "2506_18952v2__c0009"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:cf01": {
+  "findings": [
+   {
+    "text": "Paper 2502_01705v4 states that structured pruning removes entire components to enhance efficiency but often causes performance drops, requiring retraining.",
+    "check": "structured pruning removes entire components to enhance efficiency but often causes performance drops, requiring retraining",
+    "chunk_ids": [
+     "2502_01705v4__c0013"
+    ]
+   },
+   {
+    "text": "Paper 2412_11629v1 (QPruner) says most real-time systems require dynamic adaptation, which means that the pruned model must be fine-tuned to improve performance.",
+    "check": "most real-time systems require dynamic adaptation, which means that the pruned model must be fine-tuned to improve performance",
+    "chunk_ids": [
+     "2412_11629v1__c0008"
+    ]
+   },
+   {
+    "text": "Paper 2412_11629v1 (QPruner) says fine-tuning is often used to recover the accuracy of pruned models.",
+    "check": "fine-tuning is often used to recover the accuracy of pruned models",
+    "chunk_ids": [
+     "2412_11629v1__c0003"
+    ]
+   },
+   {
+    "text": "Paper 2505_18232v4 acknowledges that prior methods directly remove unimportant parameters based on certain metrics, which often causes knowledge loss and necessitates extensive retraining.",
+    "check": "prior methods directly remove unimportant parameters based on certain metrics, which often causes knowledge loss and necessitates extensive retraining",
+    "chunk_ids": [
+     "2505_18232v4__c0001"
+    ]
+   },
+   {
+    "text": "Paper 2505_18232v4 (TRSP) argues that its two-stage regularization approach transfers knowledge from layers being removed to the remaining layers before pruning, so the model can maintain good language modeling capability without post-pruning fine-tuning.",
+    "check": "its two-stage regularization approach transfers knowledge from layers being removed to the remaining layers before pruning, so the model can maintain good language modeling capability without post-pruning fine-tuning",
+    "chunk_ids": [
+     "2505_18232v4__c0004"
+    ]
+   },
+   {
+    "text": "Paper 2505_18232v4 (TRSP) explicitly states that it is retraining free after pruning.",
+    "check": "TRSP is retraining free after pruning",
+    "chunk_ids": [
+     "2505_18232v4__c0004"
+    ]
+   },
+   {
+    "text": "Paper 2505_18232v4 notes that while baselines were retrained with LoRA, it did not retrain TRSP.",
+    "check": "while baselines were retrained with LoRA, we did not retrain TRSP",
+    "chunk_ids": [
+     "2505_18232v4__c0018"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:cf02": {
+  "findings": [
+   {
+    "text": "The existing router design produces unstable and semantically inconsistent routing decisions across layers.",
+    "check": "Routing decisions are unstable and semantically inconsistent across layers.",
+    "chunk_ids": [
+     "2607_16427v1__c0001"
+    ]
+   },
+   {
+    "text": "Expert assignments show extremely low cross-layer consistency, leading to fragmented expert utilization and unstable specialization patterns.",
+    "check": "Expert assignments show extremely low cross-layer consistency, leading to fragmented expert utilization and unstable specialization patterns.",
+    "chunk_ids": [
+     "2607_16427v1__c0003"
+    ]
+   },
+   {
+    "text": "Conventional sparse routing yields unstable assignments and weak semantic alignment.",
+    "check": "Conventional sparse routing yields unstable assignments and weak semantic alignment.",
+    "chunk_ids": [
+     "2607_16427v1__c0006"
+    ]
+   },
+   {
+    "text": "Without explicit regularization, routing collapses into degenerate states in which a small subset of experts receives most tokens while others remain underutilized.",
+    "check": "Without explicit regularization, routing collapses into degenerate states in which a small subset of experts receives most tokens while others remain underutilized.",
+    "chunk_ids": [
+     "2605_17598v1__c0002"
+    ]
+   },
+   {
+    "text": "Excessive sparsity leads to representation collapse, where expert outputs become overly similar or dominated by a few experts.",
+    "check": "Excessive sparsity leads to representation collapse, where expert outputs become overly similar or dominated by a few experts.",
+    "chunk_ids": [
+     "2607_16427v1__c0003"
+    ]
+   },
+   {
+    "text": "Deep-layer routing collapse is observed in both Hebrew and Japanese, where usage entropy drops sharply in final layers and tokens concentrate among narrow subsets of experts.",
+    "check": "Deep-layer routing collapse is observed in both Hebrew and Japanese, where usage entropy drops sharply in final layers and tokens concentrate among narrow subsets of experts.",
+    "chunk_ids": [
+     "2605_17598v1__c0001",
+     "2605_17598v1__c0035"
+    ]
+   },
+   {
+    "text": "This deep-layer routing collapse pattern generalizes across architectures and appears to be a recurring property of MoE systems trained on imbalanced corpora.",
+    "check": "This pattern generalizes across architectures and appears to be a recurring property of MoE systems trained on imbalanced corpora.",
+    "chunk_ids": [
+     "2605_17598v1__c0004"
+    ]
+   },
+   {
+    "text": "Early evidence from GShard suggests experts can exhibit emergent specialization patterns, though these are not systematically characterized.",
+    "check": "Early evidence suggests experts can exhibit emergent specialization patterns, though these are not systematically characterized.",
+    "chunk_ids": [
+     "2605_17598v1__c0004"
+    ]
+   },
+   {
+    "text": "A bilingual MoE model develops category-dependent linguistic specialization, routing lexical, grammatical, and syntactic processing to different experts.",
+    "check": "A bilingual MoE model develops category-dependent linguistic specialization, routing lexical, grammatical, and syntactic processing to different experts.",
+    "chunk_ids": [
+     "2608_15102v2__c0001"
+    ]
+   },
+   {
+    "text": "Multi-level context fusion (MCF-MOE) achieves structured expert collaboration and task specialization with nonuniform co-occurrence patterns indicating meaningful grouping.",
+    "check": "Multi-level context fusion achieves structured expert collaboration and task specialization with nonuniform co-occurrence patterns indicating meaningful grouping.",
+    "chunk_ids": [
+     "2607_16427v1__c0022"
+    ]
+   },
+   {
+    "text": "Fine-tuning on better-represented data shifts expert selection from language-specific routing toward shared bilingual experts driven by functional specialization rather than language identity.",
+    "check": "Fine-tuning on better-represented data shifts expert selection from language-specific routing toward shared bilingual experts driven by functional specialization rather than language identity.",
+    "chunk_ids": [
+     "2605_17598v1__c0004"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:sp04": {
+  "findings": [
+   {
+    "text": "AdaPruner argues that randomly selected calibration data lacks representativeness and diversity, leading to inaccurate gradient information and flawed pruning strategies.",
+    "check": "Randomly selected calibration data lacks representativeness and diversity, leading to inaccurate gradient information and flawed pruning strategies.",
+    "chunk_ids": [
+     "2503_06184v1__c0003"
+    ]
+   },
+   {
+    "text": "AdaPruner states that the precision of the gradient used in Taylor expansion-based importance estimation is directly tied to the calibration data's quality, so subpar calibration data causes substantial performance degradation in pruned models.",
+    "check": "The precision of the gradient is directly tied to the calibration data's quality, so subpar calibration data causes substantial performance degradation in pruned models.",
+    "chunk_ids": [
+     "2503_06184v1__c0002"
+    ]
+   },
+   {
+    "text": "AdaPruner observes that different importance estimation metrics exhibit varying sensitivity to calibration data, so randomly chosen samples may be incompatible with the chosen metric, further undermining pruning decisions.",
+    "check": "Different importance estimation metrics exhibit varying sensitivity to calibration data, so randomly chosen samples may be incompatible with the chosen metric, further undermining pruning decisions.",
+    "chunk_ids": [
+     "2503_06184v1__c0004"
+    ]
+   },
+   {
+    "text": "In experiments, AdaPruner found that replacing adaptive calibration data selection with random selection caused an average performance drop of 0.71% across downstream tasks.",
+    "check": "Replacing adaptive calibration data selection with random selection caused an average performance drop of 0.71% across downstream tasks.",
+    "chunk_ids": [
+     "2503_06184v1__c0020"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:sp05": {
+  "findings": [
+   {
+    "text": "In Mixture-of-Experts (MoE) models for Hebrew, expert usage underwent deep-layer routing collapse in the final layers.",
+    "check": "Expert usage underwent deep-layer routing collapse in the final layers of Mixture-of-Experts (MoE) models.",
+    "chunk_ids": [
+     "2605_17598v1__c0000",
+     "2605_17598v1__c0052"
+    ]
+   },
+   {
+    "text": "Usage entropy in Hebrew Mixture-of-Experts (MoE) models dropped sharply as layers deepened, meaning tokens were no longer distributed broadly across experts.",
+    "check": "Usage entropy dropped sharply as layers deepened, meaning tokens were no longer distributed broadly across experts.",
+    "chunk_ids": [
+     "2605_17598v1__c0000",
+     "2605_17598v1__c0052"
+    ]
+   },
+   {
+    "text": "Tokens in Hebrew Mixture-of-Experts (MoE) models became increasingly concentrated among a narrow subset of experts, a pattern largely absent for English which maintained broad uniform routing throughout all layers.",
+    "check": "Tokens became increasingly concentrated among a narrow subset of experts, a pattern largely absent for English which maintained broad uniform routing throughout all layers.",
+    "chunk_ids": [
+     "2605_17598v1__c0000",
+     "2605_17598v1__c0052"
+    ]
+   },
+   {
+    "text": "The routing collapse in Hebrew Mixture-of-Experts (MoE) models manifested consistently across multiple metrics including reduced usage entropy, elevated Gini coefficients, and decreased cosine similarity between layers.",
+    "check": "The collapse manifested consistently across multiple metrics including reduced usage entropy, elevated Gini coefficients, and decreased cosine similarity between layers.",
+    "chunk_ids": [
+     "2605_17598v1__c0052"
+    ]
+   },
+   {
+    "text": "The authors characterize the routing collapse as a previously undocumented bottleneck that constrains Mixture-of-Experts models' capacity to process underrepresented languages.",
+    "check": "This is characterized as a previously undocumented bottleneck that constrains Mixture-of-Experts models' capacity to process underrepresented languages.",
+    "chunk_ids": [
+     "2605_17598v1__c0058"
+    ]
+   },
+   {
+    "text": "The same routing collapse signature was observed in Japanese Mixture-of-Experts (MoE) models, suggesting it generalizes across low-resource languages rather than being specific to any single linguistic structure.",
+    "check": "The same collapse signature was also observed in Japanese suggesting it generalizes across low-resource languages rather than being specific to any single linguistic structure.",
+    "chunk_ids": [
+     "2605_17598v1__c0000",
+     "2605_17598v1__c0052"
+    ]
+   },
+   {
+    "text": "Fine-tuning Mixture-of-Experts (MoE) models on data with greater representation of the target language substantially mitigated the routing collapse, restoring higher entropy and shifting routing toward shared bilingual experts.",
+    "check": "Fine-tuning on data with greater representation of the target language substantially mitigated this collapse restoring higher entropy and shifting routing toward shared bilingual experts.",
+    "chunk_ids": [
+     "2605_17598v1__c0052",
+     "2605_17598v1__c0058"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:mp04": {
+  "findings": [
+   {
+    "text": "HOLA combines Lo-Bi Optimization, Hierarchical Speculative Decoding (HSD), and AdaComp-RAG.",
+    "check": "This unified framework combines three synergistic modules targeting both internal inference and external retrieval efficiency.",
+    "chunk_ids": [
+     "2506_18952v2__c0001",
+     "2506_18952v2__c0004"
+    ]
+   },
+   {
+    "text": "Lo-Bi Optimization combines LoRA-based structured pruning with sensitivity-guided mixed-precision quantization, mapping subblocks of weights to 4-, 8-, or 16-bit precision to minimize reconstruction error under tight memory and bandwidth constraints.",
+    "check": "Combines LoRA-based structured pruning with sensitivity-guided mixed-precision quantization, mapping subblocks of weights to 4-, 8-, or 16-bit precision to minimize reconstruction error under tight memory and bandwidth constraints.",
+    "chunk_ids": [
+     "2506_18952v2__c0009"
+    ]
+   },
+   {
+    "text": "Over 70% of blocks converge to 8-bit precision while critical paths retain 16-bit fidelity.",
+    "check": "Over 70% of blocks converge to 8-bit precision while critical paths retain 16-bit fidelity.",
+    "chunk_ids": [
+     "2506_18952v2__c0024"
+    ]
+   },
+   {
+    "text": "Hierarchical Speculative Decoding (HSD) uses entropy-aware verification to accelerate autoregressive token generation, accepting tokens with entropy below threshold τ directly and verifying others with a higher-fidelity model, reducing verifier invocations from O(T) to O(k) where k≪T.",
+    "check": "Uses entropy-aware verification to accelerate autoregressive token generation. Tokens with entropy below a threshold τ are directly accepted; others are verified by a higher-fidelity model, reducing verifier invocations from O(T) to O(k) where k≪T.",
+    "chunk_ids": [
+     "2506_18952v2__c0007"
+    ]
+   },
+   {
+    "text": "AdaComp-RAG measures query complexity via gradient norms of the language modeling loss, invoking dense retrieval if complexity exceeds threshold δ, otherwise proceeding without augmentation to save memory.",
+    "check": "An adaptive retrieval system that measures query complexity via gradient norms of the language modeling loss. If complexity exceeds a threshold δ, dense retrieval is invoked; otherwise, the query proceeds without augmentation, saving memory.",
+    "chunk_ids": [
+     "2506_18952v2__c0007",
+     "2506_18952v2__c0029"
+    ]
+   },
+   {
+    "text": "On edge devices, HOLA achieves approximately 1.2 GB peak memory usage with high accuracy: 87.6% on GSM8K for Jetson Nano and 85.1% for Raspberry Pi 4.",
+    "check": "On edge devices, this framework achieves approximately 1.2 GB peak memory usage with high accuracy: 87.6% on GSM8K for Jetson Nano and 85.1% for Raspberry Pi 4.",
+    "chunk_ids": [
+     "2506_18952v2__c0032"
+    ]
+   },
+   {
+    "text": "Ablation confirms each module contributes measurably—removing Lo-Bi increases memory to 947 MB and latency, while disabling AdaComp-RAG raises memory to 823 MB and lowers accuracy.",
+    "check": "Ablation confirms each module contributes measurably—removing Lo-Bi increases memory to 947 MB and latency, while disabling AdaComp-RAG raises memory to 823 MB and lowers accuracy.",
+    "chunk_ids": [
+     "2506_18952v2__c0029"
+    ]
+   },
+   {
+    "text": "QPruner integrates structured pruning with layer-wise mixed-precision quantization and efficient fine-tuning.",
+    "check": "This framework integrates structured pruning with layer-wise mixed-precision quantization and efficient fine-tuning.",
+    "chunk_ids": [
+     "2412_11629v1__c0001",
+     "2412_11629v1__c0003"
+    ]
+   },
+   {
+    "text": "Structured Pruning removes redundant weights using LLM-Pruner baseline, producing a smaller model.",
+    "check": "Removes redundant weights using LLM-Pruner baseline, producing a smaller model.",
+    "chunk_ids": [
+     "2412_11629v1__c0023"
+    ]
+   },
+   {
+    "text": "Mixed-Precision Quantization assigns different bit-widths (4-bit or 8-bit) to each layer based on importance, using a two-stage allocation strategy first assigning precisions based on mutual information, then refining via Bayesian optimization.",
+    "check": "Assigns different bit-widths (4-bit or 8-bit) to each layer based on their importance to the target task. A two-stage allocation strategy first assigns precisions based on mutual information, then refines them via Bayesian optimization to explore better configurations.",
+    "chunk_ids": [
+     "2412_11629v1__c0001",
+     "2412_11629v1__c0004"
+    ]
+   },
+   {
+    "text": "Efficient Fine-Tuning uses LoftQ for quantized models (or LoRA for unquantized ones) to recover performance after compression, since full-parameter fine-tuning would require too much memory.",
+    "check": "Uses LoftQ for quantized models (or LoRA for unquantized ones) to recover performance after compression, since full-parameter fine-tuning would require too much memory.",
+    "chunk_ids": [
+     "2412_11629v1__c0023"
+    ]
+   },
+   {
+    "text": "At 50% pruning rate on LLaMA-7B, QPruner reduces memory from 23.89 GB to 16.65 GB (~30% reduction) while improving accuracy over baselines.",
+    "check": "At 50% pruning rate on LLaMA-7B, this framework reduces memory from 23.89 GB to 16.65 GB (~30% reduction) while improving accuracy over baselines.",
+    "chunk_ids": [
+     "2412_11629v1__c0024"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "extract:cf03": {
+  "findings": [
+   {
+    "text": "Deep-layer routing collapse in Mixture-of-Experts systems stems from token frequency statistics in pre-training data rather than intrinsic language properties or fixed architectural limits.",
+    "check": "Deep-layer routing collapse stems from token frequency statistics in pre-training data rather than intrinsic language properties or fixed architectural limits.",
+    "chunk_ids": [
+     "2605_17598v1__c0005",
+     "2605_17598v1__c0053"
+    ]
+   },
+   {
+    "text": "Routing imbalance in Mixture-of-Experts systems can be substantially mitigated by fine-tuning on data with greater representation of the target language.",
+    "check": "Routing imbalance can be substantially mitigated by fine-tuning on data with greater representation of the target language.",
+    "chunk_ids": [
+     "2605_17598v1__c0052",
+     "2605_17598v1__c0056"
+    ]
+   },
+   {
+    "text": "Continual Pre-Training redistributes expert utilization more thoroughly and yields broader downstream gains than Supervised Fine-Tuning.",
+    "check": "Continual Pre-Training produces a more thorough reorganization and broader downstream gains than Supervised Fine-Tuning.",
+    "chunk_ids": [
+     "2605_17598v1__c0052",
+     "2605_17598v1__c0056"
+    ]
+   },
+   {
+    "text": "Hybrid architectures such as Mamba-Transformer hybrids demonstrate greater routing correctability and plasticity than pure Transformer designs.",
+    "check": "Hybrid architectures demonstrate greater routing correctability and plasticity than pure Transformer designs.",
+    "chunk_ids": [
+     "2605_17598v1__c0052",
+     "2605_17598v1__c0053",
+     "2605_17598v1__c0056"
+    ]
+   },
+   {
+    "text": "State-space components provide additional degrees of freedom that allow hybrid models to largely eliminate deep-layer collapse during adaptation, while pure Transformers may retain residual imbalance after correction attempts.",
+    "check": "State-space components appear to provide additional degrees of freedom, allowing hybrid models to largely eliminate deep-layer collapse during adaptation, whereas pure Transformers may retain residual imbalance even after correction attempts.",
+    "chunk_ids": [
+     "2605_17598v1__c0052",
+     "2605_17598v1__c0053",
+     "2605_17598v1__c0056"
+    ]
+   }
+  ],
+  "preferences": []
+ },
+ "variants:These adapter-based methods require adding both LoRA modules and MoE routers to multiple linear modules across the Transformer layers.|The prompt-aware routing mechanism calculates the expert routing assignments just once before generating the first new token.|SPBO progressively prunes a subset of elements at each step while jointly optimizing binarized parameters.|Large language models suffer from high computational and memory costs that hinder deployment on resource-constrained devices.|In the first stage of TRSP, learnable weights multiply transformer layer outputs while their ℓ1-norm is incorporated as a regularization term in the loss function.|In the second stage of TRSP, additional regularization is applied to the difference between layer inputs and outputs for layers with smaller weights, which forces important knowledge to be transferred to the remaining layers.|BiLLM introduces a residual approximation strategy to enhance 1-bit LLM performance.|ARB-LLM adopts an alternating refinement approach to better align binarized weights with their full-precision counterparts.|PBS2P employs a theoretically-grounded element selection criterion based on second-order Taylor approximation, using the pruning score s_q = w²_q / [H⁻¹]qq to minimize error increase under second-order approximation.|Low-Resource MoE reports that pre-trained base models suffer from deep-layer routing collapse for underrepresented languages, characterized by sharp drops in usage entropy in final layers and token concentration among a narrow subset of experts.|Low-Resource MoE attributes the problem to the training data distribution during pre-training, where limited representation diversity forces specialized routing pathways to rely on restricted expert pools.|Low-Resource MoE notes that the collapse pattern generalizes across typologically unrelated languages like Hebrew and Japanese, indicating it stems from pre-training underrepresentation rather than language-specific properties.": [
+  {
+   "paraphrase": "The described adapter techniques necessitate integrating both LoRA components and MoE routing mechanisms into numerous linear layers throughout the Transformer architecture.",
+   "contradiction": "These adapter-based methods avoid adding both LoRA modules and MoE routers to multiple linear modules across the Transformer layers."
+  },
+  {
+   "paraphrase": "The routing strategy that responds to prompts determines expert allocation a single time prior to producing the initial generated token.",
+   "contradiction": "The prompt-aware routing mechanism calculates the expert routing assignments repeatedly after generating every new token."
+  },
+  {
+   "paraphrase": "SPBO incrementally removes a portion of components during every iteration alongside the simultaneous optimization of binary-valued parameters.",
+   "contradiction": "SPBO instantaneously removes all elements at the final step while independently optimizing binarized parameters."
+  },
+  {
+   "paraphrase": "Massive language models endure substantial processing and storage expenses that impede their implementation on hardware with limited capabilities.",
+   "contradiction": "Large language models enjoy low computational and memory costs that facilitate deployment on resource-constrained devices."
+  },
+  {
+   "paraphrase": "During TRSP's initial phase, trainable parameters scale the outputs of transformer layers, with their ℓ1-norm added to the objective function as a penalty.",
+   "contradiction": "In the second stage of TRSP, fixed weights divide transformer layer inputs while their ℓ2-norm is excluded as a regularization term in the loss function."
+  },
+  {
+   "paraphrase": "During TRSP's subsequent phase, extra penalization targets the gap between input and output activations for weak-weighted layers, thereby compelling critical information to migrate to other layers.",
+   "contradiction": "In the first stage of TRSP, no regularization is applied to the sum of layer inputs and outputs for layers with larger weights, which prevents important knowledge from being transferred to the remaining layers."
+  },
+  {
+   "paraphrase": "BiLLM incorporates a residual estimation technique designed to improve the accuracy of 1-bit large language models.",
+   "contradiction": "BiLLM abandons a residual approximation strategy to degrade 1-bit LLM performance."
+  },
+  {
+   "paraphrase": "ARB-LLM utilizes a cyclic improvement procedure to more accurately match binary-valued weights against their original high-precision versions.",
+   "contradiction": "ARB-LLM rejects an alternating refinement approach to worse misalign binarized weights with their full-precision counterparts."
+  },
+  {
+   "paraphrase": "PBS2P implements a mathematically justified component filtering rule derived from second-order Taylor expansion, leveraging the metric s_q = w²_q / [H⁻¹]qq to reduce approximation-induced errors.",
+   "contradiction": "PBS2P ignores a theoretically-grounded element selection criterion based on first-order Taylor approximation, using the pruning score s_q = w_q / [H⁻¹]qq to maximize error increase under first-order approximation."
+  },
+  {
+   "paraphrase": "According to Low-Resource MoE, foundational models experience routing failure in deeper layers when handling marginalized languages, marked by significant entropy declines in upper layers and heavy token clustering within few experts.",
+   "contradiction": "Low-Resource MoE reports that pre-trained base models avoid deep-layer routing collapse for overrepresented languages, characterized by stable rises in usage entropy in final layers and token distribution among a broad subset of experts."
+  },
+  {
+   "paraphrase": "Low-Resource MoE blames the issue on the pre-training dataset composition, noting that scarce representational variety compels dedicated routing channels to depend on confined expert groups.",
+   "contradiction": "Low-Resource MoE attributes the problem to the inference data distribution during fine-tuning, where abundant representation diversity forces specialized routing pathways to ignore restricted expert pools."
+  },
+  {
+   "paraphrase": "Low-Resource MoE observes that this failure mode extends to linguistically distinct tongues such as Hebrew and Japanese, suggesting its origin lies in insufficient pre-training coverage instead of unique linguistic traits.",
+   "contradiction": "Low-Resource MoE notes that the collapse pattern fails to generalize across typologically related languages like Spanish and French, indicating it stems from post-training overrepresentation rather than language-specific properties."
+  }
+ ],
+ "variants:Sparse Mixture-of-Experts routing increases total model capacity while keeping per-token active compute low.|Many structured pruning and quantization papers combine both techniques by pruning first to reduce size, then quantizing the pruned model with layer-wise mixed precision.|Paper 2502_01705v4 states that structured pruning removes entire components to enhance efficiency but often causes performance drops, requiring retraining.|Paper 2412_11629v1 (QPruner) says most real-time systems require dynamic adaptation, which means that the pruned model must be fine-tuned to improve performance.|Paper 2412_11629v1 (QPruner) says fine-tuning is often used to recover the accuracy of pruned models.|Paper 2505_18232v4 acknowledges that prior methods directly remove unimportant parameters based on certain metrics, which often causes knowledge loss and necessitates extensive retraining.|Paper 2505_18232v4 (TRSP) argues that its two-stage regularization approach transfers knowledge from layers being removed to the remaining layers before pruning, so the model can maintain good language modeling capability without post-pruning fine-tuning.|Paper 2505_18232v4 (TRSP) explicitly states that it is retraining free after pruning.|The existing router design produces unstable and semantically inconsistent routing decisions across layers.|Conventional sparse routing yields unstable assignments and weak semantic alignment.|Without explicit regularization, routing collapses into degenerate states in which a small subset of experts receives most tokens while others remain underutilized.|Excessive sparsity leads to representation collapse, where expert outputs become overly similar or dominated by a few experts.": [
+  {
+   "paraphrase": "The MoE architecture expands overall model parameters yet maintains minimal computational load for each processed token.",
+   "contradiction": "Dense Mixture-of-Experts routing decreases total model capacity while keeping per-token active compute high."
+  },
+  {
+   "paraphrase": "Numerous studies on structured pruning and quantization integrate these methods sequentially, initially applying pruning to shrink the network before employing layer-wise mixed-precision quantization on the reduced model.",
+   "contradiction": "Few structured pruning and quantization papers combine both techniques by quantizing first to increase size, then pruning the quantized model with uniform global precision."
+  },
+  {
+   "paraphrase": "According to Paper 2502_01705v4, eliminating whole structural blocks improves efficiency yet typically degrades accuracy, necessitating additional training phases.",
+   "contradiction": "Paper 2502_01705v4 states that structured pruning adds entire components to hinder efficiency but rarely causes performance drops, avoiding retraining."
+  },
+  {
+   "paraphrase": "As noted in Paper 2412_11629v1 (QPruner), the majority of real-time applications demand adaptive mechanisms, implying that post-pruning fine-tuning is essential for boosting performance.",
+   "contradiction": "Paper 2412_11629v1 (QPruner) says few real-time systems require static adaptation, which means that the pruned model must not be fine-tuned to degrade performance."
+  },
+  {
+   "paraphrase": "According to Paper 2412_11629v1 (QPruner), fine-tuning procedures are frequently employed to restore the predictive accuracy lost after model compression.",
+   "contradiction": "Paper 2412_11629v1 (QPruner) says fine-tuning is rarely used to destroy the accuracy of pruned models."
+  },
+  {
+   "paraphrase": "Paper 2505_18232v4 recognizes that earlier approaches eliminate insignificant weights using specific criteria, frequently resulting in information degradation and demanding substantial retraining efforts.",
+   "contradiction": "Paper 2505_18232v4 acknowledges that prior methods directly retain important parameters based on random metrics, which rarely causes knowledge gain and avoids extensive retraining."
+  },
+  {
+   "paraphrase": "TRSP, as detailed in Paper 2505_18232v4, contends that its dual-phase regularization strategy migrates learned representations from eliminated layers to surviving ones prior to cutting, enabling the network to preserve strong linguistic performance without needing subsequent fine-tuning.",
+   "contradiction": "Paper 2505_18232v4 (TRSP) argues that its two-stage regularization approach transfers knowledge from layers being added to the remaining layers after pruning, so the model cannot maintain poor language modeling capability with post-pruning fine-tuning."
+  },
+  {
+   "paraphrase": "In Paper 2505_18232v4 (TRSP), the authors clearly declare that their methodology requires no additional training once the pruning step is completed.",
+   "contradiction": "Paper 2505_18232v4 (TRSP) explicitly states that it is retraining required after pruning."
+  },
+  {
+   "paraphrase": "Current routing architectures generate erratic and semantically misaligned decision-making patterns throughout the network layers.",
+   "contradiction": "The existing router design produces stable and semantically consistent routing decisions across layers."
+  },
+  {
+   "paraphrase": "Traditional sparse routing mechanisms result in erratic token allocations and poor semantic correspondence.",
+   "contradiction": "Conventional sparse routing yields stable assignments and strong semantic alignment."
+  },
+  {
+   "paraphrase": "Lacking dedicated regularization, the routing mechanism degenerates into pathological configurations where a limited group of experts absorbs the majority of inputs while the rest stay largely idle.",
+   "contradiction": "With explicit regularization, routing collapses into degenerate states in which a large subset of experts receives few tokens while others remain fully utilized."
+  },
+  {
+   "paraphrase": "Extreme sparsity triggers representational collapse, causing the outputs of different experts to converge excessively or fall under the control of only a handful of specialists.",
+   "contradiction": "Moderate sparsity leads to representation expansion, where expert outputs become overly diverse or distributed among many experts."
+  }
+ ],
+ "variants:This deep-layer routing collapse pattern generalizes across architectures and appears to be a recurring property of MoE systems trained on imbalanced corpora.|Early evidence from GShard suggests experts can exhibit emergent specialization patterns, though these are not systematically characterized.|AdaPruner argues that randomly selected calibration data lacks representativeness and diversity, leading to inaccurate gradient information and flawed pruning strategies.|Usage entropy in Hebrew Mixture-of-Experts (MoE) models dropped sharply as layers deepened, meaning tokens were no longer distributed broadly across experts.|The same routing collapse signature was observed in Japanese Mixture-of-Experts (MoE) models, suggesting it generalizes across low-resource languages rather than being specific to any single linguistic structure.|Over 70% of blocks converge to 8-bit precision while critical paths retain 16-bit fidelity.|At 50% pruning rate on LLaMA-7B, QPruner reduces memory from 23.89 GB to 16.65 GB (~30% reduction) while improving accuracy over baselines.|Hybrid architectures such as Mamba-Transformer hybrids demonstrate greater routing correctability and plasticity than pure Transformer designs.": [
+  {
+   "paraphrase": "The tendency for routing mechanisms to fail at deeper network layers is a consistent feature observed in various model designs, particularly within Mixture-of-Experts frameworks that utilize skewed training datasets.",
+   "contradiction": "This deep-layer routing collapse pattern fails to generalize across architectures and appears to be an isolated anomaly of MoE systems trained on balanced corpora."
+  },
+  {
+   "paraphrase": "Initial findings from the GShard framework indicate that individual experts may develop spontaneous specialized roles, yet these tendencies remain largely unstructured and unstudied.",
+   "contradiction": "Early evidence from GShard suggests experts cannot exhibit emergent specialization patterns, and these are thoroughly and systematically characterized."
+  },
+  {
+   "paraphrase": "According to AdaPruner, using arbitrarily chosen calibration samples results in insufficient variety and poor representation, which ultimately produces misleading gradient estimates and defective pruning approaches.",
+   "contradiction": "AdaPruner argues that randomly selected calibration data possesses representativeness and diversity, leading to accurate gradient information and robust pruning strategies."
+  },
+  {
+   "paraphrase": "As network depth increased in Hebrew MoE architectures, activation entropy declined significantly, indicating that input tokens became concentrated among fewer specialists rather than spread evenly.",
+   "contradiction": "Usage entropy in Hebrew Mixture-of-Experts (MoE) models rose sharply as layers deepened, meaning tokens were increasingly distributed broadly across experts."
+  },
+  {
+   "paraphrase": "Identical routing failure markers appeared in Japanese MoE networks, implying this phenomenon transcends individual language families and applies broadly to under-resourced tongues.",
+   "contradiction": "The same routing collapse signature was never observed in Japanese Mixture-of-Experts (MoE) models, suggesting it does not generalize across low-resource languages but is instead specific to any single linguistic structure."
+  },
+  {
+   "paraphrase": "More than seventy percent of the architectural components settle into 8-bit quantization, whereas essential computational pathways maintain full 16-bit accuracy.",
+   "contradiction": "Under 30% of blocks converge to 8-bit precision while critical paths discard 16-bit fidelity."
+  },
+  {
+   "paraphrase": "When applied to LLaMA-7B with a half-weight removal threshold, QPruner cuts storage requirements down from 23.89 GB to 16.65 GB (approximately a 30% decrease) and simultaneously boosts performance compared to standard methods.",
+   "contradiction": "At 50% pruning rate on LLaMA-7B, QPruner increases memory from 23.89 GB to 31.12 GB (~30% increase) while degrading accuracy over baselines."
+  },
+  {
+   "paraphrase": "Mixed models like those combining Mamba and Transformer components show enhanced adaptability and error correction capabilities compared to standalone Transformer implementations.",
+   "contradiction": "Hybrid architectures such as Mamba-Transformer hybrids demonstrate lesser routing correctability and plasticity than pure Transformer designs."
+  }
+ ]
+}

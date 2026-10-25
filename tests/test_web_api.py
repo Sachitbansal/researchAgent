@@ -412,3 +412,114 @@ def test_built_frontend_is_served_with_spa_fallback(tmp_path):
         assert client.get("/").text == "<html>shell</html>"
         assert client.get("/assets/app.js").text == "console.log(1)"
         assert client.get("/some/client/route").text == "<html>shell</html>"
+
+
+# ---------------------------------------------------------------- long-term memory
+
+
+class StubMemoryStore:
+    """The two calls the routes make, over a dict."""
+
+    def __init__(self) -> None:
+        self.rows = {
+            "a" * 32: {"id": "a" * 32, "kind": "finding", "text": "Widgets are blue.",
+                       "chunk_ids": [CHUNK], "use_count": 2, "last_used_at": 10.0,
+                       "active": True, "forget_reason": None},
+            "b" * 32: {"id": "b" * 32, "kind": "finding", "text": "Widgets were red.",
+                       "chunk_ids": [CHUNK], "use_count": 1, "last_used_at": 5.0,
+                       "active": False, "forget_reason": "superseded"},
+        }
+
+    def list(self, include_inactive: bool = False) -> Dict[str, Any]:
+        return {"memories": [dict(r) for r in self.rows.values() if include_inactive or r["active"]]}
+
+    def forget_one(self, memory_id: str, reason: str = "user") -> Dict[str, Any]:
+        from memory.memory_store import valid_memory_id
+
+        if not valid_memory_id(memory_id):
+            return {"error": "bad_memory_id", "detail": "bad"}
+        row = self.rows.get(memory_id)
+        if row is None or not row["active"]:
+            return {"error": "memory_not_found", "detail": "gone"}
+        row.update(active=False, forget_reason=reason)
+        return {"forgotten": memory_id, "reason": reason}
+
+
+class MemoryStubLoop(StubLoop):
+    """StubLoop plus long-term memory: remember() is called after the answer."""
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.memory = SimpleNamespace(store=StubMemoryStore(),
+                                      strengths=lambda rows: {r["id"]: 0.5 for r in rows})
+        self.remembered: List[Any] = []
+        self.lock_held_while_remembering: List[bool] = []
+        self.app = None
+        self.boom = False
+
+    def remember(self, result: Dict[str, Any]) -> Any:
+        self.remembered.append(result.get("answer"))
+        if self.app is not None:
+            self.lock_held_while_remembering.append(self.app.state.lock.locked())
+        if self.boom:
+            raise RuntimeError("writer exploded")
+        return {"written": [{"id": "c" * 32, "text": "Widgets are blue."}], "refreshed": [],
+                "invalidated": [], "used": [], "forgotten": [], "dropped": {}}
+
+
+@pytest.fixture
+def mem_setup(tmp_path):
+    config = _config(tmp_path)
+    store = ThreadStore(tmp_path / "threads.sqlite3")
+    loop = MemoryStubLoop(str(config.paths.figures / PAPER / f"{PAPER}__f01.png"), store=store)
+    app = create_app(lambda: (loop, config), dist_dir=tmp_path / "no_dist")
+    loop.app = app
+    with TestClient(app) as client:
+        yield SimpleNamespace(client=client, loop=loop, app=app)
+
+
+def test_memory_frame_comes_after_the_answer_and_before_done(mem_setup):
+    frames = _ask(mem_setup.client, "What colour are widgets?")
+    events = [e for e, _ in frames]
+    assert events[0] == "thread" and events[-3:] == ["answer", "memory", "done"]
+    memory = frames[-2][1]
+    assert set(memory) >= {"written", "refreshed", "invalidated"}
+    assert memory["written"][0]["text"] == "Widgets are blue."
+    # Written after the answer was produced, and still under the run lock.
+    assert mem_setup.loop.remembered == ["Widgets are blue [" + CHUNK + "]."]
+    assert mem_setup.loop.lock_held_while_remembering == [True]
+    assert not mem_setup.app.state.lock.locked()
+
+
+def test_a_memory_failure_never_fails_the_answer(mem_setup):
+    mem_setup.loop.boom = True
+    frames = _ask(mem_setup.client, "q")
+    events = [e for e, _ in frames]
+    assert events[-3:] == ["answer", "memory", "done"]
+    assert frames[-2][1]["error"] == "memory_write_failed" and "exploded" in frames[-2][1]["detail"]
+    assert not mem_setup.app.state.lock.locked()
+
+
+def test_no_memory_frame_without_long_term_memory(setup):
+    events = [e for e, _ in _ask(setup.client, "q")]
+    assert "memory" not in events
+
+
+def test_memories_routes(mem_setup):
+    c = mem_setup.client
+    active = c.get("/api/memories").json()["memories"]
+    assert [m["id"] for m in active] == ["a" * 32] and active[0]["strength"] == 0.5
+    everything = c.get("/api/memories?all=1").json()["memories"]
+    assert {m["id"]: m["forget_reason"] for m in everything} == {"a" * 32: None, "b" * 32: "superseded"}
+    assert everything[1]["strength"] is None
+
+    gone = c.delete("/api/memories/" + "a" * 32)
+    assert gone.status_code == 200 and gone.json() == {"forgotten": "a" * 32, "reason": "user"}
+    assert c.get("/api/memories").json()["memories"] == []
+    assert c.delete("/api/memories/" + "a" * 32).status_code == 404
+    assert c.delete("/api/memories/not-an-id").status_code == 400
+
+
+def test_memories_routes_need_long_term_memory(setup):
+    assert setup.client.get("/api/memories").status_code == 503
+    assert setup.client.delete("/api/memories/" + "a" * 32).status_code == 503

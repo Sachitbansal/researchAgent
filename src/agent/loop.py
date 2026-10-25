@@ -2,11 +2,12 @@
 The agent loop: call the model, run whatever tools it asks for, repeat until it answers.
 
 In:  a question, an LLMClient, a ToolRegistry, an optional on_event observer, and
-     optionally a ThreadStore plus a thread_id (conversation memory, docs/DECISIONS.md D12).
+     optionally a ThreadStore plus a thread_id (short-term memory, D12) and a
+     LongTermMemory (memories across chats, D19), which only a thread run touches.
 Out: {"answer", "iterations", "tool_calls", "tool_call_counts", "run_id",
-     "stopped_because", "thread_id", "turn_seq", ...}, plus a live event per step to
-     on_event. Bounded by per-tool call limits and two backstops, not an iteration cap
-     (D4). No thread means a fresh conversation and nothing persisted. No framework.
+     "stopped_because", "thread_id", "turn_seq", "memory_injected", ...}, plus a live event
+     per step to on_event; remember(result) writes memory after the answer. Bounded by
+     per-tool limits and two backstops (D4). No thread: nothing read or persisted.
 """
 
 from __future__ import annotations
@@ -87,6 +88,7 @@ class AgentLoop:
         retriever: Optional[Any] = None,
         on_event: Optional[Callable[[Dict[str, Any]], None]] = None,
         store: Optional[Any] = None,
+        memory: Optional[Any] = None,
     ) -> None:
         self.registry = registry
         self.config = config
@@ -96,6 +98,10 @@ class AgentLoop:
         # A memory.threads.ThreadStore, or anything with get_thread/append_turn. Only
         # touched by a run that names a thread_id; the eval harness never does.
         self.store = store
+        # A memory.longterm.LongTermMemory. Same rule as the store: read at the start of a
+        # thread run and written by remember() after it; a run without a thread_id never
+        # touches it, so the eval's runs are unaffected (D19).
+        self.memory = memory
         # Summarised step events of the current thread run, stored with its turn so a
         # past answer's timeline can be redrawn. None outside a thread run: no work.
         self._steps: Optional[List[Dict[str, Any]]] = None
@@ -210,6 +216,66 @@ class AgentLoop:
             return {"thread_id": thread_id, "turn_seq": None, "thread_error": saved}
         return {"thread_id": thread_id, "turn_seq": saved["seq"]}
 
+    def _recall(self, question: str) -> Optional[Dict[str, Any]]:
+        """Long-term memories to inject into this thread run, or None. Never raises.
+
+        Emitted as a `memory` step whose `result.chunks` are the attached passages, so the
+        stored steps (and the page's Sources and citation cards) treat them as evidence
+        this run had in view.
+        """
+        if self.memory is None:
+            return None
+        try:
+            recalled = self.memory.recall(question)
+        except Exception as exc:  # recall is meant not to raise; a run must not end here
+            recalled = {"error": "memory_recall_failed", "detail": f"{type(exc).__name__}: {exc}"}
+        if "error" in recalled:
+            return {"error": recalled["error"], "detail": recalled.get("detail", ""),
+                    "memories": [], "preferences": [], "chunk_ids": [], "block": ""}
+        if not recalled.get("block"):
+            return None
+        self._emit("memory", iteration=0,
+                   memories=recalled.get("memories") or [],
+                   preferences=recalled.get("preferences") or [],
+                   stale=recalled.get("stale") or [],
+                   tokens=recalled.get("tokens"),
+                   result={"chunks": recalled.get("chunks") or []})
+        return recalled
+
+    def remember(self, result: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        """Write long-term memory from a finished thread run; None when there is nothing to do.
+
+        Separate from run() so the caller sends the answer first: the web stream sends
+        `answer`, then calls this, then sends the `memory` frame (D19). The report is also
+        merged into the stored turn's stats, so a reloaded chat still shows it. A failure
+        comes back in the report; it never fails the run that was already answered.
+        """
+        thread_id = result.get("thread_id")
+        if thread_id is None or self.memory is None:
+            return None
+        injected = result.get("memory_injected") or {}
+        if "error" in result:
+            report: Dict[str, Any] = {"written": [], "refreshed": [], "invalidated": [],
+                                      "used": [], "forgotten": [], "dropped": {},
+                                      "skipped": "run_failed"}
+        else:
+            try:
+                report = self.memory.after_run(
+                    str(result.get("question") or ""), str(result.get("answer") or ""),
+                    thread_id, result.get("trace_records") or [], injected)
+            except Exception as exc:  # after_run is meant not to raise
+                report = {"written": [], "refreshed": [], "invalidated": [], "used": [],
+                          "forgotten": [], "dropped": {}, "error": "memory_write_failed",
+                          "detail": f"{type(exc).__name__}: {exc}"}
+        if injected.get("error"):
+            report.setdefault("recall_error", f"{injected['error']}: {injected.get('detail', '')}")
+        seq = result.get("turn_seq")
+        if self.store is not None and seq is not None:
+            saved = self.store.annotate_turn(thread_id, seq, {"memory": report})
+            if "error" in saved:
+                report["annotate_error"] = saved["error"]
+        return report
+
     def run(self, question: str, question_id: Optional[str] = None,
             run_id: Optional[str] = None, thread_id: Optional[str] = None) -> Dict[str, Any]:
         """Answer `question`, calling tools as the model chooses.
@@ -246,8 +312,18 @@ class AgentLoop:
         self._started = time.perf_counter()
         self._steps = [] if thread_id is not None else None
         try:
+            # Only inside a thread, and only after the steps list exists, so the `memory`
+            # step is stored with the turn.
+            injected = self._recall(question) if thread_id is not None else None
             result = self._run(question, tracer, limits, system_prompt,
-                               history.get("messages") or [])
+                               history.get("messages") or [], injected or {})
+            if injected is not None and "error" not in result:
+                result["memory_injected"] = {
+                    key: injected.get(key) for key in
+                    ("memories", "preferences", "chunk_ids", "tokens", "error", "detail")
+                    if injected.get(key) is not None}
+            elif "error" not in result:
+                result["memory_injected"] = None
             if thread_id is not None:
                 result.update(self._save_turn(thread_id, question, result, tracer, history))
             else:
@@ -257,17 +333,22 @@ class AgentLoop:
         return result
 
     def _run(self, question: str, tracer: TraceWriter, limits: Dict[str, int],
-             system_prompt: str, history: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """One question's tool loop over a conversation that may open with history."""
+             system_prompt: str, history: List[Dict[str, Any]],
+             injected: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """One question's tool loop over a conversation that may open with history and a
+        long-term memory block."""
         config = self.config
         counts: Dict[str, int] = {name: 0 for name in limits}
         max_no_progress = int(config.agent.max_no_progress_turns)
-        conversation = Conversation(system_prompt, question, config, history=history)
+        injected = injected or {}
+        conversation = Conversation(system_prompt, question, config, history=history,
+                                    memory_block=str(injected.get("block") or ""),
+                                    memory_chunk_ids=injected.get("chunk_ids") or [])
 
         # Chunk dedup follows "seen = still visible" (docs/DECISIONS.md D13): the seen set
         # starts as the chunks whose text this conversation already shows. History is
-        # notes only, never chunk text, so in practice that is nothing; a wider history
-        # strategy that replayed results would widen it without a change here.
+        # notes only, never chunk text; the memory block's passages are text, so they
+        # start out seen, and elision releases them like any result (D19).
         if self.retriever is not None:
             visible = conversation.visible_chunk_ids()
             if visible:

@@ -542,6 +542,32 @@ mark {
 .memory p { margin: 0 0 10px; font-size: 14px; line-height: 1.6; }
 .memory-notes { display: grid; gap: var(--s1); margin: 0 0 var(--s3); padding: 0; list-style: none; }
 .memory-notes code { display: block; font-size: 11.5px; line-height: 1.5; color: var(--soft); overflow-wrap: anywhere; }
+/* long-term memory (D19): restrained lists, the same rules and type as the timeline */
+.memory h3.mem-short { margin-top: var(--s5); padding-top: var(--s4); border-top: 1px solid var(--rule); }
+.mem-section { margin: 0 0 var(--s4); }
+.mem-list { display: grid; gap: var(--s2); margin: 0; padding: 0; list-style: none; }
+.mem-item { padding: var(--s2) 10px; border: 1px solid var(--rule); border-radius: var(--r2); background: var(--raise); }
+.mem-item.is-gone .mem-text { color: var(--soft); }
+.mem-item .confirm { padding: 0; }
+.mem-row { display: flex; align-items: flex-start; gap: var(--s2); }
+.mem-body { flex: 1; min-width: 0; }
+.memory p.mem-text { margin: 0; font-size: 13.5px; line-height: 1.55; overflow-wrap: anywhere; }
+.mem-meta { margin-top: 3px; font-size: 12px; color: var(--faint); }
+.mem-meta code { font-size: 11px; overflow-wrap: anywhere; }
+.mem-chunks { display: flex; flex-wrap: wrap; gap: 2px var(--s2); margin-top: 3px; }
+.mem-chunk { font-family: var(--mono); font-size: 11.5px; }
+.mem-tag {
+  display: inline-block; margin-right: 6px; padding: 0 5px; border-radius: var(--r1);
+  font-size: 11px; line-height: 17px; color: var(--soft); background: var(--hover); vertical-align: 1px;
+}
+.passage .mem-tag { margin-left: 6px; }
+.mem-delete { width: 28px; height: 28px; margin: -2px -4px 0 0; }
+.mem-error { color: var(--danger); }
+.mem-forgotten { margin-top: var(--s3); }
+.mem-forgotten summary { cursor: pointer; font-size: 12.5px; color: var(--soft); padding: 2px 0; }
+.mem-forgotten summary:hover { color: var(--ink); }
+.mem-forgotten[open] summary { margin-bottom: var(--s2); }
+.row.is-memory { --tone: var(--faint); }
 .thread-loading { padding: var(--s6) 0; text-align: center; }
 
 /* ---------------------------------------------------------------- citation card */

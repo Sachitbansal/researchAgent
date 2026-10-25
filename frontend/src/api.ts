@@ -1,9 +1,10 @@
-/* The client for web/api.py: the corpus, chat threads, and one streamed question.
+/* The client for web/api.py: the corpus, chat threads, long-term memories, and one
+   streamed question.
    In:  a question, the thread it belongs to (or none, to start one), a callback per frame.
    Out: parsed JSON, or an ApiError carrying the server's {error, detail}. Asking is a POST
         read as a stream, not an EventSource, which would silently re-run on reconnect. */
 
-import type { Corpus, ThreadDetail, ThreadSummary } from "./types";
+import type { Corpus, MemoryRecord, ThreadDetail, ThreadSummary } from "./types";
 
 export class ApiError extends Error {
   constructor(public code: string, public detail: string) {
@@ -35,6 +36,14 @@ export const getThread = (id: string) =>
 
 export const deleteThread = (id: string) =>
   fetch(`/api/threads/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => json<{ deleted: string }>(r));
+
+/** Long-term memories (D19): active ones, or every one with its reason when `all`. */
+export const listMemories = (all = false) =>
+  fetch(`/api/memories${all ? "?all=1" : ""}`).then((r) => json<{ memories: MemoryRecord[] }>(r)).then((b) => b.memories);
+
+/** Manual forget: soft, reason "user", never injected again. */
+export const deleteMemory = (id: string) =>
+  fetch(`/api/memories/${encodeURIComponent(id)}`, { method: "DELETE" }).then((r) => json<{ forgotten: string }>(r));
 
 /** Ask, calling `onFrame` for every frame until the server sends `done`. With no
     threadId the server starts a thread, and its first frame (`thread`) names it. */

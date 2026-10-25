@@ -39,6 +39,8 @@ REQUIRED_SECTIONS = (
     # resolve_device() with an AttributeError that never named the offending file.
     # Validation exists to fail at load, with the path in the message.
     "compute",
+    # Long-term memory (docs/DECISIONS.md D19, D20).
+    "memory",
 )
 
 REQUIRED_PATH_KEYS = (
@@ -97,6 +99,33 @@ def _validate_agent(agent: Any, config_path: Path) -> None:
             raise ConfigError(
                 f"{config_path}: agent.{key} must be a positive integer, got {agent.get(key)!r}"
             )
+
+
+def _validate_memory(memory: Any, config_path: Path) -> None:
+    """Fail at load on a memory setting that would silently disable or invert a rule.
+
+    A related_cosine above duplicate_cosine would skip the contradiction check for every
+    near-duplicate; a non-positive half-life makes the decay formula divide by zero.
+    """
+    if not isinstance(memory, dict):
+        raise ConfigError(f"{config_path} memory section must be a mapping")
+    for key in ("inject_k", "inject_tokens", "passage_chars", "max_preferences",
+                "max_findings", "max_conflict_checks", "max_active",
+                "premise_sentences_per_chunk"):
+        if not _is_positive_int(memory.get(key)):
+            raise ConfigError(
+                f"{config_path}: memory.{key} must be a positive integer, got {memory.get(key)!r}")
+    for key in ("half_life_days", "purge_after_days"):
+        value = memory.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+            raise ConfigError(f"{config_path}: memory.{key} must be a positive number, got {value!r}")
+    for key in ("inject_min_cosine", "duplicate_cosine", "related_cosine",
+                "contradiction_threshold", "min_strength"):
+        value = memory.get(key)
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            raise ConfigError(f"{config_path}: memory.{key} must be a number, got {value!r}")
+    if memory["related_cosine"] > memory["duplicate_cosine"]:
+        raise ConfigError(f"{config_path}: memory.related_cosine must not exceed duplicate_cosine")
 
 
 class Section:
@@ -245,6 +274,7 @@ class Config:
             raise ConfigError(f"{config_path} paths section is missing: {', '.join(missing_paths)}")
 
         _validate_agent(raw["agent"], config_path)
+        _validate_memory(raw["memory"], config_path)
 
         self.source_path = config_path
         self._raw = raw

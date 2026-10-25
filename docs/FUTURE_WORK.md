@@ -75,15 +75,22 @@ but has no end-to-end transcript. CRAG phase 1 turns the offer into data: a
 `coverage_gap` hint and a loop-derived `fetch_proposal` for the user to approve
 (`docs/DECISIONS.md` D14–D18). The prompt rule that uses them is phase 2.
 
-## No long-term memory (short-term, per-thread memory exists)
+## Long-term memory is unevaluated, and its NLI filter is strict
 
-Within a thread, each question is sent with the earlier questions, answers and tool-call
-notes, inside a 9k-token budget (`docs/ARCHITECTURE.md` §7.1, `docs/DECISIONS.md` D12).
-Nothing crosses threads. There is no memory of facts or preferences across chats, no
-summarisation of turns that fall out of the budget (they are simply dropped), and no
-recall of earlier turns' chunk text, which the agent must retrieve again. Long-term memory
-would need a decision on what is remembered, how it is retrieved, and how stale memories
-are corrected. Each of those is a design question, not a missing feature.
+Long-term memory exists (`docs/ARCHITECTURE.md` §7.2, `docs/DECISIONS.md` D19, D20), but the
+eval never runs in a thread, so nothing measures whether it helps. That needs a multi-chat
+eval: a second question that should build on a first.
+
+- **Small samples.** Its thresholds rest on 32 paraphrase/swap pairs, 496 distinct pairs
+  and 11 questions (`scripts/tune_memory.py`). The decay numbers are not measured at all.
+- **Low write yield.** Only about a third of extracted claims pass the entailment filter (32 of 93).
+  The premise is one sentence, so a claim spanning two sentences cannot be entailed.
+  Two-sentence windows are the obvious next step.
+- **Misses on the same subject.** In this narrow corpus, a question's own claims and
+  other answers' claims overlap in cosine, so `inject_min_cosine` trades misses for
+  stray injections.
+- **Turns are dropped, not summarised.** Turns that fall out of the short-term budget are
+  still dropped, not summarised.
 
 ## Flat index, no eviction
 

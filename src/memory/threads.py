@@ -2,7 +2,8 @@
 ThreadStore: conversation threads and their turns, persisted in one SQLite file.
 
 In:  the database path (config `paths.threads_db`), thread ids (uuid4 hex), and per turn
-     the question, answer, stats, tool-call notes and summarised step events.
+     the question, answer, stats, tool-call notes and summarised step events. The same
+     file holds the long-term `memories` table (memory_store.MemoryStore).
 Out: plain dicts. Never raises: a bad id, a missing thread or a corrupt file comes back as
      {"error": ..., "detail": ...}, the tools' envelope. Tables: docs/DATA_SCHEMA.md §9.
 """
@@ -279,6 +280,27 @@ class ThreadStore:
             )
             seq = conn.execute("SELECT seq FROM turns WHERE rowid = ?",
                                (cursor.lastrowid,)).fetchone()["seq"]
+            return {"thread_id": thread_id, "seq": int(seq)}
+
+        return self._write(work)
+
+    def annotate_turn(self, thread_id: str, seq: int, fields: Dict[str, Any]) -> Dict[str, Any]:
+        """Merge `fields` into a stored turn's stats, read and written in one transaction.
+
+        For what is only known after the turn was saved: the long-term memory write runs
+        after the answer (D19), and its report must be on the turn the page reloads.
+        """
+        if not valid_thread_id(thread_id):
+            return self._bad_id(thread_id)
+
+        def work(conn: sqlite3.Connection) -> Dict[str, Any]:
+            row = conn.execute("SELECT stats_json FROM turns WHERE thread_id = ? AND seq = ?",
+                               (thread_id, int(seq))).fetchone()
+            if row is None:
+                raise _Missing(f"no turn {seq} in thread {thread_id}")
+            stats = {**_load(row["stats_json"], {}), **dict(fields)}
+            conn.execute("UPDATE turns SET stats_json = ? WHERE thread_id = ? AND seq = ?",
+                         (_dump(stats), thread_id, int(seq)))
             return {"thread_id": thread_id, "seq": int(seq)}
 
         return self._write(work)

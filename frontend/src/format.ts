@@ -73,20 +73,24 @@ export function liveStatus(steps: Step[]): string {
       return last.reason ? `Stopped calling tools: ${last.reason}` : "Out of steps, answering with what it has";
     case "answering":
       return "Writing the answer";
+    case "memory":
+      return `Recalled ${plural(last.memories?.length ?? 0, "finding")} from earlier chats`;
     default:
       return humanise(last.kind);
   }
 }
 
-/* chunk_id -> the excerpt retrieval returned for it, from this answer's own steps. */
+/* chunk_id -> the excerpt retrieval returned for it, from this answer's own steps. A
+   `memory` step counts too: its passages were in the agent's view, so they are citable
+   (D19), and `tool` says "memory" so the panes can say where the passage came from. */
 export function excerpts(steps: Step[]): Map<string, { text: string; score?: number; tool: string }> {
   const out = new Map<string, { text: string; score?: number; tool: string }>();
   for (const s of steps) {
     const chunks = (s.result as any)?.chunks;
-    if (s.kind !== "tool_end" || !Array.isArray(chunks)) continue;
+    if ((s.kind !== "tool_end" && s.kind !== "memory") || !Array.isArray(chunks)) continue;
     for (const c of chunks) {
       if (c?.chunk_id && !out.has(c.chunk_id)) {
-        out.set(c.chunk_id, { text: String(c.text ?? ""), score: c.score, tool: s.tool_name || "" });
+        out.set(c.chunk_id, { text: String(c.text ?? ""), score: c.score, tool: s.kind === "memory" ? "memory" : s.tool_name || "" });
       }
     }
   }

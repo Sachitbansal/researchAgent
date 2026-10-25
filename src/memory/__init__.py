@@ -1,7 +1,7 @@
 """
-Conversation memory v1: short-term, per thread (docs/DECISIONS.md D12).
+Conversation memory: short-term per thread (D12) and long-term across chats (D19, D20).
 
-In:  nothing at import time. Out: `threads.ThreadStore` (SQLite persistence of a chat's
-     turns) and `history` (turning stored turns into prior messages, and a run's trace
-     into the one-line tool-call notes those messages carry).
+In:  nothing at import time. Out: `threads.ThreadStore` (a chat's turns), `history` (stored
+     turns as prior messages, plus tool-call notes), `memory_store.MemoryStore` (the
+     memories table), `forgetting` (decay math) and `longterm.LongTermMemory` (read/write).
 """

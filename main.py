@@ -141,8 +141,18 @@ def cmd_ask(args: argparse.Namespace) -> int:
         # the command and it happens before the loop can emit anything, so say so here.
         print("loading models and the index ...", file=sys.stderr, flush=True)
     retriever = EvidenceRetriever(CFG, embedder=Embedder(CFG))
-    loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG),
-                     config=CFG, retriever=retriever, on_event=reporter, store=store)
+    memory = None
+    nli = None
+    if store is not None:
+        # Long-term memory, like the store, only for a thread run (docs/DECISIONS.md D19).
+        from analysis.nli import NLIModel
+        from memory.longterm import build_long_term_memory
+
+        nli = NLIModel(CFG)
+        memory = build_long_term_memory(CFG, embedder=retriever.embedder, nli=nli)
+    loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG, nli=nli),
+                     config=CFG, retriever=retriever, on_event=reporter, store=store,
+                     memory=memory)
 
     result = loop.run(args.question, thread_id=thread_id)
     if _failed(result):
@@ -166,6 +176,18 @@ def cmd_ask(args: argparse.Namespace) -> int:
             error = result["thread_error"]
             print(f"--- the turn was not saved: {error.get('error')}: {error.get('detail')}",
                   file=sys.stderr)
+        injected = result.get("memory_injected") or {}
+        if injected.get("memories"):
+            print(f"--- memory: {len(injected['memories'])} finding(s) from earlier chats injected")
+        # After the answer is printed, as the web stream does it: the write never delays it.
+        report = loop.remember(result)
+        if report is not None:
+            print(f"--- memory: {len(report.get('written') or [])} written, "
+                  f"{len(report.get('refreshed') or [])} refreshed, "
+                  f"{len(report.get('invalidated') or [])} invalidated, "
+                  f"{len(report.get('used') or [])} used"
+                  + (f", skipped: {report['skipped']}" if report.get("skipped") else "")
+                  + (f", error: {report['error']}: {report.get('detail')}" if report.get("error") else ""))
 
     if args.show_tools:
         for record in result["trace_records"]:

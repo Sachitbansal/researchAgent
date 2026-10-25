@@ -25,7 +25,9 @@ def build_agent() -> Tuple[Any, Any]:
     """Load the models and the index once, the same way `main.py ask` builds its agent."""
     from agent.loop import AgentLoop
     from agent.tool_registry import build_full_registry
+    from analysis.nli import NLIModel
     from config import CFG
+    from memory.longterm import build_long_term_memory
     from memory.threads import ThreadStore
     from retrieval.embedder import Embedder
     from tools.retrieve_evidence import EvidenceRetriever
@@ -33,10 +35,12 @@ def build_agent() -> Tuple[Any, Any]:
     print("loading models and the index ...", flush=True)
     CFG.paths.ensure()
     retriever = EvidenceRetriever(CFG, embedder=Embedder(CFG))
-    # The same store `main.py ask --thread` uses, so a chat started in either continues
-    # in the other (docs/DECISIONS.md D12).
-    loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG), config=CFG,
-                     retriever=retriever, store=ThreadStore(CFG.paths.threads_db))
+    nli = NLIModel(CFG)  # one copy, shared by the consistency tool and long-term memory
+    # The same store and memory `main.py ask --thread` uses, so a chat started in either
+    # continues in the other (docs/DECISIONS.md D12, D19).
+    loop = AgentLoop(build_full_registry(retriever=retriever, config=CFG, nli=nli), config=CFG,
+                     retriever=retriever, store=ThreadStore(CFG.paths.threads_db),
+                     memory=build_long_term_memory(CFG, embedder=retriever.embedder, nli=nli))
 
     from web.corpus_view import read_corpus
 

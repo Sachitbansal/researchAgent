@@ -107,7 +107,7 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **By:** user. "Simple hybrid": each prior turn is sent as its question and answer, verbatim, plus a one-line note per tool call. There are no LLM summaries. Stored in SQLite at `data/threads.sqlite3`, with a 9k-token history budget (`agent.thread_history_tokens`). The oldest turns are dropped whole.
 - **Why SQLite:** stdlib, no server, a single file, transactions, and SQL queries for listing and ordering.
 - **Rejected:** JSON files (no transactions; concurrent CLI and web writes race), Postgres and Redis (a server for a single-user tool), a vector DB (v1 has no long-term recall).
-- **Consequence:** `thread_id=None` is exactly the old behaviour, and the eval harness never passes one (a test asserts it). Notes are assistant messages, never replayed tool messages, so no `tool_call` pairing can break.
+- **Consequence:** `thread_id=None` is exactly the old behaviour, and the eval harness never passes one (a test asserts it). Notes are assistant messages, never replayed tool messages, so no `tool_call` pairing can break. *Since D19 the system prompt carries one memory rule for every run.*
 
 ## D13 — "Seen = still visible" chunk dedup
 
@@ -164,11 +164,47 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Rejected:** a text marker the agent writes, because it can be forgotten or garbled.
 - **Consequence:** the `loop.py` change is one import and one return field, kept small because the memory branch edits the same file.
 
+## D19 — Long-term memory: grounded findings across chats
+
+*2026-10-25 · `src/memory/longterm.py`, `memory_store.py`, `src/agent/loop.py`, `web/api.py` · adds ARCHITECTURE §7.2, DATA_SCHEMA §10*
+
+- **By:** user. Two things are remembered: findings (a claim, its chunk_ids and their `content_hash`es, the source question, thread and date) and preferences the user states explicitly. Nothing episodic is kept. Memory is written after the answer, only for a thread run that passed the gate, and only from claims NLI labels entailed. Duplicates and conflicts are settled by cosine plus NLI, with no LLM call. The loop injects memories, with their chunk text, so the agent can cite. Storage is the threads SQLite file. `thread_id=None` never touches memory, and an AST test enforces this.
+- **Rejected:** Mem0 (an LLM call per add/update/delete decision, and a vector-DB service); Zep/Graphiti (a graph database and server, for one user); Letta (the agent manages its own memory, so the loop structure under evaluation moves into the framework); LangMem (a LangChain/LangGraph dependency, ruled out by CLAUDE.md); a sixth `recall` tool (the one-agent, five-tool limit, and the agent would have to know to ask).
+- **Consequence:** the "memories are leads, chunks are the evidence" rule lives only in `memory_block.md`, so it is sent only when memories are injected. `system.md` is unchanged, and a no-thread (eval) request stays byte-identical to pre-D12.
+
+## D20 — Automatic forgetting
+
+*2026-10-25 · `src/memory/forgetting.py`, `config.yaml` memory*
+
+- **By:** user: "otherwise it keeps adding to memory and never forgets old memories, and the user has to go through the pain of deleting what they don't care about. It should be handled automatically by the new context and new results the agent produces."
+- **Paths:** superseded (a confident contradiction from a newer finding); stale (a cited chunk's hash changed or the chunk is gone; checked at read time and in the sweep); decay plus cap (`strength = (1 + ln use_count) × 0.5^(days/half_life)`, below `min_strength` or past `max_active`, weakest first, swept after each write); refresh (a re-finding resets recency); and a manual delete as override. Everything is soft-deleted with a reason and hard-purged after `purge_after_days`.
+- **A use** is injected **and** cited. Injected but uncited does not count. Being found counts as the first use.
+- **Tentative (Claude, pending the user):** `half_life_days` 30, `max_active` 500, `min_strength` 0.125 (= 0.5^(90/30): used once and untouched for 90 days), `purge_after_days` 180.
+
+## D21 — Grounding checks the passage-worded claim; the stored claim names its paper
+
+*2026-10-25 · `src/prompts/memory_extract.md`, `src/memory/longterm.py`*
+
+- **By:** Claude, after the first smoke run wrote 0 of 12 claims. Two measured causes. (1) The prompt makes every finding name its paper, so two papers' numbers never merge or read as a contradiction, and this NLI model then scores a supported claim at 0.001 entailment instead of 0.993. (2) The supporting sentence was the 10th to 12th of its chunk, past `nli.max_sentences_per_chunk` (8).
+- **Decision:** extraction returns `text` (attributed: stored, embedded, conflict-checked) and `check` (the same assertion as the passage words it: NLI-grounded). Attribution is checked by the citation instead. The premise pool is `memory.premise_sentences_per_chunk` (64), but NLI still scores only the top `premises_per_claim`, so cost is embeddings, not NLI pairs.
+- **Rejected:** unattributed stored claims ("the coefficient is 0.01" from one paper would contradict, and supersede, "the coefficient is 0.02" from another; argued, not measured); lowering `entailment_threshold` (a tuned value shared with the tool).
+- **Effect, re-measured on the 12 eval answers:** 32 of 93 extracted claims entailed (34%), up from 20 of 97 (21%). The `min_pair_similarity` floor drops 2 of 34.
+- **Needs user confirmation:** this departs from "the same premise selection as groundedness mode" in pool size only.
+
+## D22 — A contradiction outranks a refresh; preferences are always injected and never decay
+
+*2026-10-25 · `src/memory/longterm.py`, `src/memory/forgetting.py`*
+
+- **By:** Claude. Measured (`eval/results/memory_thresholds.json`): number- or method-swapped claims sit closer than paraphrases (median cosine 0.91 vs 0.86). A duplicate test run first would refresh a contradiction and merge its chunks into the old memory. So every memory at or above `related_cosine` is NLI-checked first, and a confident contradiction (both directions: 27/32 swaps caught, 0 of 8 distinct pairs ≥ 0.80 flagged, 0 of 32 paraphrases; either direction flags 2 paraphrases) supersedes.
+- **Preferences:** injected on every thread run (a cosine gate would rarely surface "only 2024 onward"). They are exempt from decay and the cap, because they are never cited, so the use rule would decay every one. They go by contradiction, by restatement (refresh) or by hand.
+- **Write trigger:** "the gate passed" means some `retrieve_evidence` call returned `sufficient_evidence: true` with chunks. An answer that cites only injected chunks still counts its uses but writes nothing new.
+- **Deleting a chat keeps its memories** (`source_thread_id` has no foreign key). Memory is meant to outlive the chat.
+
 ---
 
 ## Benched questions
 
 - **Framework for memory / multi-turn:** LangGraph or others versus hand-rolled. Compare the options with the user when that work starts. (v1 in D12 is hand-rolled.)
 - **Record/replay of arXiv responses** for an automated CRAG end-to-end test (D17). Until then the live path is checked by hand on a throwaway copy.
-- **Roadmap, in the user's order:** long-term research memory, then history summarisation, prompt caching plus a smaller context, the framework comparison, and a tracing UI.
+- **Roadmap, in the user's order:** history summarisation, prompt caching plus a smaller context, the framework comparison, and a tracing UI. (Long-term research memory: D19–D22.)
 - **Unordered:** retrieval upgrade (diagnose, then contextual headers, hybrid BM25 and multi-query); self-check and revise, plus a PDF hidden-text filter; Tailwind and KaTeX (waiting on the user's `npm install`); saving the research report under `docs/research/`; a long-context baseline eval; minor items (MCP, citation graph, reranker swap, a floor check on limits, a warning for unknown tool names in limits, citations wrapped in backticks rendering as code).
