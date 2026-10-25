@@ -16,6 +16,7 @@ import numpy as np
 
 from config import CFG, Config
 from corpus.manifest import Manifest
+from retrieval.contextual import embed_format
 
 
 class IndexError_(RuntimeError):
@@ -44,10 +45,11 @@ class VectorIndex:
         self._faiss = _faiss()
         self.index = self._faiss.IndexFlatIP(self.dim)
         self.chunk_ids: List[str] = []
-        # Positional, like chunk_ids: the content_hash of the text actually embedded at
-        # each FAISS slot. Without it, a chunk whose text changed under an unchanged
-        # chunk_id keeps its stale vector forever and nothing downstream can tell.
-        self.content_hashes: List[str] = []
+        # Positional, like chunk_ids: the embed hash (retrieval.contextual.embed_hash) of
+        # the exact input embedded at each FAISS slot. Not the chunk's content_hash: the
+        # header is part of the input but not of the chunk text. Without it, a chunk whose
+        # input changed under an unchanged chunk_id keeps its stale vector forever.
+        self.embed_hashes: List[str] = []
         self.vectors = np.zeros((0, self.dim), dtype=np.float32)
 
     # ---- lifecycle -------------------------------------------------------------
@@ -63,7 +65,7 @@ class VectorIndex:
         index = cls(int(manifest.data.get("embedding_dim") or config.embedding.dim), config)
         path = config.paths.faiss_index
         chunk_ids = list(manifest.data.get("faiss_id_map") or [])
-        content_hashes = list(manifest.data.get("indexed_hashes") or [])
+        embed_hashes = list(manifest.data.get("indexed_hashes") or [])
 
         if not path.is_file():
             if chunk_ids:
@@ -95,9 +97,9 @@ class VectorIndex:
                 f"embeddings.npy has {vectors.shape[0]} rows but the index holds "
                 f"{loaded.ntotal}; they are appended in lockstep and must match"
             )
-        if content_hashes and len(content_hashes) != loaded.ntotal:
+        if embed_hashes and len(embed_hashes) != loaded.ntotal:
             raise IndexError_(
-                f"indexed_hashes has {len(content_hashes)} entries but the index holds "
+                f"indexed_hashes has {len(embed_hashes)} entries but the index holds "
                 f"{loaded.ntotal}; they are appended in lockstep and must match"
             )
 
@@ -105,7 +107,7 @@ class VectorIndex:
         index.chunk_ids = chunk_ids
         # An index written before indexed_hashes existed has none. Treat those vectors as
         # of unknown provenance rather than as current, so the next run re-embeds them.
-        index.content_hashes = content_hashes or [""] * loaded.ntotal
+        index.embed_hashes = embed_hashes or [""] * loaded.ntotal
         index.vectors = vectors
         return index
 
@@ -122,7 +124,8 @@ class VectorIndex:
         self._write_atomic(self.config.paths.embeddings,
                            lambda tmp: np.save(str(tmp), self.vectors, allow_pickle=False))
         manifest.data["faiss_id_map"] = list(self.chunk_ids)
-        manifest.data["indexed_hashes"] = list(self.content_hashes)
+        manifest.data["indexed_hashes"] = list(self.embed_hashes)
+        manifest.data["embed_format"] = embed_format(self.config)
         manifest.data["embedding_model"] = str(self.config.embedding.model)
         manifest.data["embedding_dim"] = self.dim
         manifest.save()
@@ -156,24 +159,25 @@ class VectorIndex:
 
     @property
     def indexed_hashes(self) -> Dict[str, str]:
-        """chunk_id -> the content_hash whose text is actually embedded for it."""
-        return dict(zip(self.chunk_ids, self.content_hashes))
+        """chunk_id -> the embed hash of the input actually embedded for it."""
+        return dict(zip(self.chunk_ids, self.embed_hashes))
 
-    def is_stale(self, chunk_id: str, content_hash: str) -> bool:
-        """True when this chunk is indexed but its text has changed since.
+    def is_stale(self, chunk_id: str, embed_hash: str) -> bool:
+        """True when this chunk is indexed but its embedder input has changed since.
 
         chunk_id is positional within a paper, so it survives a re-ingest unchanged
         while the text under it does not — figure chunks gaining a description is
-        exactly that case. Presence of the id alone therefore proves nothing.
+        exactly that case. Presence of the id alone therefore proves nothing. The input
+        also changes when only its header does, which content_hash cannot see.
         """
         current = self.indexed_hashes.get(chunk_id)
-        return current is not None and current != content_hash
+        return current is not None and current != embed_hash
 
     def add(
         self,
         chunk_ids: Sequence[str],
         vectors: np.ndarray,
-        content_hashes: Optional[Sequence[str]] = None,
+        embed_hashes: Optional[Sequence[str]] = None,
     ) -> int:
         """Append new vectors. Returns how many were added.
 
@@ -186,9 +190,9 @@ class VectorIndex:
                 f"{len(chunk_ids)} chunk_ids but {vectors.shape[0]} vectors; "
                 "they are appended in lockstep and must match"
             )
-        if content_hashes is not None and len(content_hashes) != len(chunk_ids):
+        if embed_hashes is not None and len(embed_hashes) != len(chunk_ids):
             raise IndexError_(
-                f"{len(chunk_ids)} chunk_ids but {len(content_hashes)} content_hashes; "
+                f"{len(chunk_ids)} chunk_ids but {len(embed_hashes)} embed_hashes; "
                 "they are appended in lockstep and must match"
             )
         if vectors.shape[0] == 0:
@@ -199,8 +203,8 @@ class VectorIndex:
         array = np.ascontiguousarray(vectors, dtype=np.float32)
         self.index.add(array)
         self.chunk_ids.extend(str(chunk_id) for chunk_id in chunk_ids)
-        self.content_hashes.extend(
-            str(digest) for digest in (content_hashes or [""] * len(chunk_ids))
+        self.embed_hashes.extend(
+            str(digest) for digest in (embed_hashes or [""] * len(chunk_ids))
         )
         self.vectors = np.vstack([self.vectors, array]) if self.vectors.size else array
         return len(chunk_ids)
@@ -233,6 +237,23 @@ class VectorIndex:
             if len(results) >= k:
                 break
         return results
+
+    def cosines(self, query_vector: np.ndarray, chunk_ids: Sequence[str]) -> Dict[str, float]:
+        """The dense score of each listed chunk against a query, read from stored vectors.
+
+        For candidates that reached the pool some other way (BM25, another sub-query):
+        the bi-encoder fallback gate thresholds a cosine, so every candidate needs one.
+        """
+        if not chunk_ids or self.vectors.shape[0] != len(self.chunk_ids):
+            return {}
+        positions = {chunk_id: slot for slot, chunk_id in enumerate(self.chunk_ids)}
+        query = np.asarray(query_vector, dtype=np.float32).reshape(-1)
+        out: Dict[str, float] = {}
+        for chunk_id in chunk_ids:
+            slot = positions.get(chunk_id)
+            if slot is not None:
+                out[chunk_id] = float(self.vectors[slot] @ query)
+        return out
 
     def vector_for(self, chunk_id: str) -> Optional[np.ndarray]:
         """The stored vector for a chunk, or None. Used by analyze_corpus clustering."""

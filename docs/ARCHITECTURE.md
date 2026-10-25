@@ -126,7 +126,8 @@ notice it has gone stale. A table does.
 | Stage | Model | Window | Chunk budget | If exceeded |
 |---|---|---|---|---|
 | Bi-encoder (embed) | `bge-small-en-v1.5` | 512, chunk alone | `512 - 2` specials = **510** | Tail is never embedded, so it is unfindable at any `k`. Silent and unrecoverable. |
-| Cross-encoder (rerank) | `ms-marco-MiniLM-L-6-v2` | 512, **shared** `[CLS] query [SEP] chunk [SEP]` | `512 - 3 - max_query_tokens(64)` = **445** | Tail is missing only while reordering an already-retrieved shortlist. Recoverable, and far cheaper. |
+| Bi-encoder + contextual header (`retrieval.contextual_headers`, off by default) | same | 512, `title — section` + newline + chunk | **510**, shared: header ≤ 32 tokens (median 18); the longest chunk plus header is **475** | Only the header is shortened, never the chunk (`src/retrieval/contextual.py`). Measured on this corpus: 0 of 406 headers needed it. |
+| Cross-encoder (rerank) | `ms-marco-MiniLM-L-6-v2` | 512, **shared** `[CLS] query [SEP] chunk [SEP]` | `512 - 3 - max_query_tokens(64)` = **445** | Tail is missing only while reordering an already-retrieved shortlist. Recoverable, and far cheaper. Never sees the header: 445 leaves no room for one. |
 
 **Binding today: the cross-encoder, at 445**, because its window is shared with the
 query rather than given to the chunk alone. `chunking.max_tokens` is set to exactly
@@ -178,7 +179,10 @@ float32 vectors. FAISS internal ids are sequential, so an explicit
 mapping breaks on restart.
 
 **Incremental, never rebuild.** New chunks are appended via `index.add()`. A full
-rebuild is only triggered if the embedding model changes.
+rebuild is triggered only when the embedding model changes, or when a chunk's
+**embedder input** changes under the same `chunk_id`. That is new text, or a new header
+or header format. It is detected by the embed hash, not the chunk's `content_hash`
+(`docs/DATA_SCHEMA.md` §4, D30). `main.py reindex` runs that step alone, locally.
 
 ## 6. Index growth management
 
@@ -225,14 +229,30 @@ change to the index layer.
 **Retrieve wide, pass narrow.**
 
 ```
-bi-encoder  k=30-50   (cheap, high recall)
-     -> cross-encoder rerank   (expensive, high precision, only on candidates)
-     -> relevance gate
+per (sub-)query, up to 3:  bi-encoder top-40  +  BM25 top-40     (cheap, high recall)
+     -> Reciprocal Rank Fusion, pool capped at k_retrieve = 40
+     -> cross-encoder rerank   (expensive, high precision, only on the pool;
+                                several queries: max over the sub-queries that found it)
+     -> relevance gate         (cross-encoder score; dense cosine on the fallback path)
      -> neighbor expansion
      -> top 5-6 to the agent
 ```
 
 Recall lives in the candidate pool; only precision reaches the context window.
+
+**Hybrid first stage (D31).** A hand-written Okapi BM25 runs beside the bi-encoder. The
+two ranked lists are fused by rank (RRF), so a cosine and a BM25 score never meet on one
+scale. BM25 finds exact terms the bi-encoder blurs: method names, acronyms, numbers. On
+the tuning split it raised pool recall@40 from 0.400 to 0.567. The first stage can
+optionally embed and index a `title — section` header (D30). It is off: it lowered pool
+recall here. Neither the cross-encoder nor the agent ever sees a header.
+
+**Multi-query (D32).** `retrieve_evidence(queries=[...])` runs each sub-query through the
+first stage, fuses everything into one capped pool, and scores each candidate by its best
+sub-query. `subquery_sufficient` names the parts that found nothing.
+
+The phase-A diagnosis behind these is D29: most gold chunks were lost before rerank, in
+the pool.
 
 **Cross-encoder reranking.** A bi-encoder embeds query and chunk separately and
 compares two vectors — the model never sees them together. A cross-encoder scores
@@ -250,7 +270,9 @@ assumed.
 
 **Relevance gate.** Naive top-k always returns *something*, even when nothing is
 relevant. The gate compares top scores against a tuned threshold and returns
-`sufficient_evidence: false` with a reason instead of handing back weak chunks. This
+`sufficient_evidence: false` with a reason instead of handing back weak chunks. It
+thresholds the cross-encoder score. When that did not run, it thresholds the dense
+cosine, never an RRF score, which every candidate has whatever its relevance. This
 turns "I don't have evidence for that" from a prompt-level instruction into an
 actual mechanism, and is what the *not in corpus* eval category tests.
 
@@ -587,7 +609,9 @@ exactly what happens when a figure chunk gains a vision description. Deciding wh
 re-embed by id left the caption-only vector in the index while the chunk store held
 caption+description. Retrieval kept happily matching text the chunk no longer
 contained. No exception, no failing test, just quietly worse results. Fixed with a
-positional `indexed_hashes` in the manifest, compared against `content_hash`.
+positional `indexed_hashes` in the manifest, compared against `content_hash`. (Since
+D30 it is compared against the embed hash of the exact embedder input, so a header
+change, which leaves `content_hash` alone, is caught too.)
 
 **NLI passing its gate for the wrong reason.** `check_evidence_consistency` reported a
 1.000-confidence contradiction against a *true* claim. The premise it had picked was

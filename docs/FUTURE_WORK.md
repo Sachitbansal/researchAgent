@@ -36,6 +36,32 @@ what reranking actually earns its cost on here — the relevance gate thresholds
 cross-encoder's score, so rerank is what makes abstention work. Acting on the ablation
 alone produced a wrong conclusion once already (see `docs/EVALUATION.md`).
 
+The retrieval ablation v2 (`eval/retrieval_ablation.py`) does report abstention for every
+arm, but it keeps rerank on throughout. The rerank on/off comparison is still the old one.
+
+## Retrieval upgrade: what it left open (D29–D33)
+
+- **The agent never passes `queries`.** None of 42 calls in the agent run did. The tool
+  description alone did not change behaviour. A system-prompt line saying when to use it
+  is the next step, and it needs a paid rerun to measure. Until then, the SparseMixer
+  failure, where broad wording hides a specific chunk, is fixed only for callers that
+  split the question.
+- **Multi-query shares one 40-slot pool, and fuses by max score.** One sub-query's strong
+  chunks can fill `k`. The note now names a sub-query that cleared the gate but was crowded
+  out. Reserving a slot per sufficient sub-query would fix it, and is unbuilt. Its rerank
+  is still 2.3× one query.
+- **Hybrid widens what passes the gate.** On sp02, BM25 surfaced off-target chunks that
+  clear −3.0. On the fallback path, RRF order is worse than dense order (MRR 0.213 vs
+  0.317). The spec asked for RRF order there.
+- **Headers were measured on one corpus, in one format.** Title only, or a cleaner section
+  detector (sections such as `I(X; Y ) =` are noise), are untried.
+- **The bi-encoder fallback is weaker than first recorded.** On the 12-question split
+  0.55 abstains on 1 of 4 absent questions (balanced 0.400). No cosine threshold does
+  better.
+- **`looks_like_abstention` misses "does not cover this topic"** (af01). The gate-based
+  `abstention_accuracy` is unaffected. The text-only `abstention_on_absent` reads 0.75.
+- **`rrf_k` (60) and BM25's `k1`/`b` are textbook defaults**, not tuned.
+
 ## `k_retrieve` has never been swept
 
 Fixed at 40. Rerank latency scales with the shortlist, so a smaller pool might keep the

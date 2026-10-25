@@ -1,0 +1,3140 @@
+{
+  "config": {
+    "k_retrieve": 40,
+    "relevance_threshold": -3.0,
+    "contextual_headers": false,
+    "hybrid": false,
+    "traces": "/home/sachit/Documents/VSCProjects/researchAgent/logs/traces",
+    "probe": "dense-only pool (bi-encoder top-40) + cross-encoder rerank, on the pre-upgrade plain index; hybrid/headers did not exist yet"
+  },
+  "tuning": {
+    "raw_question": {
+      "summary": {
+        "n_questions": 8,
+        "pool_recall": {
+          "5": 0.1083,
+          "10": 0.1083,
+          "20": 0.2542,
+          "40": 0.4
+        },
+        "rerank_recall": {
+          "1": 0.0417,
+          "3": 0.0833,
+          "5": 0.1458
+        },
+        "gated_recall@5": 0.125,
+        "gold_total": 47,
+        "gold_in_pool": 19,
+        "gold_in_pool_top5_after_rerank": 7,
+        "gold_in_bi_top5": 5,
+        "gold_missing_pool_but_ce_would_top5": 7,
+        "median_bi_rank_of_gold": 53
+      },
+      "rows": [
+        {
+          "query": "One paper argues that the usual way of computing gradients clashes with routing only a few experts per token. What does it propose to fix that?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.1667,
+            "10": 0.1667,
+            "20": 0.5,
+            "40": 0.6667
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.1667,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": -0.314,
+          "gold": [
+            {
+              "chunk_id": "2310_00811v1__c0001",
+              "section": "ABSTRACT",
+              "bi_rank": 19,
+              "bi_score": 0.7665,
+              "rerank_rank": 12,
+              "rerank_score": -4.017
+            },
+            {
+              "chunk_id": "2310_00811v1__c0002",
+              "section": "INTRODUCTION",
+              "bi_rank": 1,
+              "bi_score": 0.8287,
+              "rerank_rank": 5,
+              "rerank_score": -2.264
+            },
+            {
+              "chunk_id": "2310_00811v1__c0003",
+              "section": "INTRODUCTION",
+              "bi_rank": 20,
+              "bi_score": 0.7665,
+              "rerank_rank": 2,
+              "rerank_score": -0.468
+            },
+            {
+              "chunk_id": "2310_00811v1__c0006",
+              "section": "Related Work And Preliminary",
+              "bi_rank": 47,
+              "bi_score": 0.7324,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.286,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2310_00811v1__c0008",
+              "section": "Related Work And Preliminary",
+              "bi_rank": 260,
+              "bi_score": 0.6502,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -9.109,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2310_00811v1__c0009",
+              "section": "Related Work And Preliminary",
+              "bi_rank": 32,
+              "bi_score": 0.7514,
+              "rerank_rank": 13,
+              "rerank_score": -4.496
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_16427v1__c0002",
+              "rerank_score": -0.314
+            },
+            {
+              "chunk_id": "2310_00811v1__c0003",
+              "rerank_score": -0.468
+            },
+            {
+              "chunk_id": "2605_17598v1__c0002",
+              "rerank_score": -1.892
+            },
+            {
+              "chunk_id": "2607_16427v1__c0003",
+              "rerank_score": -2.159
+            },
+            {
+              "chunk_id": "2310_00811v1__c0002",
+              "rerank_score": -2.264
+            }
+          ],
+          "question_id": "sp01"
+        },
+        {
+          "query": "Why do adapter-based fine-tuning methods become slow when many tenants share a model, and what routing change is suggested to avoid it?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.3333,
+            "10": 0.3333,
+            "20": 0.6667,
+            "40": 0.8333
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.1667,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.1667,
+          "top_rerank_score": 0.212,
+          "gold": [
+            {
+              "chunk_id": "2410_18035v1__c0002",
+              "section": "Abstract",
+              "bi_rank": 4,
+              "bi_score": 0.7096,
+              "rerank_rank": 1,
+              "rerank_score": 0.212
+            },
+            {
+              "chunk_id": "2410_18035v1__c0005",
+              "section": "method",
+              "bi_rank": 3,
+              "bi_score": 0.718,
+              "rerank_rank": 6,
+              "rerank_score": -3.883
+            },
+            {
+              "chunk_id": "2410_18035v1__c0006",
+              "section": "method",
+              "bi_rank": 48,
+              "bi_score": 0.663,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -8.015,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2410_18035v1__c0007",
+              "section": "method",
+              "bi_rank": 13,
+              "bi_score": 0.6986,
+              "rerank_rank": 4,
+              "rerank_score": -3.583
+            },
+            {
+              "chunk_id": "2410_18035v1__c0009",
+              "section": "Related works",
+              "bi_rank": 16,
+              "bi_score": 0.6944,
+              "rerank_rank": 14,
+              "rerank_score": -5.579
+            },
+            {
+              "chunk_id": "2410_18035v1__c0012",
+              "section": "Methods",
+              "bi_rank": 35,
+              "bi_score": 0.6701,
+              "rerank_rank": 30,
+              "rerank_score": -9.384
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2410_18035v1__c0002",
+              "rerank_score": 0.212
+            },
+            {
+              "chunk_id": "2605_17598v1__c0053",
+              "rerank_score": -2.108
+            },
+            {
+              "chunk_id": "2412_11629v1__c0027",
+              "rerank_score": -3.408
+            },
+            {
+              "chunk_id": "2410_18035v1__c0007",
+              "rerank_score": -3.583
+            },
+            {
+              "chunk_id": "2412_11629v1__c0016",
+              "rerank_score": -3.604
+            }
+          ],
+          "question_id": "sp02"
+        },
+        {
+          "query": "Which method brings a lower-precision numeric format into the pruning process itself, and what resource is it trying to save?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.1667
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.1667
+          },
+          "gated_recall@5": 0.1667,
+          "top_rerank_score": 0.723,
+          "gold": [
+            {
+              "chunk_id": "2412_11629v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 92,
+              "bi_score": 0.6383,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 1.178,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 126,
+              "bi_score": 0.6167,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.021,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2412_11629v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 57,
+              "bi_score": 0.6741,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.195,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 81,
+              "bi_score": 0.65,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 0.581,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0006",
+              "section": "Introduction",
+              "bi_rank": 54,
+              "bi_score": 0.6754,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.267,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2412_11629v1__c0007",
+              "section": "Introduction",
+              "bi_rank": 36,
+              "bi_score": 0.6858,
+              "rerank_rank": 4,
+              "rerank_score": 0.119
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2412_11629v1__c0022",
+              "rerank_score": 0.723
+            },
+            {
+              "chunk_id": "2412_11629v1__c0023",
+              "rerank_score": 0.597
+            },
+            {
+              "chunk_id": "2502_01705v4__c0006",
+              "rerank_score": 0.564
+            },
+            {
+              "chunk_id": "2412_11629v1__c0007",
+              "rerank_score": 0.119
+            },
+            {
+              "chunk_id": "2502_01705v4__c0045",
+              "rerank_score": -0.214
+            }
+          ],
+          "question_id": "sp03"
+        },
+        {
+          "query": "Across the compression papers, what different strategies are used to avoid an expensive retraining stage after parameters are removed?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.1667,
+            "40": 0.1667
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": -0.385,
+          "gold": [
+            {
+              "chunk_id": "2412_11629v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 105,
+              "bi_score": 0.6061,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.462,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2505_18232v4__c0001",
+              "section": "Abstract",
+              "bi_rank": 49,
+              "bi_score": 0.6222,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -2.681,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 17,
+              "bi_score": 0.6438,
+              "rerank_rank": 18,
+              "rerank_score": -6.712
+            },
+            {
+              "chunk_id": "2503_06184v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 136,
+              "bi_score": 0.5991,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -8.734,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2412_11629v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 63,
+              "bi_score": 0.6174,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.394,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2505_18232v4__c0003",
+              "section": "Introduction",
+              "bi_rank": 86,
+              "bi_score": 0.6106,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -7.566,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2505_18232v4__c0004",
+              "rerank_score": -0.385
+            },
+            {
+              "chunk_id": "2412_11629v1__c0023",
+              "rerank_score": -2.415
+            },
+            {
+              "chunk_id": "2505_18232v4__c0018",
+              "rerank_score": -2.958
+            },
+            {
+              "chunk_id": "2505_18232v4__c0035",
+              "rerank_score": -3.017
+            },
+            {
+              "chunk_id": "2607_08027v1__c0002",
+              "rerank_score": -3.314
+            }
+          ],
+          "question_id": "mp01"
+        },
+        {
+          "query": "What reasons do the routing papers give for expert assignments being unreliable, and do they locate the problem in the same place?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.1667,
+            "40": 0.3333
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": 0.963,
+          "gold": [
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 41,
+              "bi_score": 0.583,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.245,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 21,
+              "bi_score": 0.6084,
+              "rerank_rank": 8,
+              "rerank_score": -3.419
+            },
+            {
+              "chunk_id": "2605_17598v1__c0001",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 53,
+              "bi_score": 0.5754,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.512,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2608_15102v2__c0001",
+              "section": "Abstract",
+              "bi_rank": 74,
+              "bi_score": 0.5607,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -6.582,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2607_16427v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 16,
+              "bi_score": 0.6182,
+              "rerank_rank": 10,
+              "rerank_score": -4.298
+            },
+            {
+              "chunk_id": "2605_17598v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 73,
+              "bi_score": 0.561,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -6.249,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_16427v1__c0003",
+              "rerank_score": 0.963
+            },
+            {
+              "chunk_id": "2608_15102v2__c0004",
+              "rerank_score": -1.342
+            },
+            {
+              "chunk_id": "2605_17598v1__c0003",
+              "rerank_score": -1.899
+            },
+            {
+              "chunk_id": "2608_15102v2__c0016",
+              "rerank_score": -2.185
+            },
+            {
+              "chunk_id": "2607_16427v1__c0021",
+              "rerank_score": -2.191
+            }
+          ],
+          "question_id": "mp02"
+        },
+        {
+          "query": "Both groups of papers claim to cut the cost of running a large model. How do their mechanisms differ in what they actually remove or skip?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.1667,
+            "40": 0.3333
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": -5.508,
+          "gold": [
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 308,
+              "bi_score": 0.5716,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.867,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2607_16427v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 39,
+              "bi_score": 0.6365,
+              "rerank_rank": 8,
+              "rerank_score": -8.305
+            },
+            {
+              "chunk_id": "2503_06184v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 267,
+              "bi_score": 0.5837,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.315,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0005",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 152,
+              "bi_score": 0.6098,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.792,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0006",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 18,
+              "bi_score": 0.6511,
+              "rerank_rank": 18,
+              "rerank_score": -9.843
+            },
+            {
+              "chunk_id": "2503_06184v1__c0007",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 227,
+              "bi_score": 0.5944,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -8.831,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2605_17598v1__c0007",
+              "rerank_score": -5.508
+            },
+            {
+              "chunk_id": "2503_06184v1__c0000",
+              "rerank_score": -6.311
+            },
+            {
+              "chunk_id": "2412_11629v1__c0023",
+              "rerank_score": -7.544
+            },
+            {
+              "chunk_id": "2503_06184v1__c0001",
+              "rerank_score": -7.645
+            },
+            {
+              "chunk_id": "2412_11629v1__c0016",
+              "rerank_score": -8.17
+            }
+          ],
+          "question_id": "mp03"
+        },
+        {
+          "query": "Do these papers agree on whether removing parameters forces you to retrain the model afterwards?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.2,
+            "10": 0.2,
+            "20": 0.2,
+            "40": 0.2
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": -1.272,
+          "gold": [
+            {
+              "chunk_id": "2412_11629v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 185,
+              "bi_score": 0.6194,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -6.581,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2505_18232v4__c0001",
+              "section": "Abstract",
+              "bi_rank": 130,
+              "bi_score": 0.6316,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.438,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2505_18232v4__c0003",
+              "section": "Introduction",
+              "bi_rank": 154,
+              "bi_score": 0.6262,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.411,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2505_18232v4__c0004",
+              "section": "Introduction",
+              "bi_rank": 73,
+              "bi_score": 0.6445,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.368,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2505_18232v4__c0025",
+              "section": "Shortened LLaMA",
+              "bi_rank": 5,
+              "bi_score": 0.7003,
+              "rerank_rank": 6,
+              "rerank_score": -5.268
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2505_18232v4__c0018",
+              "rerank_score": -1.272
+            },
+            {
+              "chunk_id": "2505_18232v4__c0005",
+              "rerank_score": -2.617
+            },
+            {
+              "chunk_id": "2502_01705v4__c0009",
+              "rerank_score": -3.064
+            },
+            {
+              "chunk_id": "2505_18232v4__c0027",
+              "rerank_score": -4.369
+            },
+            {
+              "chunk_id": "2412_11629v1__c0016",
+              "rerank_score": -4.81
+            }
+          ],
+          "question_id": "cf01"
+        },
+        {
+          "query": "Is expert specialisation in these models described as a coherent, structured behaviour or as an unstable one?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.1667,
+            "10": 0.1667,
+            "20": 0.1667,
+            "40": 0.5
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.3333,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": 3.395,
+          "gold": [
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 74,
+              "bi_score": 0.6086,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 2.045,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2608_15102v2__c0001",
+              "section": "Abstract",
+              "bi_rank": 26,
+              "bi_score": 0.6485,
+              "rerank_rank": 2,
+              "rerank_score": 0.735
+            },
+            {
+              "chunk_id": "2607_16427v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 1,
+              "bi_score": 0.6918,
+              "rerank_rank": 1,
+              "rerank_score": 3.395
+            },
+            {
+              "chunk_id": "2608_15102v2__c0003",
+              "section": "Introduction",
+              "bi_rank": 33,
+              "bi_score": 0.6432,
+              "rerank_rank": 13,
+              "rerank_score": -1.702
+            },
+            {
+              "chunk_id": "2608_15102v2__c0004",
+              "section": "Introduction",
+              "bi_rank": 59,
+              "bi_score": 0.6188,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -2.489,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2608_15102v2__c0007",
+              "section": "Related Work",
+              "bi_rank": 55,
+              "bi_score": 0.6199,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -8.992,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_16427v1__c0003",
+              "rerank_score": 3.395
+            },
+            {
+              "chunk_id": "2608_15102v2__c0001",
+              "rerank_score": 0.735
+            },
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "rerank_score": 0.592
+            },
+            {
+              "chunk_id": "2605_17598v1__c0035",
+              "rerank_score": 0.473
+            },
+            {
+              "chunk_id": "2605_17598v1__c0030",
+              "rerank_score": 0.09
+            }
+          ],
+          "question_id": "cf02"
+        }
+      ]
+    },
+    "agent_first_query": {
+      "summary": {
+        "n_questions": 8,
+        "pool_recall": {
+          "5": 0.1042,
+          "10": 0.1708,
+          "20": 0.2792,
+          "40": 0.6208
+        },
+        "rerank_recall": {
+          "1": 0.0875,
+          "3": 0.175,
+          "5": 0.2375
+        },
+        "gated_recall@5": 0.2375,
+        "gold_total": 47,
+        "gold_in_pool": 29,
+        "gold_in_pool_top5_after_rerank": 11,
+        "gold_in_bi_top5": 5,
+        "gold_missing_pool_but_ce_would_top5": 3,
+        "median_bi_rank_of_gold": 32
+      },
+      "rows": [
+        {
+          "query": "gradient computation clashes with routing only a few experts per token",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.1667,
+            "10": 0.1667,
+            "20": 0.3333,
+            "40": 0.6667
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.1667,
+            "5": 0.5
+          },
+          "gated_recall@5": 0.5,
+          "top_rerank_score": 2.515,
+          "gold": [
+            {
+              "chunk_id": "2310_00811v1__c0001",
+              "section": "ABSTRACT",
+              "bi_rank": 12,
+              "bi_score": 0.7938,
+              "rerank_rank": 4,
+              "rerank_score": -0.121
+            },
+            {
+              "chunk_id": "2310_00811v1__c0002",
+              "section": "INTRODUCTION",
+              "bi_rank": 1,
+              "bi_score": 0.8351,
+              "rerank_rank": 5,
+              "rerank_score": -0.467
+            },
+            {
+              "chunk_id": "2310_00811v1__c0003",
+              "section": "INTRODUCTION",
+              "bi_rank": 21,
+              "bi_score": 0.7802,
+              "rerank_rank": 2,
+              "rerank_score": 1.631
+            },
+            {
+              "chunk_id": "2310_00811v1__c0006",
+              "section": "Related Work And Preliminary",
+              "bi_rank": 44,
+              "bi_score": 0.7537,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.445,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2310_00811v1__c0008",
+              "section": "Related Work And Preliminary",
+              "bi_rank": 272,
+              "bi_score": 0.6621,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -9.377,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2310_00811v1__c0009",
+              "section": "Related Work And Preliminary",
+              "bi_rank": 37,
+              "bi_score": 0.7588,
+              "rerank_rank": 16,
+              "rerank_score": -2.596
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_16427v1__c0002",
+              "rerank_score": 2.515
+            },
+            {
+              "chunk_id": "2310_00811v1__c0003",
+              "rerank_score": 1.631
+            },
+            {
+              "chunk_id": "2605_17598v1__c0002",
+              "rerank_score": 1.143
+            },
+            {
+              "chunk_id": "2310_00811v1__c0001",
+              "rerank_score": -0.121
+            },
+            {
+              "chunk_id": "2310_00811v1__c0002",
+              "rerank_score": -0.467
+            }
+          ],
+          "question_id": "sp01",
+          "k": 5,
+          "trace": "e61f0a96ccfb.jsonl"
+        },
+        {
+          "query": "adapter-based fine-tuning slow many tenants share model routing change",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.5,
+            "10": 0.6667,
+            "20": 0.6667,
+            "40": 1.0
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.1667,
+            "5": 0.1667
+          },
+          "gated_recall@5": 0.1667,
+          "top_rerank_score": 1.838,
+          "gold": [
+            {
+              "chunk_id": "2410_18035v1__c0002",
+              "section": "Abstract",
+              "bi_rank": 1,
+              "bi_score": 0.7757,
+              "rerank_rank": 1,
+              "rerank_score": 1.838
+            },
+            {
+              "chunk_id": "2410_18035v1__c0005",
+              "section": "method",
+              "bi_rank": 2,
+              "bi_score": 0.7676,
+              "rerank_rank": 6,
+              "rerank_score": -4.298
+            },
+            {
+              "chunk_id": "2410_18035v1__c0006",
+              "section": "method",
+              "bi_rank": 23,
+              "bi_score": 0.717,
+              "rerank_rank": 16,
+              "rerank_score": -7.782
+            },
+            {
+              "chunk_id": "2410_18035v1__c0007",
+              "section": "method",
+              "bi_rank": 4,
+              "bi_score": 0.7599,
+              "rerank_rank": 15,
+              "rerank_score": -7.715
+            },
+            {
+              "chunk_id": "2410_18035v1__c0009",
+              "section": "Related works",
+              "bi_rank": 8,
+              "bi_score": 0.7386,
+              "rerank_rank": 9,
+              "rerank_score": -5.729
+            },
+            {
+              "chunk_id": "2410_18035v1__c0012",
+              "section": "Methods",
+              "bi_rank": 40,
+              "bi_score": 0.7067,
+              "rerank_rank": 33,
+              "rerank_score": -10.517
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2410_18035v1__c0002",
+              "rerank_score": 1.838
+            },
+            {
+              "chunk_id": "2605_17598v1__c0056",
+              "rerank_score": -0.784
+            },
+            {
+              "chunk_id": "2605_17598v1__c0053",
+              "rerank_score": -1.53
+            },
+            {
+              "chunk_id": "2412_11629v1__c0027",
+              "rerank_score": -3.009
+            },
+            {
+              "chunk_id": "2605_17598v1__c0034",
+              "rerank_score": -4.17
+            }
+          ],
+          "question_id": "sp02",
+          "k": 5,
+          "trace": "2f8a25c15a5d.jsonl"
+        },
+        {
+          "query": "lower-precision numeric format pruning process save resource",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.3333
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.3333,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": -0.387,
+          "gold": [
+            {
+              "chunk_id": "2412_11629v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 67,
+              "bi_score": 0.7331,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -1.36,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 74,
+              "bi_score": 0.7292,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -7.803,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2412_11629v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 32,
+              "bi_score": 0.7557,
+              "rerank_rank": 3,
+              "rerank_score": -1.418
+            },
+            {
+              "chunk_id": "2412_11629v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 85,
+              "bi_score": 0.7164,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.129,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0006",
+              "section": "Introduction",
+              "bi_rank": 51,
+              "bi_score": 0.7452,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.608,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2412_11629v1__c0007",
+              "section": "Introduction",
+              "bi_rank": 26,
+              "bi_score": 0.7616,
+              "rerank_rank": 1,
+              "rerank_score": -0.387
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2412_11629v1__c0007",
+              "rerank_score": -0.387
+            },
+            {
+              "chunk_id": "2412_11629v1__c0022",
+              "rerank_score": -0.46
+            },
+            {
+              "chunk_id": "2412_11629v1__c0003",
+              "rerank_score": -1.418
+            },
+            {
+              "chunk_id": "2412_11629v1__c0017",
+              "rerank_score": -2.163
+            },
+            {
+              "chunk_id": "2502_01705v4__c0019",
+              "rerank_score": -2.374
+            }
+          ],
+          "question_id": "sp03",
+          "k": 10,
+          "trace": "80f00f87dc87.jsonl"
+        },
+        {
+          "query": "avoid expensive retraining after removing parameters compression pruning",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.3333,
+            "40": 0.5
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.1667
+          },
+          "gated_recall@5": 0.1667,
+          "top_rerank_score": 1.635,
+          "gold": [
+            {
+              "chunk_id": "2412_11629v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 69,
+              "bi_score": 0.6745,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.562,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2505_18232v4__c0001",
+              "section": "Abstract",
+              "bi_rank": 34,
+              "bi_score": 0.6952,
+              "rerank_rank": 4,
+              "rerank_score": 1.03
+            },
+            {
+              "chunk_id": "2412_11629v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 47,
+              "bi_score": 0.6885,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -4.694,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 65,
+              "bi_score": 0.6771,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -5.835,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2412_11629v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 19,
+              "bi_score": 0.7104,
+              "rerank_rank": 18,
+              "rerank_score": -4.36
+            },
+            {
+              "chunk_id": "2505_18232v4__c0003",
+              "section": "Introduction",
+              "bi_rank": 18,
+              "bi_score": 0.7111,
+              "rerank_rank": 17,
+              "rerank_score": -4.07
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2502_01705v4__c0013",
+              "rerank_score": 1.635
+            },
+            {
+              "chunk_id": "2505_18232v4__c0004",
+              "rerank_score": 1.577
+            },
+            {
+              "chunk_id": "2607_08027v1__c0002",
+              "rerank_score": 1.306
+            },
+            {
+              "chunk_id": "2505_18232v4__c0001",
+              "rerank_score": 1.03
+            },
+            {
+              "chunk_id": "2412_11629v1__c0023",
+              "rerank_score": 0.615
+            }
+          ],
+          "question_id": "mp01",
+          "k": 10,
+          "trace": "de02e025db14.jsonl"
+        },
+        {
+          "query": "expert assignment unreliable routing problems MoE",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.1667,
+            "10": 0.3333,
+            "20": 0.5,
+            "40": 0.8333
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.1667,
+            "5": 0.1667
+          },
+          "gated_recall@5": 0.1667,
+          "top_rerank_score": 4.51,
+          "gold": [
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 21,
+              "bi_score": 0.6941,
+              "rerank_rank": 9,
+              "rerank_score": 2.34
+            },
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 9,
+              "bi_score": 0.7176,
+              "rerank_rank": 1,
+              "rerank_score": 4.51
+            },
+            {
+              "chunk_id": "2605_17598v1__c0001",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 33,
+              "bi_score": 0.6744,
+              "rerank_rank": 19,
+              "rerank_score": 0.171
+            },
+            {
+              "chunk_id": "2608_15102v2__c0001",
+              "section": "Abstract",
+              "bi_rank": 86,
+              "bi_score": 0.6315,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 1.845,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2607_16427v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 1,
+              "bi_score": 0.7576,
+              "rerank_rank": 6,
+              "rerank_score": 2.886
+            },
+            {
+              "chunk_id": "2605_17598v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 12,
+              "bi_score": 0.7148,
+              "rerank_rank": 8,
+              "rerank_score": 2.52
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "rerank_score": 4.51
+            },
+            {
+              "chunk_id": "2607_16427v1__c0005",
+              "rerank_score": 4.2
+            },
+            {
+              "chunk_id": "2608_15102v2__c0004",
+              "rerank_score": 4.1
+            },
+            {
+              "chunk_id": "2605_17598v1__c0003",
+              "rerank_score": 3.762
+            },
+            {
+              "chunk_id": "2607_16427v1__c0021",
+              "rerank_score": 3.5
+            }
+          ],
+          "question_id": "mp02",
+          "k": 10,
+          "trace": "8cafca307ada.jsonl"
+        },
+        {
+          "query": "reduce cost running large model skip remove compute efficiency",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.0
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": -1.952,
+          "gold": [
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 261,
+              "bi_score": 0.6156,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -11.133,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2607_16427v1__c0002",
+              "section": "Introduction",
+              "bi_rank": 58,
+              "bi_score": 0.6795,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -7.594,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 98,
+              "bi_score": 0.6657,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.103,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0005",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 72,
+              "bi_score": 0.674,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -11.352,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0006",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 95,
+              "bi_score": 0.6662,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -11.283,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2503_06184v1__c0007",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 120,
+              "bi_score": 0.6586,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.124,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_08027v1__c0002",
+              "rerank_score": -1.952
+            },
+            {
+              "chunk_id": "2503_06184v1__c0000",
+              "rerank_score": -2.213
+            },
+            {
+              "chunk_id": "2506_18952v2__c0029",
+              "rerank_score": -2.886
+            },
+            {
+              "chunk_id": "2412_11629v1__c0016",
+              "rerank_score": -3.316
+            },
+            {
+              "chunk_id": "2410_18035v1__c0004",
+              "rerank_score": -3.685
+            }
+          ],
+          "question_id": "mp03",
+          "k": 10,
+          "trace": "4c4ddeb2bb85.jsonl"
+        },
+        {
+          "query": "removing parameters retrain model after pruning",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.2,
+            "20": 0.4,
+            "40": 0.8
+          },
+          "rerank_recall": {
+            "1": 0.2,
+            "3": 0.4,
+            "5": 0.4
+          },
+          "gated_recall@5": 0.4,
+          "top_rerank_score": 6.435,
+          "gold": [
+            {
+              "chunk_id": "2412_11629v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 62,
+              "bi_score": 0.705,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 1.113,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2505_18232v4__c0001",
+              "section": "Abstract",
+              "bi_rank": 27,
+              "bi_score": 0.7313,
+              "rerank_rank": 1,
+              "rerank_score": 6.435
+            },
+            {
+              "chunk_id": "2505_18232v4__c0003",
+              "section": "Introduction",
+              "bi_rank": 13,
+              "bi_score": 0.7422,
+              "rerank_rank": 17,
+              "rerank_score": 1.184
+            },
+            {
+              "chunk_id": "2505_18232v4__c0004",
+              "section": "Introduction",
+              "bi_rank": 21,
+              "bi_score": 0.734,
+              "rerank_rank": 3,
+              "rerank_score": 5.329
+            },
+            {
+              "chunk_id": "2505_18232v4__c0025",
+              "section": "Shortened LLaMA",
+              "bi_rank": 7,
+              "bi_score": 0.751,
+              "rerank_rank": 20,
+              "rerank_score": -0.165
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2505_18232v4__c0001",
+              "rerank_score": 6.435
+            },
+            {
+              "chunk_id": "2502_01705v4__c0013",
+              "rerank_score": 5.767
+            },
+            {
+              "chunk_id": "2505_18232v4__c0004",
+              "rerank_score": 5.329
+            },
+            {
+              "chunk_id": "2505_18232v4__c0018",
+              "rerank_score": 5.219
+            },
+            {
+              "chunk_id": "2505_18232v4__c0005",
+              "rerank_score": 4.762
+            }
+          ],
+          "question_id": "cf01",
+          "k": 10,
+          "trace": "8d5ecdd897f3.jsonl"
+        },
+        {
+          "query": "expert specialization MoE models structured coherent behavior",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.0,
+            "40": 0.8333
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.1667,
+            "5": 0.1667
+          },
+          "gated_recall@5": 0.1667,
+          "top_rerank_score": 5.763,
+          "gold": [
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 28,
+              "bi_score": 0.7468,
+              "rerank_rank": 2,
+              "rerank_score": 4.94
+            },
+            {
+              "chunk_id": "2608_15102v2__c0001",
+              "section": "Abstract",
+              "bi_rank": 22,
+              "bi_score": 0.7516,
+              "rerank_rank": 8,
+              "rerank_score": 3.563
+            },
+            {
+              "chunk_id": "2607_16427v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 32,
+              "bi_score": 0.7375,
+              "rerank_rank": 13,
+              "rerank_score": 2.841
+            },
+            {
+              "chunk_id": "2608_15102v2__c0003",
+              "section": "Introduction",
+              "bi_rank": 27,
+              "bi_score": 0.7475,
+              "rerank_rank": 22,
+              "rerank_score": 1.044
+            },
+            {
+              "chunk_id": "2608_15102v2__c0004",
+              "section": "Introduction",
+              "bi_rank": 30,
+              "bi_score": 0.7404,
+              "rerank_rank": 17,
+              "rerank_score": 1.863
+            },
+            {
+              "chunk_id": "2608_15102v2__c0007",
+              "section": "Related Work",
+              "bi_rank": 54,
+              "bi_score": 0.721,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -8.74,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2607_16427v1__c0004",
+              "rerank_score": 5.763
+            },
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "rerank_score": 4.94
+            },
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "rerank_score": 4.666
+            },
+            {
+              "chunk_id": "2605_17598v1__c0004",
+              "rerank_score": 4.462
+            },
+            {
+              "chunk_id": "2607_16427v1__c0026",
+              "rerank_score": 4.307
+            }
+          ],
+          "question_id": "cf02",
+          "k": 10,
+          "trace": "08b6096ea9fc.jsonl"
+        }
+      ],
+      "missing_traces": []
+    }
+  },
+  "held_out": {
+    "raw_question": {
+      "summary": {
+        "n_questions": 4,
+        "pool_recall": {
+          "5": 0.0833,
+          "10": 0.2917,
+          "20": 0.4583,
+          "40": 0.6667
+        },
+        "rerank_recall": {
+          "1": 0.0833,
+          "3": 0.25,
+          "5": 0.3333
+        },
+        "gated_recall@5": 0.1666,
+        "gold_total": 24,
+        "gold_in_pool": 16,
+        "gold_in_pool_top5_after_rerank": 8,
+        "gold_in_bi_top5": 2,
+        "gold_missing_pool_but_ce_would_top5": 2,
+        "median_bi_rank_of_gold": 22.0
+      },
+      "rows": [
+        {
+          "query": "What complaint does one paper make about how calibration examples are chosen when deciding which parts of a model to remove?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.1667,
+            "10": 0.6667,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.5,
+            "5": 0.5
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": -4.841,
+          "gold": [
+            {
+              "chunk_id": "2503_06184v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 1,
+              "bi_score": 0.6912,
+              "rerank_rank": 1,
+              "rerank_score": -4.841
+            },
+            {
+              "chunk_id": "2503_06184v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 8,
+              "bi_score": 0.6466,
+              "rerank_rank": 2,
+              "rerank_score": -4.997
+            },
+            {
+              "chunk_id": "2503_06184v1__c0005",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 6,
+              "bi_score": 0.6521,
+              "rerank_rank": 11,
+              "rerank_score": -7.816
+            },
+            {
+              "chunk_id": "2503_06184v1__c0006",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 13,
+              "bi_score": 0.6274,
+              "rerank_rank": 22,
+              "rerank_score": -9.427
+            },
+            {
+              "chunk_id": "2503_06184v1__c0007",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 18,
+              "bi_score": 0.6213,
+              "rerank_rank": 3,
+              "rerank_score": -5.482
+            },
+            {
+              "chunk_id": "2503_06184v1__c0009",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 7,
+              "bi_score": 0.6469,
+              "rerank_rank": 9,
+              "rerank_score": -7.713
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2503_06184v1__c0003",
+              "rerank_score": -4.841
+            },
+            {
+              "chunk_id": "2503_06184v1__c0004",
+              "rerank_score": -4.997
+            },
+            {
+              "chunk_id": "2503_06184v1__c0007",
+              "rerank_score": -5.482
+            },
+            {
+              "chunk_id": "2505_18232v4__c0029",
+              "rerank_score": -5.596
+            },
+            {
+              "chunk_id": "2503_06184v1__c0000",
+              "rerank_score": -6.041
+            }
+          ],
+          "question_id": "sp04"
+        },
+        {
+          "query": "In the study of a morphologically rich language with little training data, what happened to expert usage in the final layers?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.3333,
+            "20": 0.3333,
+            "40": 0.6667
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.1667,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": 2.046,
+          "gold": [
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 6,
+              "bi_score": 0.7643,
+              "rerank_rank": 2,
+              "rerank_score": 1.398
+            },
+            {
+              "chunk_id": "2605_17598v1__c0001",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 25,
+              "bi_score": 0.7304,
+              "rerank_rank": 23,
+              "rerank_score": -3.075
+            },
+            {
+              "chunk_id": "2605_17598v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 9,
+              "bi_score": 0.754,
+              "rerank_rank": 7,
+              "rerank_score": -0.27
+            },
+            {
+              "chunk_id": "2605_17598v1__c0005",
+              "section": "Introduction",
+              "bi_rank": 28,
+              "bi_score": 0.7298,
+              "rerank_rank": 5,
+              "rerank_score": 0.071
+            },
+            {
+              "chunk_id": "2605_17598v1__c0006",
+              "section": "Introduction",
+              "bi_rank": 48,
+              "bi_score": 0.7165,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.299,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2605_17598v1__c0007",
+              "section": "Methods",
+              "bi_rank": 68,
+              "bi_score": 0.6976,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -8.297,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2605_17598v1__c0052",
+              "rerank_score": 2.046
+            },
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "rerank_score": 1.398
+            },
+            {
+              "chunk_id": "2605_17598v1__c0058",
+              "rerank_score": 0.876
+            },
+            {
+              "chunk_id": "2605_17598v1__c0010",
+              "rerank_score": 0.621
+            },
+            {
+              "chunk_id": "2605_17598v1__c0005",
+              "rerank_score": 0.071
+            }
+          ],
+          "question_id": "sp05"
+        },
+        {
+          "query": "What is reported about deploying large models on hardware with tight memory, and which techniques are combined to get there?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.1667,
+            "10": 0.1667,
+            "20": 0.3333,
+            "40": 0.5
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.3333,
+            "5": 0.5
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": 0.19,
+          "gold": [
+            {
+              "chunk_id": "2506_18952v2__c0001",
+              "section": "Abstract",
+              "bi_rank": 11,
+              "bi_score": 0.6804,
+              "rerank_rank": 2,
+              "rerank_score": -0.472
+            },
+            {
+              "chunk_id": "2502_01705v4__c0002",
+              "section": "ABSTRACT",
+              "bi_rank": 130,
+              "bi_score": 0.609,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -1.418,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2506_18952v2__c0002",
+              "section": "Introduction",
+              "bi_rank": 117,
+              "bi_score": 0.6106,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -0.702,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2506_18952v2__c0003",
+              "section": "Introduction",
+              "bi_rank": 248,
+              "bi_score": 0.575,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.812,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2502_01705v4__c0004",
+              "section": "Perplexity in         scale",
+              "bi_rank": 22,
+              "bi_score": 0.6628,
+              "rerank_rank": 5,
+              "rerank_score": -3.784
+            },
+            {
+              "chunk_id": "2506_18952v2__c0004",
+              "section": "Related Works",
+              "bi_rank": 1,
+              "bi_score": 0.7186,
+              "rerank_rank": 1,
+              "rerank_score": 0.19
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2506_18952v2__c0004",
+              "rerank_score": 0.19
+            },
+            {
+              "chunk_id": "2506_18952v2__c0001",
+              "rerank_score": -0.472
+            },
+            {
+              "chunk_id": "2412_11629v1__c0002",
+              "rerank_score": -2.169
+            },
+            {
+              "chunk_id": "2412_11629v1__c0016",
+              "rerank_score": -3.56
+            },
+            {
+              "chunk_id": "2502_01705v4__c0004",
+              "rerank_score": -3.784
+            }
+          ],
+          "question_id": "mp04"
+        },
+        {
+          "query": "Is routing collapse presented as an inevitable property of these architectures or as something that can be corrected?",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.1667,
+            "40": 0.5
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": 1.906,
+          "gold": [
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 36,
+              "bi_score": 0.654,
+              "rerank_rank": 7,
+              "rerank_score": -1.331
+            },
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 12,
+              "bi_score": 0.6883,
+              "rerank_rank": 32,
+              "rerank_score": -10.001
+            },
+            {
+              "chunk_id": "2605_17598v1__c0001",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 22,
+              "bi_score": 0.672,
+              "rerank_rank": 8,
+              "rerank_score": -1.621
+            },
+            {
+              "chunk_id": "2607_16427v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 248,
+              "bi_score": 0.5793,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.959,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2605_17598v1__c0006",
+              "section": "Introduction",
+              "bi_rank": 74,
+              "bi_score": 0.6348,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -2.338,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2607_16427v1__c0007",
+              "section": "Related Work",
+              "bi_rank": 81,
+              "bi_score": 0.6308,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.762,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2605_17598v1__c0005",
+              "rerank_score": 1.906
+            },
+            {
+              "chunk_id": "2605_17598v1__c0055",
+              "rerank_score": 1.307
+            },
+            {
+              "chunk_id": "2605_17598v1__c0053",
+              "rerank_score": 1.06
+            },
+            {
+              "chunk_id": "2605_17598v1__c0052",
+              "rerank_score": 0.251
+            },
+            {
+              "chunk_id": "2605_17598v1__c0056",
+              "rerank_score": -0.176
+            }
+          ],
+          "question_id": "cf03"
+        }
+      ]
+    },
+    "agent_first_query": {
+      "summary": {
+        "n_questions": 4,
+        "pool_recall": {
+          "5": 0.25,
+          "10": 0.3333,
+          "20": 0.4583,
+          "40": 0.75
+        },
+        "rerank_recall": {
+          "1": 0.0417,
+          "3": 0.2083,
+          "5": 0.25
+        },
+        "gated_recall@5": 0.25,
+        "gold_total": 24,
+        "gold_in_pool": 18,
+        "gold_in_pool_top5_after_rerank": 6,
+        "gold_in_bi_top5": 6,
+        "gold_missing_pool_but_ce_would_top5": 2,
+        "median_bi_rank_of_gold": 22.0
+      },
+      "rows": [
+        {
+          "query": "calibration examples chosen model removal pruning selection criteria",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.6667,
+            "10": 0.8333,
+            "20": 1.0,
+            "40": 1.0
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.3333,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": 2.088,
+          "gold": [
+            {
+              "chunk_id": "2503_06184v1__c0003",
+              "section": "Introduction",
+              "bi_rank": 1,
+              "bi_score": 0.7982,
+              "rerank_rank": 7,
+              "rerank_score": 1.313
+            },
+            {
+              "chunk_id": "2503_06184v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 4,
+              "bi_score": 0.7713,
+              "rerank_rank": 3,
+              "rerank_score": 1.813
+            },
+            {
+              "chunk_id": "2503_06184v1__c0005",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 2,
+              "bi_score": 0.781,
+              "rerank_rank": 9,
+              "rerank_score": 0.655
+            },
+            {
+              "chunk_id": "2503_06184v1__c0006",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 16,
+              "bi_score": 0.7307,
+              "rerank_rank": 16,
+              "rerank_score": -1.699
+            },
+            {
+              "chunk_id": "2503_06184v1__c0007",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 8,
+              "bi_score": 0.7524,
+              "rerank_rank": 2,
+              "rerank_score": 2.008
+            },
+            {
+              "chunk_id": "2503_06184v1__c0009",
+              "section": "Sample-aware Adaptive Structured Pruning",
+              "bi_rank": 3,
+              "bi_score": 0.7726,
+              "rerank_rank": 14,
+              "rerank_score": -0.711
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2503_06184v1__c0000",
+              "rerank_score": 2.088
+            },
+            {
+              "chunk_id": "2503_06184v1__c0007",
+              "rerank_score": 2.008
+            },
+            {
+              "chunk_id": "2503_06184v1__c0004",
+              "rerank_score": 1.813
+            },
+            {
+              "chunk_id": "2503_06184v1__c0002",
+              "rerank_score": 1.625
+            },
+            {
+              "chunk_id": "2505_18232v4__c0005",
+              "rerank_score": 1.582
+            }
+          ],
+          "question_id": "sp04",
+          "k": 10,
+          "trace": "9d8c22ac174c.jsonl"
+        },
+        {
+          "query": "morphologically rich language little training data expert usage final layers",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.1667,
+            "20": 0.1667,
+            "40": 0.8333
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.1667,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": 3.239,
+          "gold": [
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 9,
+              "bi_score": 0.7991,
+              "rerank_rank": 3,
+              "rerank_score": 2.641
+            },
+            {
+              "chunk_id": "2605_17598v1__c0001",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 28,
+              "bi_score": 0.7838,
+              "rerank_rank": 23,
+              "rerank_score": -1.585
+            },
+            {
+              "chunk_id": "2605_17598v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 26,
+              "bi_score": 0.7846,
+              "rerank_rank": 9,
+              "rerank_score": 0.725
+            },
+            {
+              "chunk_id": "2605_17598v1__c0005",
+              "section": "Introduction",
+              "bi_rank": 21,
+              "bi_score": 0.7884,
+              "rerank_rank": 5,
+              "rerank_score": 1.702
+            },
+            {
+              "chunk_id": "2605_17598v1__c0006",
+              "section": "Introduction",
+              "bi_rank": 35,
+              "bi_score": 0.7797,
+              "rerank_rank": 10,
+              "rerank_score": 0.718
+            },
+            {
+              "chunk_id": "2605_17598v1__c0007",
+              "section": "Methods",
+              "bi_rank": 76,
+              "bi_score": 0.754,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -6.696,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2605_17598v1__c0052",
+              "rerank_score": 3.239
+            },
+            {
+              "chunk_id": "2605_17598v1__c0010",
+              "rerank_score": 2.893
+            },
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "rerank_score": 2.641
+            },
+            {
+              "chunk_id": "2605_17598v1__c0058",
+              "rerank_score": 2.287
+            },
+            {
+              "chunk_id": "2605_17598v1__c0005",
+              "rerank_score": 1.702
+            }
+          ],
+          "question_id": "sp05",
+          "k": 8,
+          "trace": "fc8eaf16fd25.jsonl"
+        },
+        {
+          "query": "deploying large models on hardware with tight memory constraints techniques combined",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.3333,
+            "10": 0.3333,
+            "20": 0.3333,
+            "40": 0.5
+          },
+          "rerank_recall": {
+            "1": 0.1667,
+            "3": 0.3333,
+            "5": 0.3333
+          },
+          "gated_recall@5": 0.3333,
+          "top_rerank_score": 2.639,
+          "gold": [
+            {
+              "chunk_id": "2506_18952v2__c0001",
+              "section": "Abstract",
+              "bi_rank": 4,
+              "bi_score": 0.7731,
+              "rerank_rank": 1,
+              "rerank_score": 2.639
+            },
+            {
+              "chunk_id": "2502_01705v4__c0002",
+              "section": "ABSTRACT",
+              "bi_rank": 102,
+              "bi_score": 0.7032,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 0.167,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2506_18952v2__c0002",
+              "section": "Introduction",
+              "bi_rank": 41,
+              "bi_score": 0.7263,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": 1.229,
+              "would_make_top5": true
+            },
+            {
+              "chunk_id": "2506_18952v2__c0003",
+              "section": "Introduction",
+              "bi_rank": 157,
+              "bi_score": 0.6854,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -11.207,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2502_01705v4__c0004",
+              "section": "Perplexity in         scale",
+              "bi_rank": 30,
+              "bi_score": 0.7353,
+              "rerank_rank": 8,
+              "rerank_score": -3.799
+            },
+            {
+              "chunk_id": "2506_18952v2__c0004",
+              "section": "Related Works",
+              "bi_rank": 1,
+              "bi_score": 0.7976,
+              "rerank_rank": 2,
+              "rerank_score": 1.195
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2506_18952v2__c0001",
+              "rerank_score": 2.639
+            },
+            {
+              "chunk_id": "2506_18952v2__c0004",
+              "rerank_score": 1.195
+            },
+            {
+              "chunk_id": "2607_08027v1__c0002",
+              "rerank_score": 0.259
+            },
+            {
+              "chunk_id": "2506_18952v2__c0028",
+              "rerank_score": -0.741
+            },
+            {
+              "chunk_id": "2506_18952v2__c0009",
+              "rerank_score": -1.184
+            }
+          ],
+          "question_id": "mp04",
+          "k": 10,
+          "trace": "6d6a3e84477e.jsonl"
+        },
+        {
+          "query": "routing collapse inevitable corrected architecture",
+          "topic_filter": null,
+          "chunk_types": null,
+          "pool_recall": {
+            "5": 0.0,
+            "10": 0.0,
+            "20": 0.3333,
+            "40": 0.6667
+          },
+          "rerank_recall": {
+            "1": 0.0,
+            "3": 0.0,
+            "5": 0.0
+          },
+          "gated_recall@5": 0.0,
+          "top_rerank_score": 3.551,
+          "gold": [
+            {
+              "chunk_id": "2605_17598v1__c0000",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 23,
+              "bi_score": 0.7048,
+              "rerank_rank": 7,
+              "rerank_score": 1.166
+            },
+            {
+              "chunk_id": "2607_16427v1__c0001",
+              "section": "Abstract",
+              "bi_rank": 12,
+              "bi_score": 0.726,
+              "rerank_rank": 26,
+              "rerank_score": -8.639
+            },
+            {
+              "chunk_id": "2605_17598v1__c0001",
+              "section": "Mixture of Experts for Low-Resource LLMs",
+              "bi_rank": 17,
+              "bi_score": 0.7084,
+              "rerank_rank": 6,
+              "rerank_score": 1.636
+            },
+            {
+              "chunk_id": "2607_16427v1__c0004",
+              "section": "Introduction",
+              "bi_rank": 244,
+              "bi_score": 0.6112,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -11.228,
+              "would_make_top5": false
+            },
+            {
+              "chunk_id": "2605_17598v1__c0006",
+              "section": "Introduction",
+              "bi_rank": 34,
+              "bi_score": 0.6933,
+              "rerank_rank": 11,
+              "rerank_score": 0.523
+            },
+            {
+              "chunk_id": "2607_16427v1__c0007",
+              "section": "Related Work",
+              "bi_rank": 74,
+              "bi_score": 0.6683,
+              "rerank_rank": "not in pool",
+              "rerank_score": null,
+              "ce_score_if_shortlisted": -10.068,
+              "would_make_top5": false
+            }
+          ],
+          "top5": [
+            {
+              "chunk_id": "2605_17598v1__c0052",
+              "rerank_score": 3.551
+            },
+            {
+              "chunk_id": "2605_17598v1__c0053",
+              "rerank_score": 3.284
+            },
+            {
+              "chunk_id": "2605_17598v1__c0056",
+              "rerank_score": 3.193
+            },
+            {
+              "chunk_id": "2605_17598v1__c0005",
+              "rerank_score": 2.277
+            },
+            {
+              "chunk_id": "2605_17598v1__c0055",
+              "rerank_score": 2.124
+            }
+          ],
+          "question_id": "cf03",
+          "k": 5,
+          "trace": "20ca166e6337.jsonl"
+        }
+      ],
+      "missing_traces": []
+    }
+  },
+  "sparsemixer_case": {
+    "chunks": [
+      "2310_00811v1__c0023",
+      "2310_00811v1__c0022"
+    ],
+    "queries": [
+      {
+        "query": "Does SparseMixer report any downstream results?",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7198,
+            "rerank_rank": 1,
+            "rerank_score": 3.389
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 13,
+            "bi_score": 0.714,
+            "rerank_rank": 2,
+            "rerank_score": 2.924
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 3.389
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 2.924
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 0.146
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": -0.013
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": -0.166
+          }
+        ],
+        "top_rerank_score": 3.389
+      },
+      {
+        "query": "SparseMixer downstream performance results",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 10,
+            "bi_score": 0.7897,
+            "rerank_rank": 1,
+            "rerank_score": 5.37
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7862,
+            "rerank_rank": 2,
+            "rerank_score": 4.864
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 5.37
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 4.864
+          },
+          {
+            "chunk_id": "2310_00811v1__c0019",
+            "rerank_score": 2.854
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 2.675
+          },
+          {
+            "chunk_id": "2310_00811v1__c0026",
+            "rerank_score": 2.34
+          }
+        ],
+        "top_rerank_score": 5.37
+      },
+      {
+        "query": "SparseMixer downstream task evaluation fine-tuning results",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7968,
+            "rerank_rank": 2,
+            "rerank_score": 0.998
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7917,
+            "rerank_rank": 1,
+            "rerank_score": 2.607
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 2.607
+          },
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 0.998
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 0.59
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 0.497
+          },
+          {
+            "chunk_id": "2607_16427v1__c0016",
+            "rerank_score": 0.497
+          }
+        ],
+        "top_rerank_score": 2.607
+      },
+      {
+        "query": "Switch Transformer with SparseMixer downstream performance compared to dense model",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 3,
+            "bi_score": 0.8735,
+            "rerank_rank": 2,
+            "rerank_score": 8.235
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 2,
+            "bi_score": 0.8931,
+            "rerank_rank": 1,
+            "rerank_score": 8.727
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 8.727
+          },
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 8.235
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 4.759
+          },
+          {
+            "chunk_id": "2310_00811v1__c0025",
+            "rerank_score": 4.203
+          },
+          {
+            "chunk_id": "2310_00811v1__c0031",
+            "rerank_score": 4.062
+          }
+        ],
+        "top_rerank_score": 8.727
+      },
+      {
+        "query": "sparse backpropagation MoE training downstream results",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7859,
+            "rerank_rank": 6,
+            "rerank_score": 3.57
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 9,
+            "bi_score": 0.7957,
+            "rerank_rank": 5,
+            "rerank_score": 3.945
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 5.599
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 4.892
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": 4.845
+          },
+          {
+            "chunk_id": "2310_00811v1__c0006",
+            "rerank_score": 4.614
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 3.945
+          }
+        ],
+        "top_rerank_score": 5.599
+      },
+      {
+        "query": "does sparse mixer improve downstream tasks",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 3,
+            "bi_score": 0.75,
+            "rerank_rank": 1,
+            "rerank_score": 0.151
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 4,
+            "bi_score": 0.7338,
+            "rerank_rank": 2,
+            "rerank_score": 0.063
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 0.151
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 0.063
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": -0.451
+          },
+          {
+            "chunk_id": "2605_17598v1__c0037",
+            "rerank_score": -1.475
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": -2.783
+          }
+        ],
+        "top_rerank_score": 0.151
+      },
+      {
+        "query": "SparseMixer only reports training speedup no downstream evaluation",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7114,
+            "rerank_rank": 1,
+            "rerank_score": 3.944
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 10,
+            "bi_score": 0.7192,
+            "rerank_rank": 2,
+            "rerank_score": 3.181
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 3.944
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 3.181
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 2.116
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": 1.886
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 1.636
+          }
+        ],
+        "top_rerank_score": 3.944
+      },
+      {
+        "query": "SparseMixer results",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7471,
+            "rerank_rank": 13,
+            "rerank_score": 2.541
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 13,
+            "bi_score": 0.7443,
+            "rerank_rank": 12,
+            "rerank_score": 2.732
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0031",
+            "rerank_score": 5.167
+          },
+          {
+            "chunk_id": "2310_00811v1__c0027",
+            "rerank_score": 4.755
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 4.598
+          },
+          {
+            "chunk_id": "2310_00811v1__c0019",
+            "rerank_score": 4.52
+          },
+          {
+            "chunk_id": "2310_00811v1__c0030",
+            "rerank_score": 4.456
+          }
+        ],
+        "top_rerank_score": 5.167
+      },
+      {
+        "query": "SparseMixer experiments evaluation",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 13,
+            "bi_score": 0.7795,
+            "rerank_rank": 5,
+            "rerank_score": 2.401
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7805,
+            "rerank_rank": 13,
+            "rerank_score": 1.34
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 4.131
+          },
+          {
+            "chunk_id": "2310_00811v1__c0026",
+            "rerank_score": 3.743
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 3.308
+          },
+          {
+            "chunk_id": "2310_00811v1__c0019",
+            "rerank_score": 2.799
+          },
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 2.401
+          }
+        ],
+        "top_rerank_score": 4.131
+      },
+      {
+        "query": "What does SparseMixer achieve",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7389,
+            "rerank_rank": 4,
+            "rerank_score": 5.258
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 13,
+            "bi_score": 0.7238,
+            "rerank_rank": 5,
+            "rerank_score": 4.992
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 6.623
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 6.014
+          },
+          {
+            "chunk_id": "2310_00811v1__c0031",
+            "rerank_score": 5.949
+          },
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 5.258
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 4.992
+          }
+        ],
+        "top_rerank_score": 6.623
+      },
+      {
+        "query": "SparseMixer GLUE fine-tuning results",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7535,
+            "rerank_rank": 14,
+            "rerank_score": -1.923
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 13,
+            "bi_score": 0.7407,
+            "rerank_rank": 2,
+            "rerank_score": 1.867
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0019",
+            "rerank_score": 2.794
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 1.867
+          },
+          {
+            "chunk_id": "2310_00811v1__c0027",
+            "rerank_score": 0.622
+          },
+          {
+            "chunk_id": "2310_00811v1__c0030",
+            "rerank_score": -0.582
+          },
+          {
+            "chunk_id": "2310_00811v1__c0031",
+            "rerank_score": -0.756
+          }
+        ],
+        "top_rerank_score": 2.794
+      },
+      {
+        "query": "SparseMixer limitations",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7575,
+            "rerank_rank": 13,
+            "rerank_score": -0.665
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7513,
+            "rerank_rank": 12,
+            "rerank_score": -0.63
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 2.426
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": 1.788
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 1.61
+          },
+          {
+            "chunk_id": "2310_00811v1__c0031",
+            "rerank_score": 0.931
+          },
+          {
+            "chunk_id": "2310_00811v1__c0030",
+            "rerank_score": 0.695
+          }
+        ],
+        "top_rerank_score": 2.426
+      },
+      {
+        "query": "SparseMixer machine translation BLEU",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 8,
+            "bi_score": 0.7581,
+            "rerank_rank": 8,
+            "rerank_score": 2.179
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 7,
+            "bi_score": 0.7626,
+            "rerank_rank": 2,
+            "rerank_score": 4.393
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0019",
+            "rerank_score": 4.909
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "rerank_score": 4.393
+          },
+          {
+            "chunk_id": "2310_00811v1__c0031",
+            "rerank_score": 3.961
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 3.798
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 3.619
+          }
+        ],
+        "top_rerank_score": 4.909
+      },
+      {
+        "query": "Sparse Backpropagation for MoE Training experimental results",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7938,
+            "rerank_rank": 9,
+            "rerank_score": 2.49
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 9,
+            "bi_score": 0.8037,
+            "rerank_rank": 11,
+            "rerank_score": 2.11
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 6.171
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 5.936
+          },
+          {
+            "chunk_id": "2310_00811v1__c0006",
+            "rerank_score": 5.109
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": 4.795
+          },
+          {
+            "chunk_id": "2310_00811v1__c0012",
+            "rerank_score": 4.054
+          }
+        ],
+        "top_rerank_score": 6.171
+      },
+      {
+        "query": "SparseMixer gradient estimator results benchmarks",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 16,
+            "bi_score": 0.7536,
+            "rerank_rank": 18,
+            "rerank_score": -1.463
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7719,
+            "rerank_rank": 14,
+            "rerank_score": -0.463
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 3.766
+          },
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 3.274
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": 3.152
+          },
+          {
+            "chunk_id": "2310_00811v1__c0027",
+            "rerank_score": 3.106
+          },
+          {
+            "chunk_id": "2310_00811v1__c0017",
+            "rerank_score": 1.842
+          }
+        ],
+        "top_rerank_score": 3.766
+      },
+      {
+        "query": "SparseMixer pre-training convergence speed",
+        "gold": [
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "section": "EXPERIMENTS",
+            "bi_rank": 11,
+            "bi_score": 0.7987,
+            "rerank_rank": 5,
+            "rerank_score": 4.32
+          },
+          {
+            "chunk_id": "2310_00811v1__c0022",
+            "section": "EXPERIMENTS",
+            "bi_rank": 12,
+            "bi_score": 0.7968,
+            "rerank_rank": 7,
+            "rerank_score": 3.025
+          }
+        ],
+        "top5": [
+          {
+            "chunk_id": "2310_00811v1__c0032",
+            "rerank_score": 5.648
+          },
+          {
+            "chunk_id": "2310_00811v1__c0019",
+            "rerank_score": 4.995
+          },
+          {
+            "chunk_id": "2310_00811v1__c0001",
+            "rerank_score": 4.393
+          },
+          {
+            "chunk_id": "2310_00811v1__c0003",
+            "rerank_score": 4.32
+          },
+          {
+            "chunk_id": "2310_00811v1__c0023",
+            "rerank_score": 4.32
+          }
+        ],
+        "top_rerank_score": 5.648
+      }
+    ]
+  }
+}

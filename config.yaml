@@ -316,6 +316,36 @@ retrieval:
                             # absent) at 0.031 below 0.55, no answerable question fails, and
                             # cosine ranges overlap (absent 0.57 vs answerable 0.55-0.65), so
                             # nearness carries no signal here. confirmed by user 2026-10-25.
+  # ---- first stage: what the candidate pool is built from (D30-D32) ----
+  contextual_headers: false # MEASURED OFF (D30, eval/results/retrieval_ablation_v2.json).
+                            # true embeds and BM25-indexes "{paper_title} — {section}\n{text}".
+                            # First stage only: the chunk record's text and content_hash,
+                            # the cross-encoder's input and what the agent reads stay the
+                            # plain chunk text. On the tuning split it LOWERED dense pool
+                            # recall@40 (raw questions 0.400 -> 0.317, agent queries 0.621
+                            # -> 0.537) and was a wash with hybrid on, so it ships off.
+                            # Toggling it changes the embedder input: re-embed with
+                            # `main.py reindex` (local). The retriever refuses a mismatched
+                            # index rather than search it.
+  hybrid: true              # MEASURED ON (D31). BM25 beside the bi-encoder, fused by
+                            # Reciprocal Rank Fusion. Tuning split, raw questions: pool
+                            # recall@40 0.400 -> 0.567, recall@5 0.125 -> 0.188, MRR 0.344 ->
+                            # 0.479, abstention unchanged (1.000), latency unchanged. The
+                            # relevance gate still thresholds the cross-encoder score, and on
+                            # the fallback path the dense cosine — never an RRF score.
+  bm25_k1: 1.2              # Okapi BM25 term-frequency saturation (the usual default)
+  bm25_b: 0.75              # Okapi BM25 length normalisation (the usual default)
+  rrf_k: 60                 # RRF constant: score = sum 1/(rrf_k + rank). 60 is the value
+                            # from the original RRF paper; not tuned here.
+  max_subqueries: 3         # retrieve_evidence `queries`: at most this many per call
+  multi_query_rerank: retrieving  # MEASURED (D32). Each candidate keeps its max
+                            # cross-encoder score over the sub-queries it is scored against.
+                            # "all": every sub-query (pool x n pairs); "retrieving": only the
+                            # sub-queries whose dense or BM25 list returned it. Median
+                            # rerank on the 7 multi-clause tuning questions (2-3 sub-queries):
+                            # "all" 4364 ms / 120 pairs, "retrieving" 3323 ms / 93 pairs,
+                            # against 1428 ms for one query. "all" is 3.1x, over the 2x
+                            # budget, so "retrieving" ships; it is still 2.3x.
   neighbour_expansion: 1    # attach position ±1 from the same paper
   max_chunk_chars: 2000     # truncation before the chunk enters context
 

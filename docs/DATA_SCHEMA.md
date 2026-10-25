@@ -86,9 +86,11 @@ Stored one-per-line in `chunks.jsonl`. The index-order of lines is meaningless; 
   "position": "int — ordinal within the paper, assigned AFTER within-paper dedup
              so it is always dense. Neighbour expansion depends on this.",
   "n_tokens":    "int",
-  "content_hash": "sha256 of text. Used as an embedding cache key, NOT as a
-                 cross-paper dedup key. Two papers may legitimately contain
-                 identical text; both keep their own chunk records.",
+  "content_hash": "sha256 of text. Identifies the TEXT: long-term memory and the
+                 eval use it to tell whether a chunk changed. NOT a cross-paper
+                 dedup key, and no longer the embedding cache key (that is the
+                 embed hash, §4). Two papers may legitimately contain identical
+                 text; both keep their own chunk records.",
   "figure_id":   "string | null — present only for figure/table chunks",
   "image_path":  "string | null — present only for figure/table chunks",
   "caption":     "string | null — present only for figure/table chunks"
@@ -102,6 +104,12 @@ gains a tag, every one of its chunk records gains it too, in the same operation.
 **`text` for figure and table chunks is `caption + '\n' + description`, concatenated.**
 Not the description alone. The caption carries the authors' exact terminology; the
 generated description tends to paraphrase it away. This is what gets embedded.
+
+**What the first stage sees is not stored here.** With `retrieval.contextual_headers`
+on, the bi-encoder and BM25 see `"{paper_title} — {section}\n{text}"`
+(`src/retrieval/contextual.py`). `text` and `content_hash` stay the plain chunk, and so do
+the cross-encoder's input and what the agent reads. The header is rebuilt from
+`paper_title` and `section` whenever it is needed.
 
 **`position`** is what neighbour expansion walks. It is assigned **after** within-paper
 dedup, so it is dense by construction: `0..n-1` with no holes, covering text and
@@ -166,8 +174,9 @@ papers (or the same paper re-indexed) costs one vision call, not two.
     }
   },
   "faiss_id_map": ["chunk_id", "chunk_id", "..."],
-  "indexed_hashes": ["sha256", "sha256", "..."],
-  "content_hashes": "map sha256 -> embedding cache reference. Not a dedup index.",
+  "indexed_hashes": ["embed hash", "embed hash", "..."],
+  "embed_format": "'plain-v1' | 'header-v1' — what the stored vectors were embedded from",
+  "content_hashes": "legacy, unused: an empty map. Not a dedup index.",
   "manifest_hash": "string — sha256 over paper_ids + chunk count, used as cache key"
 }
 ```
@@ -179,8 +188,22 @@ and it must be written to disk in the same operation that writes the index. Neve
 write one without the other.
 
 **`indexed_hashes` is positional too**, parallel to `faiss_id_map`: index `i` holds the
-`content_hash` of the text actually embedded at FAISS position `i`. It answers a
+**embed hash** of the input actually embedded at FAISS position `i`. It answers a
 question `faiss_id_map` cannot — *is this vector still current?*
+
+The embed hash is `sha256(embedding.model + "\n" + embed_format + "\n" +
+passage_prefix + first-stage text)` (`retrieval.contextual.embed_hash`). It is not the
+chunk's `content_hash`. With headers on, the header is part of what is embedded but not
+of `text`, so a header change (or a bump of `HEADER_FORMAT_VERSION`) leaves
+`content_hash` untouched. Comparing `content_hash` would then keep every stale vector.
+The embed hash moves, and the index is rebuilt.
+
+`embed_format` records which first-stage text the vectors came from. The retriever
+refuses an index whose `embed_format` differs from config (`index_stale`; re-embed with
+`main.py reindex`, which is local). A manifest without the field was embedded plain and
+reads as `plain-v1`. A manifest whose `indexed_hashes` predate embed hashes (they held
+`content_hash`) matches nothing, so it is rebuilt once on the next `index_chunks`, with a
+cold cache.
 
 `chunk_id` is `{paper_id}__c{position}`, so it survives a re-ingest unchanged even when
 the text beneath it does not. Figure chunks are the case that proves it: a figure
@@ -190,7 +213,7 @@ Deciding what to embed by `chunk_id` alone leaves the old caption-only vector in
 forever, and retrieval keeps matching text the chunk no longer contains — silently,
 with no error and no way to notice from the outside.
 
-So a chunk is re-embedded when its `content_hash` differs from its `indexed_hashes`
+So a chunk is re-embedded when its embed hash differs from its `indexed_hashes`
 entry, not merely when its `chunk_id` is absent. An index written before this field
 existed has no entries; those vectors are treated as unknown rather than current, which
 costs one full rebuild on first load and nothing after.
@@ -208,13 +231,16 @@ load. A mismatch means a full rebuild — appending vectors from a different mod
 an existing index silently corrupts retrieval, so this check is mandatory, not
 advisory.
 
-`content_hashes` is an **embedding cache index, not a dedup index.** It maps
-`sha256(text)` to its cached vector in `data/cache/embeddings.json`, so text appearing
-in two papers is embedded once and reused twice. Both papers keep their own chunk
-record; a hash hit removes nothing. Reading this map as a dedup key is exactly what
-would put holes in `position` — see §2.
+The embedding cache, `data/cache/embeddings.json`, is keyed by the embed hash, so
+identical first-stage input in two papers is embedded once and reused twice. It is a
+cache, **not a dedup index**: both papers keep their own chunk record, and a hash hit
+removes nothing. Reading it as a dedup key is exactly what would put holes in `position`
+— see §2. (The manifest's `content_hashes` map is a leftover of an earlier design and
+stays empty.)
 
-`manifest_hash` is what `analyze_corpus` caches cluster results against.
+`manifest_hash` plus `embed_format` is what `analyze_corpus` caches cluster results
+against. The format is in the key because re-embedding with headers changes the vectors
+but not `manifest_hash`.
 
 ---
 
@@ -230,11 +256,11 @@ data/
     embeddings.npy          # float32, shape (n_chunks, embedding_dim), row i aligns with faiss_id_map[i]
     faiss.index
   cache/
-    embeddings.json         # { "<content_hash>": [float, ...] } — embedding reuse across papers
+    embeddings.json         # { "<embed hash>": [float, ...] } — embedding reuse across papers (§4)
     figures/{paper_id}/{figure_id}.png
     descriptions.json       # { "<image_hash>": "<description>" }
     arxiv_queries.json      # { "<sha256(topic)>": "<planned arxiv query>" }
-    clusters.json           # { "<manifest_hash>": { /* cluster result */ } }
+    clusters.json           # { "<manifest_hash>:<embed_format>": { /* cluster result */ } }
   threads.sqlite3           # conversation threads (§9) and long-term memories (§10). Not a cache:
                             # deleting it deletes every chat and everything remembered
 ```

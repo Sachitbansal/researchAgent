@@ -58,9 +58,16 @@ def sweep(thresholds: List[float] = None) -> Dict[str, Any]:
 
 
 def main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[1])
+    parser.add_argument("--out", default="bi_threshold_sweep.json",
+                        help="file name under eval/results/ (a re-check writes a new file "
+                             "rather than over the one docs/EVALUATION.md cites)")
+    args = parser.parse_args()
     print("Sweeping the bi-encoder relevance gate (rerank disabled), tuning split only:")
     result = sweep()
-    out = ROOT / "eval/results/bi_threshold_sweep.json"
+    out = ROOT / "eval" / "results" / Path(args.out).name
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(result, indent=2), encoding="utf-8")
     print(f"\nrecommended: {result['recommended']}")

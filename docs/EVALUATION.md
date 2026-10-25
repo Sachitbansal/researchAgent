@@ -178,6 +178,118 @@ things drive that, and `eval/metrics.py` flags the first in its own docstring:
 Read recall@5 as a relative signal between configurations, never as an absolute — and
 read gold-paper hit rate as the metric that reflects whether the system worked.
 
+## Retrieval upgrade (2026-10-25)
+
+New measurements, beside the cited ones, which are untouched. Retrieval-only, local, tuning
+split only (12 questions: 8 answerable, 4 absent). Decisions are D29–D33 in
+`docs/DECISIONS.md`.
+
+### Where the loss was (`eval/results/retrieval_diagnosis.json`)
+
+| query | pool recall @5 / @10 / @20 / @40 | after rerank @1 / @3 / @5 | gold in pool | median gold bi-rank |
+|---|---|---|---|---|
+| raw question | 0.108 / 0.108 / 0.254 / 0.400 | 0.042 / 0.083 / 0.146 | 19 / 47 | 53 |
+| agent's first query (traces) | 0.104 / 0.171 / 0.279 / 0.621 | 0.087 / 0.175 / 0.237 | 29 / 47 | 32 |
+
+Most gold chunks never reach the 40-slot pool, so rerank cannot rescue them. Of the
+misses, the cross-encoder would put 7 (raw) and 3 (agent) in the top 5 if they had been
+shortlisted. The SparseMixer case is different. `2310_00811v1__c0023` is always in the
+pool (bi-rank 3–16, 16 phrasings), and wording decides whether it reaches the top 5.
+
+### Ablation (`eval/results/retrieval_ablation_v2.json`)
+
+Raw questions, `k=10` returned, gate at −3.0. Each arm uses its own scratch index;
+`data/index` is untouched.
+
+| arm | r@1 | r@3 | r@5 | r@10 | MRR | pool@40 | paper hit | answers (answerable) | abstains (absent) | median latency |
+|---|---|---|---|---|---|---|---|---|---|---|
+| baseline | 0.042 | 0.083 | 0.125 | 0.125 | 0.344 | 0.400 | 0.875 | 0.875 | 1.000 | 1510 ms |
+| +headers | 0.042 | 0.062 | 0.083 | 0.083 | 0.312 | 0.317 | 0.875 | 0.875 | 1.000 | 1515 ms |
+| **+hybrid (shipped)** | **0.062** | **0.125** | **0.188** | **0.229** | **0.479** | **0.567** | 0.875 | 0.875 | **1.000** | 1487 ms |
+| headers+hybrid | 0.062 | 0.125 | 0.188 | 0.229 | 0.479 | 0.567 | 0.875 | 0.875 | 1.000 | 1474 ms |
+| +multi (retrieving) | 0.042 | 0.083 | 0.104 | 0.167 | 0.338 | 0.421 | 0.875 | 0.875 | 1.000 | 3049 ms |
+| hybrid+multi (all pairs) | 0.042 | 0.104 | 0.167 | 0.250 | 0.410 | 0.504 | 0.875 | 0.875 | 1.000 | 4293 ms |
+| hybrid+multi (retrieving) | 0.042 | 0.104 | 0.167 | 0.250 | 0.410 | 0.504 | 0.875 | 0.875 | 1.000 | 3253 ms |
+
+The same arms on each question's first agent query, replayed from the main checkout's
+traces (10 tuning questions; af01/af02 have no trace):
+
+| arm | r@5 | r@10 | MRR | pool@40 | paper hit |
+|---|---|---|---|---|---|
+| baseline | 0.237 | 0.321 | 0.656 | 0.621 | 1.000 |
+| +headers | 0.196 | 0.279 | 0.542 | 0.537 | 0.875 |
+| +hybrid | 0.279 | 0.362 | 0.656 | 0.662 | 1.000 |
+| headers+hybrid | 0.279 | 0.362 | 0.667 | 0.683 | 0.875 |
+
+- **Hybrid is the only arm that helps.** Its abstention holds at 1.000, and its latency is
+  flat because the pool stays 40.
+- **Headers hurt the dense pool.** With hybrid they add nothing. They ship off.
+- **Multi-query was measured with a deterministic split, not an LLM.** It uses the
+  question plus its clauses, split at sentence ends and ", and <wh-word>" (7 of 12
+  questions split). The second clause is often a pronoun fragment ("what does it propose
+  to fix that"), so this is a lower bound. It lowered MRR, because the clauses share one
+  40-slot pool. Rerank cost: 4364 ms over 120 pairs for every pair, against 1428 ms for
+  one query (3.1×). Scoring only the sub-queries that found a candidate costs 3323 ms over
+  93 pairs (2.3×), and ships.
+- **SparseMixer, before → after** (`eval/results/sparsemixer_case_v2.json`): single
+  queries are unchanged, with c0023 in the top 5 for 9 of 16 phrasings both times.
+  Broad wording ("SparseMixer results", "limitations", "… results benchmarks") ranks it #13–18. Paired with a
+  specific sub-query in `queries`, it ranks #1, #1 and #5: top 5 in 3 of 3.
+
+### Thresholds re-checked (`threshold_sweep_v2.json`, `bi_threshold_sweep_v2.json`)
+
+The cross-encoder gate stays at −3.0. It is still the balanced best (0.933; −2.0 ties at
+a lower MRR). The bi-encoder fallback stays at 0.55, but on the 12-question split its best
+balance is 0.400: it abstains on 1 of 4 absent questions, since ni02, af01 and af02 score
+cosines ≥ 0.71. That number comes from the larger split, not from hybrid: the max cosine
+is identical either way. Nothing changed, and nothing is pending.
+
+### Agent run, tuning split (`eval/results/retrieval_v2.json`)
+
+Final config (hybrid on, headers off, `multi_query_rerank: retrieving`), with an arXiv
+cooldown planted so that no fetch could reach arXiv. `search_literature` was called 0
+times. One run of a hosted model.
+
+| metric | baseline (10 q, cited) | CRAG phase 2 (12 q) | retrieval v2 (12 q) |
+|---|---|---|---|
+| fact coverage | 1.000 | 1.000 | 0.969 |
+| abstention accuracy | 1.000 | 1.000 | 1.000 |
+| abstains on absent (answer text) | 1.000 | 1.000 | 0.750 |
+| citations resolved | 1.000 | 1.000 | 1.000 |
+| gold-paper hit rate | 1.000 | 1.000 | 1.000 |
+| MRR | 0.660 | 0.750 | 0.781 |
+| recall@1 / @3 / @5 | 0.088 / 0.175 / 0.238 | 0.108 / 0.150 / 0.342 | 0.108 / 0.196 / 0.321 |
+| `fetch_proposal_on_fetchable` | — | 0.667 | 1.000 |
+| `fetch_proposal_on_answerable` | — | 0.000 | 0.125 |
+| median time per question | 33.7 s | 29.7 s | 36.5 s |
+
+- **No clear agent-level gain.** MRR and recall move within one question's worth of noise
+  against CRAG phase 2. The offline MRR gain does not show at the agent level, because the
+  agent writes keyword queries, where hybrid adds less (+0.042 recall@5, MRR unchanged).
+- **The agent never used `queries`.** None of 42 `retrieve_evidence` calls passed it. The
+  tool description alone did not change behaviour, so multi-query's agent-level effect is
+  unmeasured.
+- **af01: "abstains on absent" 0.75 is a text-marker miss, not a gate failure.** All three
+  retrieves failed the gate (top rerank −8.95, −5.46, −3.98, all below −3.0). It proposed
+  a fetch, and its answer opens "The indexed corpus does not cover this topic". That
+  phrase is not in `eval/metrics.py`'s marker list, so `abstention_accuracy`, which also
+  reads the gate, stays 1.000. No threshold is involved.
+- **sp03: the false fetch proposal (0.125 = 1 of 8).** Its first seven retrieves passed
+  (top rerank +0.02, +0.56, −1.87, −2.80, −2.79, −2.02, +4.25). The hybrid first call
+  returned four QPruner gold chunks, against three for dense alone. The agent then
+  kept searching with quoted boolean syntax. Its last two calls failed at −3.47 and −6.21,
+  and the last unfiltered failure (−6.21, well beyond the 0.25 rephrase margin) proposed a
+  fetch. The answer led with QLoRA, which a corpus chunk mentions, and had no citations.
+  No swept threshold fixes this: −6.21 passes only at −8.0, where absent abstention falls
+  to 0.25. This is agent behaviour (one hosted-model run), and it
+  interacts with D18/D24's "last unfiltered call" rule.
+- **sp02: facts 4/4 → 3/4, citations 5 → 1.** Attributable to hybrid. On the agent's query
+  BM25 added three chunks from an off-target paper that clear the gate (−1.47 to −2.18).
+  Dense alone returned the one gold chunk plus two off-target ones, and neither arm
+  returned the other gold chunks.
+- **ni02 now proposes a fetch.** In phase 2 it did not, so `fetch_proposal_on_fetchable`
+  is 3 of 3.
+
 ## Relevance threshold sweep
 
 Cross-encoder scores are uncalibrated logits spanning roughly −11..+11, so the gate
@@ -350,3 +462,14 @@ python scripts/m8_gate.py        # both splits plus the rerank ablation
 
 Threshold sweep: `python -m eval.tune_threshold`. Ablation alone: `python -m eval.ablation`.
 Results land in `eval/results/`.
+
+Retrieval upgrade (local, no LLM, no arXiv), each writing its own new file:
+
+```bash
+python eval/diagnose_retrieval.py --traces ../researchAgent/logs/traces   # retrieval_diagnosis.json
+python eval/diagnose_retrieval.py --case-only --out eval/results/sparsemixer_case_v2.json
+python eval/retrieval_ablation.py --traces ../researchAgent/logs/traces   # retrieval_ablation_v2.json
+python -m eval.tune_threshold --out threshold_sweep_v2.json
+python -m eval.tune_bi_threshold --out bi_threshold_sweep_v2.json
+python main.py eval --out retrieval_v2                                    # one LLM run
+```

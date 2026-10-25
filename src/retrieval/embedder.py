@@ -1,7 +1,8 @@
 """
-Bi-encoder embedding of chunk text and queries, with a content-hash vector cache.
+Bi-encoder embedding of passages and queries, with a vector cache keyed by input hash.
 
-In:  passage texts (as stored) or a query string; the model name comes from config.
+In:  passage texts (for chunks, the first-stage text from retrieval.contextual) or a query
+     string; the model name comes from config.
 Out: float32 numpy arrays, L2-normalised so inner product equals cosine similarity.
      Queries get BGE's instruction prefix; passages never do.
 """
@@ -23,11 +24,11 @@ class EmbeddingError(RuntimeError):
 
 
 class EmbeddingCache:
-    """content_hash -> vector, persisted as JSON.
+    """embed hash -> vector, persisted as JSON.
 
-    Keyed by the hash of the text, never by chunk_id, so identical text appearing in two
-    papers is embedded once and reused — while both papers keep their own chunk record
-    (docs/DATA_SCHEMA.md section 2).
+    Keyed by the hash of the exact embedder input (retrieval.contextual.embed_hash), never
+    by chunk_id, so identical input in two papers is embedded once and reused — while both
+    papers keep their own chunk record (docs/DATA_SCHEMA.md section 2).
     """
 
     def __init__(self, config: Config = CFG) -> None:
@@ -109,18 +110,26 @@ class Embedder:
         return array
 
     def encode_passages(
-        self, texts: Sequence[str], cache: Optional[EmbeddingCache] = None
+        self,
+        texts: Sequence[str],
+        cache: Optional[EmbeddingCache] = None,
+        keys: Optional[Sequence[str]] = None,
     ) -> np.ndarray:
-        """Embed stored chunk text. No instruction prefix — BGE is asymmetric.
+        """Embed passage text. No instruction prefix — BGE is asymmetric.
 
-        Uses the cache for text already embedded, and encodes only the misses.
+        Uses the cache for text already embedded, and encodes only the misses. `keys` are
+        the cache keys, one per text; the indexer passes embed hashes
+        (retrieval.contextual.embed_hash), which cover the exact embedder input. Without
+        keys the key is the sha256 of the text.
         """
         if not texts:
             return np.zeros((0, self.dim), dtype=np.float32)
+        if keys is not None and len(keys) != len(texts):
+            raise EmbeddingError(f"{len(texts)} texts but {len(keys)} cache keys")
 
         out: List[Optional[np.ndarray]] = [None] * len(texts)
         pending: List[int] = []
-        digests = [content_hash(text) for text in texts]
+        digests = list(keys) if keys is not None else [content_hash(text) for text in texts]
 
         if cache is not None:
             for index, digest in enumerate(digests):
