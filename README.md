@@ -267,7 +267,9 @@ runs, and the page tells you to run the build command.
 `cd frontend && npm run dev` and open the address Vite prints (default
 <http://127.0.0.1:5173>). Vite proxies `/api` to `127.0.0.1:8000`. Set
 `SCIAGENT_BACKEND=http://127.0.0.1:PORT` if the server listens on another port.
-`npm run typecheck` runs `tsc` alone.
+`npm run typecheck` runs `tsc` alone; `npm run check:markdown` runs the answer
+renderer's checks (math, citations, escaping). Styling is Tailwind v4, with the palette,
+type scale and radii as tokens in `frontend/src/styles.css`; answers render math with KaTeX.
 
 **Left: chats and corpus.** *New chat*; *Chats*, the stored threads, newest first, each
 one deletable; *Samples*; and *Corpus*: every indexed paper grouped by the topic it was
@@ -400,7 +402,7 @@ src/
   prompts/             system prompt, thread-history prompts and tool descriptions, as files
 eval/                  question set, annotation, metrics, tuning, ablation
 web/                   the browser UI's server — FastAPI, streams agent steps as SSE
-frontend/              the browser UI — Vite + React + TypeScript, built into frontend/dist/
+frontend/              the browser UI — Vite + React + TypeScript, Tailwind v4, KaTeX; built into frontend/dist/
 scripts/               one verification gate per milestone, m0..m8, plus the M9 demos
 tests/                 unit and smoke tests
 docs/                  the specs — these are authority, not background reading

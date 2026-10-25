@@ -8,6 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import * as api from "../api";
 import type { MemoryRecord, MemorySettings, Paper, ThreadSummary } from "../types";
 import { clip, humanise, plural, relTime } from "../format";
+import { renderMathText } from "../markdown";
+import { COUNT, PAGE, PAGE_TITLE, QUIET } from "../ui";
 import { Icon } from "../icons";
 import { CitationCard, type CiteTarget } from "./CitationCard";
 
@@ -24,6 +26,15 @@ interface Status {
 }
 
 const errText = (e: unknown, what: string) => (e instanceof api.ApiError ? `${what}: ${e.detail || humanise(e.code)}` : `${what}.`);
+const SECTION = "mt-8";
+const HEADING = "mb-1 flex items-baseline gap-2 text-16 font-semibold";
+const EXPLAIN = "mb-3 text-13.5 leading-1.55 text-soft";
+const EMPTY = "border-t border-rule py-3 text-13.5 text-faint";
+const LIST = "border-t border-rule";
+const HINT = "text-12.5 text-faint";
+const FIELD_ERROR = "mt-1 text-13 text-danger";
+const NOTE_TONE = { none: "border-rule-strong bg-panel", warn: "border-mark-edge bg-mark-wash", error: "border-danger bg-danger-wash text-danger" };
+
 const days = (n: number) => (n < 1 ? "less than a day" : plural(Math.round(n), "day"));
 
 export function MemoriesView({ papersById, threads, version }: Props) {
@@ -120,8 +131,8 @@ export function MemoriesView({ papersById, threads, version }: Props) {
 
   // ---------------------------------------------------------------- layout
 
-  if (loadError && rows === null) return <div className="page"><p className="quiet">The memories could not be loaded: {loadError}</p></div>;
-  if (rows === null) return <div className="page"><p className="quiet">Loading memories…</p></div>;
+  if (loadError && rows === null) return <div className={PAGE}><p className={QUIET}>The memories could not be loaded: {loadError}</p></div>;
+  if (rows === null) return <div className={PAGE}><p className={QUIET}>Loading memories…</p></div>;
 
   const item = (m: MemoryRecord) => (
     <MemoryItem
@@ -137,67 +148,76 @@ export function MemoriesView({ papersById, threads, version }: Props) {
   );
 
   return (
-    <div className="page memories-page">
-      <h2 className="page-title">Memories</h2>
-      <p className="page-lede">
+    <div className={PAGE}>
+      <h2 className={PAGE_TITLE}>Memories</h2>
+      <p className="mb-6 leading-1.6 text-soft">
         {plural(nActive, "active memory", "active memories")}. The agent keeps findings from answers that their own passages
         support, and preferences you state. Findings fade when they go unused. Memories are leads the agent checks against their
         passages before it relies on them, never sources it cites.
       </p>
 
-      <div className="mx-toolbar">
-        <label className="mx-search">
+      <div className="mb-2 flex items-center gap-3">
+        <label
+          className="flex min-h-9 max-w-[22rem] flex-1 items-center gap-2 rounded-md border border-rule-strong bg-raise px-3 text-faint
+            focus-within:border-accent focus-within:shadow-[0_0_0_3px_var(--color-accent-wash)]"
+        >
           <Icon name="search" size={16} />
           <span className="sr-only">Filter memories</span>
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter by text" />
+          <input
+            className="min-w-0 flex-1 bg-transparent px-0.5 py-px font-sans text-14 leading-1.4 text-ink outline-none"
+            type="search"
+            value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Filter by text" />
         </label>
-        {q && <span className="quiet small">{plural(shown.length, "match", "matches")}</span>}
+        {q && <span className="text-13 text-soft">{plural(shown.length, "match", "matches")}</span>}
       </div>
 
-      <div className="mx-status" role="status" aria-live="polite">
+      <div role="status" aria-live="polite">
         {status && (
-          <p className={`mx-note${status.tone ? ` is-${status.tone}` : ""}`}>
-            <span>{status.text}</span>
+          <p className={`mx-auto mt-2 flex items-center gap-3 rounded-md border py-1 pr-1 pl-3 text-13.5 ${NOTE_TONE[status.tone ?? "none"]}`}>
+            <span className="flex-1">{status.text}</span>
             {status.undo && <button className="link-btn" onClick={() => { const id = status.undo!; setStatus(null); restore(id); }}>Undo</button>}
-            <button className="icon-btn mx-note-close" onClick={() => setStatus(null)} aria-label="Dismiss"><Icon name="close" size={14} /></button>
+            <button className="icon-btn size-7 max-md:size-11" onClick={() => setStatus(null)} aria-label="Dismiss"><Icon name="close" size={14} /></button>
           </p>
         )}
       </div>
-      {loadError && <p className="small mem-error">Could not refresh: {loadError}</p>}
+      {loadError && <p className="my-[1em] text-13 text-danger">Could not refresh: {loadError}</p>}
 
-      <section className="mx-section" aria-labelledby="mx-prefs">
-        <h3 className="mx-heading" id="mx-prefs">Preferences <span className="topic-count">{prefs.length}</span></h3>
-        <p className="mx-explain">Followed in every chat unless a question says otherwise. They never fade; they change only when you edit them or state a new one.</p>
+      <section className={SECTION} aria-labelledby="mx-prefs">
+        <h3 className={HEADING} id="mx-prefs">Preferences <span className={COUNT}>{prefs.length}</span></h3>
+        <p className={EXPLAIN}>Followed in every chat unless a question says otherwise. They never fade; they change only when you edit them or state a new one.</p>
         <AddPreference onAdd={add} maxChars={settings?.max_text_chars} />
-        {prefs.length ? <ul className="mx-list">{prefs.map(item)}</ul> : (
-          <p className="mx-empty">{q ? "No preference matches the filter." : "No preferences yet. Add one above, or state one in a chat (“only consider papers from 2024 onward”)."}</p>
+        {prefs.length ? <ul className={LIST}>{prefs.map(item)}</ul> : (
+          <p className={EMPTY}>{q ? "No preference matches the filter." : "No preferences yet. Add one above, or state one in a chat (“only consider papers from 2024 onward”)."}</p>
         )}
       </section>
 
-      <section className="mx-section" aria-labelledby="mx-findings">
-        <h3 className="mx-heading" id="mx-findings">Findings <span className="topic-count">{findings.length}</span></h3>
-        <p className="mx-explain">
+      <section className={SECTION} aria-labelledby="mx-findings">
+        <h3 className={HEADING} id="mx-findings">Findings <span className={COUNT}>{findings.length}</span></h3>
+        <p className={EXPLAIN}>
           Given to the agent, with their passages, when a question is close to one.
           {settings && ` A finding used once and then left alone is forgotten after about ${days(settings.fresh_days)}; each time an answer cites it again, it lasts longer.`}
           {" "}Findings can't be added by hand: each one has to rest on passages an answer cited.
         </p>
-        {findings.length ? <ul className="mx-list">{findings.map(item)}</ul> : (
-          <p className="mx-empty">{q ? "No finding matches the filter." : "No findings yet. They are kept after answers in a chat whose passages support them."}</p>
+        {findings.length ? <ul className={LIST}>{findings.map(item)}</ul> : (
+          <p className={EMPTY}>{q ? "No finding matches the filter." : "No findings yet. They are kept after answers in a chat whose passages support them."}</p>
         )}
       </section>
 
-      <details className="mx-section mx-gone">
-        <summary>
+      <details className={`group ${SECTION}`}>
+        <summary
+          className="mb-1 flex w-fit cursor-pointer list-none items-baseline gap-2 rounded-sm text-16 font-semibold [&::-webkit-details-marker]:hidden
+            [&>svg]:rotate-90 [&>svg]:self-center [&>svg]:text-faint [&>svg]:transition-transform group-open:[&>svg]:rotate-180"
+        >
           <Icon name="chevron" size={16} />
-          Forgotten and replaced <span className="topic-count">{gone.length}</span>
+          Forgotten and replaced <span className={COUNT}>{gone.length}</span>
         </summary>
-        <p className="mx-explain">
+        <p className={EXPLAIN}>
           No longer given to the agent.{" "}
           {settings ? `Each is kept for ${days(settings.purge_after_days)} after it stopped being active, then deleted for good.` : "Each is kept for a while, then deleted for good."}
           {" "}A memory deleted for good is gone and can't be restored.
         </p>
-        {gone.length ? <ul className="mx-list">{gone.map(item)}</ul> : (
-          <p className="mx-empty">{q ? "Nothing here matches the filter." : "Nothing forgotten yet."}</p>
+        {gone.length ? <ul className={LIST}>{gone.map(item)}</ul> : (
+          <p className={EMPTY}>{q ? "Nothing here matches the filter." : "Nothing forgotten yet."}</p>
         )}
       </details>
 
@@ -226,10 +246,11 @@ function AddPreference({ onAdd, maxChars }: { onAdd: (text: string) => Promise<s
   };
 
   return (
-    <form className="mx-add" onSubmit={submit}>
+    <form className="mb-3 flex flex-wrap gap-2" onSubmit={submit}>
       <label className="sr-only" htmlFor="mx-add-input">Add a preference</label>
       <input
         id="mx-add-input"
+        className="field min-h-9 min-w-48 flex-1 px-3 font-sans text-14.5 leading-1.55"
         value={text}
         maxLength={maxChars}
         onChange={(e) => { setText(e.target.value); setError(null); }}
@@ -238,13 +259,15 @@ function AddPreference({ onAdd, maxChars }: { onAdd: (text: string) => Promise<s
         aria-describedby={error ? "mx-add-error" : undefined}
         disabled={busy}
       />
-      <button type="submit" className="btn btn-primary" disabled={!text.trim() || busy}>{busy ? "Adding…" : "Add"}</button>
-      {error && <p className="mx-field-error" id="mx-add-error">{error}</p>}
+      <button type="submit" className="btn btn-primary min-h-9" disabled={!text.trim() || busy}>{busy ? "Adding…" : "Add"}</button>
+      {error && <p className={`${FIELD_ERROR} basis-full`} id="mx-add-error">{error}</p>}
     </form>
   );
 }
 
 // ------------------------------------------------------------------ one memory
+
+const CHIP_NOTE = "font-sans text-11 leading-none text-faint";
 
 function reasonText(m: MemoryRecord, s: MemorySettings | null): string {
   switch (m.forget_reason) {
@@ -327,12 +350,13 @@ function MemoryItem({ memory: m, settings, threadTitle, onSave, onDelete, onRest
     ) : m.source_thread_id ? <span>From a chat since deleted</span> : null;
 
   return (
-    <li className={`mx-item${m.active ? "" : " is-gone"}`}>
+    <li className="border-b border-rule pt-3 pb-2.5">
       {editing ? (
-        <form className="mx-edit" onSubmit={submit}>
+        <form onSubmit={submit}>
           <label className="sr-only" htmlFor={`mx-edit-${m.id}`}>Edit this {m.kind}</label>
           <textarea
             id={`mx-edit-${m.id}`}
+            className="field w-full resize-y px-3 py-2 font-sans text-15 leading-1.55"
             value={draft}
             autoFocus
             rows={Math.min(8, Math.max(2, Math.ceil(draft.length / 80)))}
@@ -343,29 +367,29 @@ function MemoryItem({ memory: m, settings, threadTitle, onSave, onDelete, onRest
             aria-describedby={error ? errId : undefined}
             disabled={busy}
           />
-          {error && <p className="mx-field-error" id={errId}>{error}</p>}
-          <div className="mx-edit-actions">
+          {error && <p className={FIELD_ERROR} id={errId}>{error}</p>}
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             <button type="submit" className="btn btn-primary" disabled={!draft.trim() || busy}>{busy ? (finding ? "Checking…" : "Saving…") : "Save"}</button>
             <button type="button" className="btn" onClick={cancel} disabled={busy}>Cancel</button>
-            <span className="mx-hint">
+            <span className={HINT}>
               {finding ? "Saving re-checks the new wording against its passages. " : ""}Ctrl+Enter saves, Esc cancels.
             </span>
           </div>
         </form>
       ) : (
-        <p className="mx-text">{m.text}</p>
+        <p className={`text-15 leading-1.55 wrap-anywhere ${m.active ? "" : "text-soft"}`} dangerouslySetInnerHTML={{ __html: renderMathText(m.text) }} />
       )}
 
       {finding && m.active && m.user_edited && !editing && (
         m.verified === false ? (
-          <p className="mx-flag is-warn">Edited by you; not supported by its passages. The agent is told to treat it with extra caution.</p>
+          <p className="mt-1.5 rounded-sm border-l-3 border-mark-edge bg-mark-wash px-2 py-1 text-13 text-ink">Edited by you; not supported by its passages. The agent is told to treat it with extra caution.</p>
         ) : (
-          <p className="mx-flag">Edited by you; still supported by its passages.</p>
+          <p className="mt-1.5 text-13 text-soft">Edited by you; still supported by its passages.</p>
         )
       )}
 
       {finding && (m.passages?.length || m.chunk_ids.length) > 0 && (
-        <div className="mx-chips" aria-label="Passages it rests on">
+        <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Passages it rests on">
           {(m.passages ?? m.chunk_ids.map((c) => ({ chunk_id: c, paper_id: c.split("__")[0], text: null, present: true, changed: false }))).map((p) => (
             <button
               key={p.chunk_id}
@@ -375,13 +399,13 @@ function MemoryItem({ memory: m, settings, threadTitle, onSave, onDelete, onRest
               title={!p.present ? "No longer in the index" : p.changed ? "Its text changed since this was checked" : "Show the passage"}
             >
               {p.chunk_id}
-              {!p.present ? <span className="mx-chip-note">gone</span> : p.changed ? <span className="mx-chip-note">changed</span> : null}
+              {!p.present ? <span className={CHIP_NOTE}>gone</span> : p.changed ? <span className={CHIP_NOTE}>changed</span> : null}
             </button>
           ))}
         </div>
       )}
 
-      <div className="mx-meta">
+      <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-0.5 text-12.5 text-faint">
         {m.active ? (
           <>
             {finding ? <span>Used {m.use_count}×, last {relTime(m.last_used_at)}</span> : <span>Added {relTime(m.created_at)}</span>}
@@ -397,9 +421,9 @@ function MemoryItem({ memory: m, settings, threadTitle, onSave, onDelete, onRest
       </div>
 
       {finding && m.active && m.strength_fraction != null && (
-        <div className={`mx-strength${fading ? " is-fading" : ""}`}>
+        <div className={`mt-1.5 flex items-center gap-2 text-12.5 ${fading ? "text-soft" : "text-faint"}`}>
           <span
-            className="meter"
+            className="relative h-1.5 w-16 flex-none overflow-hidden rounded-[3px] bg-rule"
             role="meter"
             aria-label="Strength"
             aria-valuemin={0}
@@ -408,20 +432,20 @@ function MemoryItem({ memory: m, settings, threadTitle, onSave, onDelete, onRest
             aria-valuetext={`${m.strength?.toFixed(2)}, forgotten below ${settings?.min_strength}`}
             title={`Strength ${m.strength?.toFixed(2)}: uses × recency. Forgotten below ${settings?.min_strength}.`}
           >
-            <span style={{ width: `${Math.max(3, Math.round(m.strength_fraction * 100))}%` }} />
+            <span className={`absolute inset-y-0 left-0 rounded-[3px] ${fading ? "bg-mark-edge" : "bg-faint"}`} style={{ width: `${Math.max(3, Math.round(m.strength_fraction * 100))}%` }} />
           </span>
           <span>
             {fading ? "Fading: " : ""}forgotten in about {days(m.fades_in_days ?? 0)} unless an answer uses it
-            <span className="mx-strength-num"> · strength {m.strength?.toFixed(2)}, forgotten below {settings?.min_strength}</span>
+            <span className="text-faint"> · strength {m.strength?.toFixed(2)}, forgotten below {settings?.min_strength}</span>
           </span>
         </div>
       )}
 
       {!editing && (
-        <div className="mx-actions">
+        <div className={`mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 ${m.active ? "-ml-2" : ""}`}>
           {m.active ? (
             confirming ? (
-              <span className="mx-confirm" role="group" aria-label="Confirm delete">
+              <span className="flex flex-wrap items-center gap-2 pl-2 text-13.5" role="group" aria-label="Confirm delete">
                 <span>Delete this {m.kind}?</span>
                 <button className="btn btn-danger" autoFocus onClick={() => { setConfirming(false); onDelete(); }}>Delete</button>
                 <button className="btn" onClick={() => setConfirming(false)}>Keep</button>
@@ -435,7 +459,7 @@ function MemoryItem({ memory: m, settings, threadTitle, onSave, onDelete, onRest
           ) : (
             <>
               <button className="btn" onClick={onRestore} disabled={m.restorable === false} aria-describedby={m.restore_blocked ? `mx-rb-${m.id}` : undefined}>Restore</button>
-              {m.restore_blocked && <span className="mx-hint" id={`mx-rb-${m.id}`}>Can't be restored: {m.restore_blocked}.</span>}
+              {m.restore_blocked && <span className={HINT} id={`mx-rb-${m.id}`}>Can't be restored: {m.restore_blocked}.</span>}
             </>
           )}
         </div>
