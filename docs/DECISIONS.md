@@ -314,6 +314,13 @@ reason (a default, nobody answered), it says so. Agent design lives in
 - **Method:** `eval/tune_threshold.py` and `tune_bi_threshold.py`, run unchanged on the tuning split under the final config. They write new `_v2` files via `--out`, so the cited sweeps stay untouched.
 - **No change is pending.**
 
+## D34 — The Fetch card shows exactly when the answer cites nothing
+*2026-10-25 · `src/agent/fetch_proposal.py`*
+- **Decision:** a fetch is proposed when the final answer contains no `[chunk_id]` citation (and no fetch ran). Supersedes D24's "last unfiltered retrieve failed" trigger; the subject still comes from that retrieve's gap when there is one, and D28 rewrites the query.
+- **By:** user, on Claude's recommendation.
+- **Why:** the tuning run showed both failure modes of the old trigger: mp03 answered fully with 7 citations and still got a card from a late failed search; af01 correctly refused, but loosely related chunks passed the gate, so no card appeared.
+- **Rejected:** keeping D24; requiring every unfiltered retrieve to fail (misses af01).
+
 ---
 
 ## Benched questions
